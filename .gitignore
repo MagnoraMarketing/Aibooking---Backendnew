@@ -20,3 +20,4 @@ npm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 coverage
+package-lock.json
