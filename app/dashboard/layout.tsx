@@ -10,8 +10,11 @@ export const dynamic = "force-dynamic";
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const ctx = await requireAuth();
 
+  if (ctx.profile.role === "MASTER_ADMIN") {
+    redirect("/admin");
+  }
+
   if (ctx.profile.role !== "CUSTOMER_ADMIN" || !ctx.profile.customer_id) {
-    // The master admin dashboard is a separate, not-yet-built deliverable.
     redirect("/login");
   }
 
