@@ -13,6 +13,16 @@ export const createCustomerSchema = z.object({
   sendInvitation: z.boolean().optional().default(true),
 });
 
+// ---------------------------------------------------------------------------
+// Public: self-service signup
+// ---------------------------------------------------------------------------
+export const signupSchema = z.object({
+  companyName: z.string().trim().min(1).max(200),
+  email: z.string().trim().email().max(320),
+  password: z.string().min(8).max(200),
+  language: z.enum(["da", "en"]).default("da"),
+});
+
 export const updateCustomerSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   email: z.string().trim().email().max(320).optional(),

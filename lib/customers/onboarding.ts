@@ -21,7 +21,7 @@ export interface OnboardCustomerResult {
   invitationSent: boolean;
 }
 
-async function getDefaultOrSpecified<T extends { id: string; active: boolean; is_default: boolean }>(
+export async function getDefaultOrSpecified<T extends { id: string; active: boolean; is_default: boolean }>(
   table: "packages" | "llm_models" | "voice_models",
   specifiedId: string | undefined
 ): Promise<T> {
