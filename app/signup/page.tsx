@@ -51,9 +51,14 @@ export default function SignupPage() {
 
       router.push("/dashboard");
       router.refresh();
-    } catch {
+    } catch (err) {
       setLoading(false);
-      setError("Kontoen blev muligvis oprettet, men noget gik galt. Prøv at logge ind manuelt.");
+      if (err instanceof Error && err.message === "timeout") {
+        setError("Kontoen blev muligvis oprettet, men login tog for lang tid. Prøv at logge ind manuelt.");
+      } else {
+        const detail = err instanceof Error ? err.message : "Ukendt fejl";
+        setError(`Kontoen blev muligvis oprettet, men noget gik galt: ${detail}`);
+      }
     }
   }
 

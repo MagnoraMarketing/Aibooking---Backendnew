@@ -45,9 +45,14 @@ function LoginForm() {
       const next = searchParams.get("next") || "/dashboard";
       router.push(next);
       router.refresh();
-    } catch {
+    } catch (err) {
       setLoading(false);
-      setError("Kunne ikke oprette forbindelse. Tjek din internetforbindelse og prøv igen.");
+      if (err instanceof Error && err.message === "timeout") {
+        setError("Kunne ikke oprette forbindelse. Tjek din internetforbindelse og prøv igen.");
+      } else {
+        const detail = err instanceof Error ? err.message : "Ukendt fejl";
+        setError(`Teknisk fejl: ${detail}`);
+      }
     }
   }
 
