@@ -31,6 +31,7 @@ export const POST = withErrorHandling(async (request) => {
       max_tokens: body.maxTokens,
       active: body.active,
       is_default: body.isDefault,
+      show_in_create_flow: body.showInCreateFlow,
     })
     .select("*")
     .single();
