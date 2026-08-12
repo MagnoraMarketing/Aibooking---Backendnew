@@ -19,6 +19,7 @@ export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
           title="Test agent"
           className="h-[560px] w-full"
           sandbox="allow-scripts allow-same-origin allow-forms"
+          allow="microphone; autoplay"
         />
       </div>
       <p className="text-sm text-slate-500">

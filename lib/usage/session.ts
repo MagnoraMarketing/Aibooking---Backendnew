@@ -60,6 +60,19 @@ export async function appendTurnUsage(params: {
   if (error) throw new Error(`Failed to update usage session: ${error.message}`);
 }
 
+// Overwrites the accrued duration with a client-reported value — used for
+// realtime (WebRTC) sessions, where nothing accrues server-side turn by turn
+// the way it does for the text pipeline (see appendTurnUsage above).
+export async function setUsageSessionDuration(usageSessionId: string, durationSeconds: number): Promise<void> {
+  const supabase = getAdminClient();
+  const { error } = await supabase
+    .from("usage_sessions")
+    .update({ duration_seconds: durationSeconds })
+    .eq("id", usageSessionId);
+
+  if (error) throw new Error(`Failed to set usage session duration: ${error.message}`);
+}
+
 // Ends the session, bills the accumulated duration against the customer's
 // credit ledger, and marks the conversation as ended.
 export async function finalizeUsageSession(usageSessionId: string): Promise<UsageSession> {

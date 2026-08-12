@@ -135,6 +135,10 @@ export const widgetSessionStartSchema = z.object({
 
 export const widgetSessionEndSchema = z.object({
   sessionId: z.string().uuid(),
+  // Realtime (WebRTC) sessions never touch our server mid-call, so the
+  // browser reports how long the call actually lasted when it ends —
+  // unlike the text pipeline, where duration accrues turn-by-turn server-side.
+  clientMeasuredDurationSeconds: z.number().nonnegative().max(7200).optional(),
 });
 
 export const widgetMessageSchema = z.object({
