@@ -93,6 +93,7 @@ export interface LLMModel {
   max_tokens: number;
   active: boolean;
   is_default: boolean;
+  show_in_create_flow: boolean;
   created_at: string;
   updated_at: string;
 }

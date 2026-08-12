@@ -11,6 +11,7 @@ import {
 } from "@/lib/llm";
 import { resolveTTSProvider, estimateTTSCost } from "@/lib/tts";
 import { recordLLMUsage, recordTTSUsage, appendTurnUsage, estimateSpeechDurationSeconds } from "@/lib/usage";
+import { getSummarizationModelName } from "@/lib/settings/platform";
 import type { LLMModel, VoiceModel, Widget } from "@/types/database";
 import { ApiError } from "@/types/errors";
 
@@ -60,9 +61,16 @@ export async function handleConversationTurn(params: HandleTurnParams): Promise<
   const llmProvider = resolveLLMProvider(params.llmModel.provider);
 
   if (shouldSummarize(history)) {
+    const summarizationModelName = await getSummarizationModelName();
+    const { data: summarizationModelRow } = await supabase
+      .from("llm_models")
+      .select("*")
+      .eq("model_name", summarizationModelName)
+      .maybeSingle<LLMModel>();
+
     const toSummarize = messagesToSummarize(history);
     const summaryResult = await llmProvider.summarize({
-      model: params.llmModel.model_name,
+      model: summarizationModelName,
       existingSummary: summary,
       messages: toSummarize,
     });
@@ -81,14 +89,14 @@ export async function handleConversationTurn(params: HandleTurnParams): Promise<
       widgetId: params.widget.id,
       conversationId: params.conversationId,
       usageSessionId: params.usageSessionId,
-      model: params.llmModel.model_name,
+      model: summarizationModelName,
       inputTokens: summaryResult.inputTokens,
       outputTokens: summaryResult.outputTokens,
       estimatedCost: estimateLLMCost({
         inputTokens: summaryResult.inputTokens,
         outputTokens: summaryResult.outputTokens,
-        inputPricePerMillion: params.llmModel.input_price_per_million,
-        outputPricePerMillion: params.llmModel.output_price_per_million,
+        inputPricePerMillion: summarizationModelRow?.input_price_per_million ?? params.llmModel.input_price_per_million,
+        outputPricePerMillion: summarizationModelRow?.output_price_per_million ?? params.llmModel.output_price_per_million,
       }),
     });
   }

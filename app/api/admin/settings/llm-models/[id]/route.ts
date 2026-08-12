@@ -22,6 +22,7 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   if (body.maxTokens !== undefined) row.max_tokens = body.maxTokens;
   if (body.active !== undefined) row.active = body.active;
   if (body.isDefault !== undefined) row.is_default = body.isDefault;
+  if (body.showInCreateFlow !== undefined) row.show_in_create_flow = body.showInCreateFlow;
 
   const { data, error } = await supabase
     .from("llm_models")

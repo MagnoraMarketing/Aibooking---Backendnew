@@ -57,6 +57,7 @@ export const llmModelInputSchema = z.object({
   maxTokens: z.number().int().positive().max(8192).default(1024),
   active: z.boolean().default(true),
   isDefault: z.boolean().default(false),
+  showInCreateFlow: z.boolean().default(false),
 });
 
 export const llmModelUpdateSchema = llmModelInputSchema.partial();
