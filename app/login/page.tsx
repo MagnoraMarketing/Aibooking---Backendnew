@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/database/browser";
 
@@ -14,7 +14,6 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,8 +42,11 @@ function LoginForm() {
       }
 
       const next = searchParams.get("next") || "/dashboard";
-      router.push(next);
-      router.refresh();
+      // A hard navigation (not router.push) so the very next request is
+      // guaranteed to carry the just-set auth cookies — a client-side
+      // soft navigation can race ahead of the cookie write and hit the
+      // dashboard's server-side auth check with no session yet.
+      window.location.href = next;
     } catch (err) {
       setLoading(false);
       if (err instanceof Error && err.message === "timeout") {

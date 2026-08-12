@@ -1,4 +1,4 @@
-import { requireCustomerAdmin } from "@/lib/auth";
+import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { AgentsManager } from "@/components/dashboard/agents-manager";
 import type { LLMModel, Widget } from "@/types/database";
@@ -6,7 +6,7 @@ import type { LLMModel, Widget } from "@/types/database";
 export const dynamic = "force-dynamic";
 
 export default async function AgentListPage() {
-  const ctx = await requireCustomerAdmin();
+  const ctx = await requireCustomerAdminForPage();
   const supabase = getAdminClient();
 
   const [{ data: widgets }, { data: llmModels }] = await Promise.all([

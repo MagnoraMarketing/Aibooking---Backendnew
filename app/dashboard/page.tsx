@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireCustomerAdmin } from "@/lib/auth";
+import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { getCustomerEconomics } from "@/lib/analytics";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -51,7 +51,7 @@ const ICONS = {
 };
 
 export default async function DashboardPage() {
-  const ctx = await requireCustomerAdmin();
+  const ctx = await requireCustomerAdminForPage();
   const customerId = ctx.profile.customer_id!;
   const supabase = getAdminClient();
 

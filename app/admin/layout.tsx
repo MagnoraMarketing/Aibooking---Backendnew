@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthForPage } from "@/lib/auth";
 import { AdminHeader } from "@/components/admin/header";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const ctx = await requireAuth();
+  const ctx = await requireAuthForPage();
 
   if (ctx.profile.role !== "MASTER_ADMIN") {
     redirect(ctx.profile.role === "CUSTOMER_ADMIN" ? "/dashboard" : "/login");
