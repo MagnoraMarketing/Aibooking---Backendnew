@@ -49,8 +49,10 @@ export default function SignupPage() {
         return;
       }
 
-      router.push("/dashboard");
-      router.refresh();
+      // Hard navigation, not router.push: guarantees the dashboard's
+      // server-side auth check sees the just-set session cookie instead of
+      // possibly racing ahead of it (see app/login/page.tsx for the same fix).
+      window.location.href = "/dashboard";
     } catch (err) {
       setLoading(false);
       if (err instanceof Error && err.message === "timeout") {

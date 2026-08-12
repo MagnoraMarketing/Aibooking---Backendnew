@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireCustomerAdmin } from "@/lib/auth";
+import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import type { Conversation, ConversationMessage, ConversationSummary, Widget } from "@/types/database";
 
@@ -23,7 +23,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default async function ConversationDetailPage({ params }: { params: { id: string } }) {
-  const ctx = await requireCustomerAdmin();
+  const ctx = await requireCustomerAdminForPage();
   const supabase = getAdminClient();
 
   const { data: conversation } = await supabase

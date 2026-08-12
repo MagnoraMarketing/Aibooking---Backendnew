@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireMasterAdmin } from "@/lib/auth";
+import { requireMasterAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { CustomerWidgetList } from "@/components/admin/customer-detail";
 import type { Customer, Package, Subscription, Widget } from "@/types/database";
@@ -8,7 +8,7 @@ import type { Customer, Package, Subscription, Widget } from "@/types/database";
 export const dynamic = "force-dynamic";
 
 export default async function AdminCustomerDetailPage({ params }: { params: { id: string } }) {
-  await requireMasterAdmin();
+  await requireMasterAdminForPage();
   const supabase = getAdminClient();
 
   const { data: customer } = await supabase

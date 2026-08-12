@@ -1,4 +1,4 @@
-import { requireMasterAdmin } from "@/lib/auth";
+import { requireMasterAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { getSystemStats } from "@/lib/analytics";
 import { ClientPortal, type AdminStats, type ClientRow } from "@/components/admin/client-portal";
@@ -7,7 +7,7 @@ import type { Customer, Package, Subscription } from "@/types/database";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  await requireMasterAdmin();
+  await requireMasterAdminForPage();
   const supabase = getAdminClient();
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();

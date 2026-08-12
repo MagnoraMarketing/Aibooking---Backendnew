@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { Header } from "@/components/dashboard/header";
 import type { Customer } from "@/types/database";
@@ -8,7 +8,7 @@ import type { Customer } from "@/types/database";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const ctx = await requireAuth();
+  const ctx = await requireAuthForPage();
 
   if (ctx.profile.role === "MASTER_ADMIN") {
     redirect("/admin");

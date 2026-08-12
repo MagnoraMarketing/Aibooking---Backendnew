@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireCustomerAdmin } from "@/lib/auth";
+import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
 import { hasEmbedCodeAccess, trialDaysRemaining } from "@/lib/billing";
@@ -10,7 +10,7 @@ import type { Customer, LLMModel, Package, Subscription, VoiceModel, Widget } fr
 export const dynamic = "force-dynamic";
 
 export default async function AgentConfigurePage({ params }: { params: { id: string } }) {
-  const ctx = await requireCustomerAdmin();
+  const ctx = await requireCustomerAdminForPage();
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
