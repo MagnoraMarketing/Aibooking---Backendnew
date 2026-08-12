@@ -19,32 +19,42 @@ export default function SignupPage() {
     setError(null);
     setLoading(true);
 
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ companyName, email, password, language }),
-    });
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName, email, password, language }),
+      });
 
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      setError(body?.error?.message ?? "Kunne ikke oprette kontoen. Prøv igen.");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error?.message ?? "Kunne ikke oprette kontoen. Prøv igen.");
+        setLoading(false);
+        return;
+      }
+
+      const supabase = getBrowserClient();
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 15000)
+      );
+      const { error: signInError } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        timeout,
+      ]);
+
+      if (signInError) {
+        setLoading(false);
+        setError("Kontoen blev oprettet, men login fejlede — prøv at logge ind manuelt.");
+        router.push("/login");
+        return;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
       setLoading(false);
-      return;
+      setError("Kontoen blev muligvis oprettet, men noget gik galt. Prøv at logge ind manuelt.");
     }
-
-    const supabase = getBrowserClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-
-    setLoading(false);
-
-    if (signInError) {
-      setError("Kontoen blev oprettet, men login fejlede — prøv at logge ind manuelt.");
-      router.push("/login");
-      return;
-    }
-
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (

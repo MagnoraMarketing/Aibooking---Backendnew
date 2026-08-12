@@ -26,19 +26,29 @@ function LoginForm() {
     setError(null);
     setLoading(true);
 
-    const supabase = getBrowserClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const supabase = getBrowserClient();
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 15000)
+      );
+      const { error: signInError } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        timeout,
+      ]);
 
-    setLoading(false);
+      if (signInError) {
+        setLoading(false);
+        setError("Forkert email eller adgangskode.");
+        return;
+      }
 
-    if (signInError) {
-      setError("Forkert email eller adgangskode.");
-      return;
+      const next = searchParams.get("next") || "/dashboard";
+      router.push(next);
+      router.refresh();
+    } catch {
+      setLoading(false);
+      setError("Kunne ikke oprette forbindelse. Tjek din internetforbindelse og prøv igen.");
     }
-
-    const next = searchParams.get("next") || "/dashboard";
-    router.push(next);
-    router.refresh();
   }
 
   return (
