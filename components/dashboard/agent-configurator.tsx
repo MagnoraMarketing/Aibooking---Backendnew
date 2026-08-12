@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { LLMModel, VoiceModel, Widget } from "@/types/database";
+import type { LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { SettingsTab } from "./agent-tabs/settings-tab";
 import { TestAgentTab } from "./agent-tabs/test-agent";
@@ -43,9 +43,19 @@ interface AgentConfiguratorProps {
   initialWidget: WidgetWithExtras;
   llmModels: LLMModel[];
   voiceModels: VoiceModel[];
+  embedCodeUnlocked: boolean;
+  trialDaysRemaining: number;
+  pkg: Package | null;
 }
 
-export function AgentConfigurator({ initialWidget, llmModels, voiceModels }: AgentConfiguratorProps) {
+export function AgentConfigurator({
+  initialWidget,
+  llmModels,
+  voiceModels,
+  embedCodeUnlocked,
+  trialDaysRemaining,
+  pkg,
+}: AgentConfiguratorProps) {
   const [widget, setWidget] = useState(initialWidget);
   const [activeTab, setActiveTab] = useState<TabKey>("prompt");
 
@@ -91,7 +101,14 @@ export function AgentConfigurator({ initialWidget, llmModels, voiceModels }: Age
       ) : null}
       {activeTab === "test" ? <TestAgentTab widget={widget} /> : null}
       {activeTab === "customize" ? <CustomizeWidgetTab widget={widget} savePatch={savePatch} /> : null}
-      {activeTab === "embed" ? <EmbedCodeTab widget={widget} /> : null}
+      {activeTab === "embed" ? (
+        <EmbedCodeTab
+          widget={widget}
+          unlocked={embedCodeUnlocked}
+          trialDaysRemaining={trialDaysRemaining}
+          pkg={pkg}
+        />
+      ) : null}
     </div>
   );
 }
