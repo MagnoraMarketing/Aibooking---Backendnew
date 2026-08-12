@@ -1,12 +1,23 @@
-import { DashboardPlaceholder } from "@/components/dashboard/placeholder";
+import { requireCustomerAdmin } from "@/lib/auth";
+import { getAdminClient } from "@/lib/database/admin";
+import { AgentsManager } from "@/components/dashboard/agents-manager";
+import type { LLMModel, Widget } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-export default function AgentPage() {
-  return (
-    <DashboardPlaceholder
-      title="Agent"
-      description="Administration af jeres AI-agenter (stemme, sprog, prompts) flyttes hertil."
-    />
-  );
+export default async function AgentListPage() {
+  const ctx = await requireCustomerAdmin();
+  const supabase = getAdminClient();
+
+  const [{ data: widgets }, { data: llmModels }] = await Promise.all([
+    supabase
+      .from("widgets")
+      .select("*")
+      .eq("customer_id", ctx.profile.customer_id!)
+      .order("created_at", { ascending: false })
+      .returns<Widget[]>(),
+    supabase.from("llm_models").select("*").eq("active", true).order("display_name").returns<LLMModel[]>(),
+  ]);
+
+  return <AgentsManager initialWidgets={widgets ?? []} llmModels={llmModels ?? []} />;
 }

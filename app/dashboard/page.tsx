@@ -142,7 +142,7 @@ export default async function DashboardPage() {
                 {recentlyUsedWidgets.map((widget) => (
                   <li key={widget.id}>
                     <Link
-                      href="/dashboard/agent"
+                      href={`/dashboard/agent/${widget.id}`}
                       className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
                       {widget.name}

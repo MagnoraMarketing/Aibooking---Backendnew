@@ -108,6 +108,24 @@ export const createWidgetSchema = widgetUpdateSchema.extend({
   name: z.string().trim().min(1).max(200).default("Main widget"),
 });
 
+// Free-form widget preferences that don't have a dedicated widgets column —
+// stored in widget_settings.extra (jsonb) and merged in on PATCH, never
+// replaced wholesale, so unrelated keys set by other tabs survive.
+export const widgetExtraSettingsSchema = z
+  .object({
+    tagline: z.string().trim().max(200).nullable(),
+    isGlowing: z.boolean(),
+    isTransparent: z.boolean(),
+    transcriptionEnabled: z.boolean(),
+    chatEnabled: z.boolean(),
+    autostart: z.boolean(),
+    muteOnMinimize: z.boolean(),
+    muteOnTabChange: z.boolean(),
+    showLeadForm: z.boolean(),
+    agentMute: z.boolean(),
+  })
+  .partial();
+
 // ---------------------------------------------------------------------------
 // Widget (public, end-user facing)
 // ---------------------------------------------------------------------------
