@@ -19,7 +19,7 @@ interface CookieToSet {
 // not the only line of defense.
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isDashboardRoute = pathname.startsWith("/dashboard");
+  const isProtectedRoute = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
   const isLoginRoute = pathname === "/login";
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (isDashboardRoute && !user) {
+    if (isProtectedRoute && !user) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("next", pathname);
@@ -75,5 +75,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/login"],
 };
