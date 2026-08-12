@@ -95,13 +95,17 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
     throw new Error(`Failed to create account: ${authError?.message}`);
   }
 
-  await supabase.from("profiles").insert({
+  const { error: profileError } = await supabase.from("profiles").insert({
     id: created.user.id,
     role: "CUSTOMER_ADMIN",
     customer_id: customer.id,
     full_name: params.companyName,
     language: params.language,
   });
+
+  if (profileError) {
+    throw new Error(`Failed to create profile: ${profileError.message}`);
+  }
 
   return { customer: customer as Customer, widget: widget as Widget, userId: created.user.id };
 }
