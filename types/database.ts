@@ -172,6 +172,19 @@ export interface ConversationSummary {
   created_at: string;
 }
 
+export type AppointmentStatus = "booked" | "failed";
+
+export interface Appointment {
+  id: string;
+  customer_id: string;
+  widget_id: string | null;
+  conversation_id: string | null;
+  customer_name: string | null;
+  appointment_time: string;
+  status: AppointmentStatus;
+  created_at: string;
+}
+
 export interface UsageSession {
   id: string;
   customer_id: string;

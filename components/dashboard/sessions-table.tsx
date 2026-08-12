@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { SessionDetailsModal } from "./session-details-modal";
 
 export interface SessionRow {
   id: string;
@@ -25,6 +25,7 @@ function formatDate(iso: string): string {
 
 export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
   const [page, setPage] = useState(1);
+  const [openConversationId, setOpenConversationId] = useState<string | null>(null);
   const pageCount = Math.max(1, Math.ceil(sessions.length / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
   const pageRows = sessions.slice(start, start + PAGE_SIZE);
@@ -66,12 +67,13 @@ export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
                 </td>
                 <td className="px-5 py-3 text-slate-600">{row.minutesUsed.toFixed(2)}</td>
                 <td className="px-5 py-3 text-right">
-                  <Link
-                    href={`/dashboard/conversations/${row.id}`}
+                  <button
+                    type="button"
+                    onClick={() => setOpenConversationId(row.id)}
                     className="text-sm font-medium text-brand-600 hover:text-brand-700"
                   >
                     Se samtale
-                  </Link>
+                  </button>
                 </td>
               </tr>
             ))}
@@ -100,6 +102,10 @@ export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
           Næste
         </button>
       </div>
+
+      {openConversationId ? (
+        <SessionDetailsModal conversationId={openConversationId} onClose={() => setOpenConversationId(null)} />
+      ) : null}
     </div>
   );
 }

@@ -14,7 +14,7 @@ export const GET = withErrorHandling(async (_request, { params }) => {
 
   const { data: conversation, error: convError } = await supabase
     .from("conversations")
-    .select("id, customer_id")
+    .select("*")
     .eq("id", params.id)
     .maybeSingle();
 
@@ -23,13 +23,27 @@ export const GET = withErrorHandling(async (_request, { params }) => {
     throw ApiError.notFound("Conversation not found");
   }
 
-  const { data: messages, error } = await supabase
-    .from("conversation_messages")
-    .select("*")
-    .eq("conversation_id", params.id)
-    .order("created_at", { ascending: true });
+  const [{ data: messages, error: messagesError }, { data: widget }, { data: summaries }] = await Promise.all([
+    supabase
+      .from("conversation_messages")
+      .select("*")
+      .eq("conversation_id", params.id)
+      .order("created_at", { ascending: true }),
+    supabase.from("widgets").select("name").eq("id", conversation.widget_id).maybeSingle(),
+    supabase
+      .from("conversation_summaries")
+      .select("*")
+      .eq("conversation_id", params.id)
+      .order("created_at", { ascending: false })
+      .limit(1),
+  ]);
 
-  if (error) throw error;
+  if (messagesError) throw messagesError;
 
-  return NextResponse.json({ messages });
+  return NextResponse.json({
+    conversation,
+    widgetName: widget?.name ?? null,
+    messages,
+    summary: summaries?.[0]?.summary ?? null,
+  });
 });
