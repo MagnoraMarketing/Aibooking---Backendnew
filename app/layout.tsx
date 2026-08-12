@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AIbooking.dk",
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="da">
-      <body>{children}</body>
+      <body className="font-sans text-slate-900 antialiased">{children}</body>
     </html>
   );
 }
