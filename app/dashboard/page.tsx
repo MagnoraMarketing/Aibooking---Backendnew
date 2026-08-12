@@ -4,7 +4,8 @@ import { getAdminClient } from "@/lib/database/admin";
 import { getCustomerEconomics } from "@/lib/analytics";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { SessionsTable, type SessionRow } from "@/components/dashboard/sessions-table";
-import type { Conversation, Widget } from "@/types/database";
+import { AppointmentsList } from "@/components/dashboard/appointments-list";
+import type { Appointment, Conversation, Widget } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -54,17 +55,25 @@ export default async function DashboardPage() {
   const customerId = ctx.profile.customer_id!;
   const supabase = getAdminClient();
 
-  const [economics, { data: widgetsData }, { data: conversationsData }] = await Promise.all([
-    getCustomerEconomics(customerId),
-    supabase.from("widgets").select("*").eq("customer_id", customerId).returns<Widget[]>(),
-    supabase
-      .from("conversations")
-      .select("*")
-      .eq("customer_id", customerId)
-      .order("started_at", { ascending: false })
-      .limit(RECENT_CONVERSATIONS_LIMIT)
-      .returns<Conversation[]>(),
-  ]);
+  const [economics, { data: widgetsData }, { data: conversationsData }, { data: appointmentsData }] =
+    await Promise.all([
+      getCustomerEconomics(customerId),
+      supabase.from("widgets").select("*").eq("customer_id", customerId).returns<Widget[]>(),
+      supabase
+        .from("conversations")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("started_at", { ascending: false })
+        .limit(RECENT_CONVERSATIONS_LIMIT)
+        .returns<Conversation[]>(),
+      supabase
+        .from("appointments")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("appointment_time", { ascending: false })
+        .limit(10)
+        .returns<Appointment[]>(),
+    ]);
 
   const widgets = widgetsData ?? [];
   const conversations = conversationsData ?? [];
@@ -132,25 +141,32 @@ export default async function DashboardPage() {
           <SessionsTable sessions={sessions} />
         </div>
 
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-slate-900">Senest brugte widgets</h2>
-          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-            {recentlyUsedWidgets.length === 0 ? (
-              <p className="p-3 text-sm text-slate-500">Ingen widgets brugt endnu.</p>
-            ) : (
-              <ul className="space-y-1">
-                {recentlyUsedWidgets.map((widget) => (
-                  <li key={widget.id}>
-                    <Link
-                      href={`/dashboard/agent/${widget.id}`}
-                      className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                    >
-                      {widget.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-slate-900">Senest brugte widgets</h2>
+            <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+              {recentlyUsedWidgets.length === 0 ? (
+                <p className="p-3 text-sm text-slate-500">Ingen widgets brugt endnu.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {recentlyUsedWidgets.map((widget) => (
+                    <li key={widget.id}>
+                      <Link
+                        href={`/dashboard/agent/${widget.id}`}
+                        className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        {widget.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-slate-900">Bookinger</h2>
+            <AppointmentsList appointments={appointmentsData ?? []} />
           </div>
         </div>
       </div>
