@@ -16,7 +16,7 @@ export default async function AgentListPage() {
       .eq("customer_id", ctx.profile.customer_id!)
       .order("created_at", { ascending: false })
       .returns<Widget[]>(),
-    supabase.from("llm_models").select("*").eq("active", true).order("display_name").returns<LLMModel[]>(),
+    supabase.from("llm_models").select("*").eq("active", true).eq("is_default", true).returns<LLMModel[]>(),
   ]);
 
   return <AgentsManager initialWidgets={widgets ?? []} llmModels={llmModels ?? []} />;

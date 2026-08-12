@@ -16,6 +16,10 @@ export interface PublicWidgetConfig {
   position: string;
   widgetSize: string;
   showBranding: boolean;
+  // "realtime" widgets (Expert model / OpenAI Realtime over WebRTC) get a
+  // voice-first UI in widget.js instead of the text-chat panel — see
+  // buildRealtimeUI() there.
+  mode: "text" | "realtime";
 }
 
 export function toPublicWidgetConfig(bundle: WidgetBundle): PublicWidgetConfig {
@@ -33,5 +37,6 @@ export function toPublicWidgetConfig(bundle: WidgetBundle): PublicWidgetConfig {
     position: widget.position,
     widgetSize: widget.widget_size,
     showBranding: widget.show_branding,
+    mode: bundle.llmModel?.provider === "openai" ? "realtime" : "text",
   };
 }
