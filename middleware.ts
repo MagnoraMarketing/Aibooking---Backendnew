@@ -20,7 +20,7 @@ interface CookieToSet {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isProtectedRoute = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
-  const isLoginRoute = pathname === "/login";
+  const isLoginRoute = pathname === "/login" || pathname === "/signup";
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -75,5 +75,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/login"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/login", "/signup"],
 };

@@ -19,6 +19,7 @@ export interface Profile {
   role: UserRole;
   customer_id: string | null;
   full_name: string | null;
+  language: string;
   created_at: string;
   updated_at: string;
 }

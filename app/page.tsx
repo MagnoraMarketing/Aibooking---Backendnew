@@ -13,6 +13,10 @@ export default function HomePage() {
         <Link href="/login" style={{ color: "#3866f5", fontWeight: 600 }}>
           Log ind på dashboardet →
         </Link>
+        {" · "}
+        <Link href="/signup" style={{ color: "#3866f5", fontWeight: 600 }}>
+          Opret konto →
+        </Link>
       </p>
     </main>
   );
