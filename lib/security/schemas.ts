@@ -157,6 +157,21 @@ export const widgetSessionEndSchema = z.object({
   clientMeasuredDurationSeconds: z.number().nonnegative().max(7200).optional(),
 });
 
+// Knowledge base ingestion (see lib/knowledge-base) — PDF upload goes
+// through multipart/form-data instead (see the knowledge-base route),
+// since a base64-encoded file would blow past MAX_REQUEST_BODY_BYTES.
+export const knowledgeBaseInputSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("text"),
+    text: z.string().trim().min(1).max(50000),
+    label: z.string().trim().min(1).max(200).optional(),
+  }),
+  z.object({
+    type: z.literal("url"),
+    url: z.string().trim().url().max(2000),
+  }),
+]);
+
 export const widgetMessageSchema = z.object({
   sessionId: z.string().uuid(),
   conversationId: z.string().uuid(),

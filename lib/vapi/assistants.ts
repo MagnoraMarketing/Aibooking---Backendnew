@@ -3,6 +3,12 @@ import { getSummarizationModelName } from "@/lib/settings/platform";
 
 const VAPI_API_BASE = "https://api.vapi.ai";
 
+// Used whenever a widget doesn't have its own opening_message yet (e.g. a
+// freshly created agent) — same role as DEFAULT_REALTIME_INSTRUCTIONS in
+// lib/realtime/index.ts's caller, but Vapi calls it firstMessage rather
+// than instructions.
+export const DEFAULT_VAPI_FIRST_MESSAGE = "Hej, hvordan kan jeg hjælpe dig?";
+
 function getPrivateKey(): string {
   const privateKey = process.env.VAPI_PRIVATE_KEY;
   if (!privateKey) throw new Error("Missing required environment variable: VAPI_PRIVATE_KEY");

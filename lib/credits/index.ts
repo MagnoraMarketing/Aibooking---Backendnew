@@ -2,6 +2,7 @@ export {
   getBalanceSeconds,
   grantCredits,
   deductUsage,
+  deductKnowledgeBaseCost,
   manualAdjustment,
   refundCredits,
   expireCredits,

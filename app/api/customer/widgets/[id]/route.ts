@@ -11,8 +11,7 @@ import {
   requireParam,
 } from "@/lib/security";
 import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
-import { getDefaultSystemPrompt } from "@/lib/settings/platform";
-import { updateVapiAssistant, DEFAULT_VAPI_FIRST_MESSAGE } from "@/lib/vapi";
+import { syncWidgetToVapiAssistant } from "@/lib/vapi";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -98,30 +97,17 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     await supabase.from("widget_settings").upsert({ widget_id: widgetId, extra });
   }
 
-  // Keep the linked Vapi assistant (see lib/vapi/assistants.ts) in sync
-  // whenever anything it depends on changes — the assistant id itself
-  // (just set above), or the name/prompt/opening message it was created
-  // from. Best-effort: a Vapi hiccup shouldn't block saving the rest of the
+  // Keep the linked Vapi assistant (see lib/vapi/sync.ts) in sync whenever
+  // anything it depends on changes — the assistant id itself (just set
+  // above), or the name/prompt/opening message it was created from.
+  // Best-effort: a Vapi hiccup shouldn't block saving the rest of the
   // widget's settings, unlike creation (app/api/customer/widgets/route.ts),
   // where an unprovisioned assistant means the agent can never take a call.
-  const vapiAssistantId = typeof extra.vapiAssistantId === "string" ? extra.vapiAssistantId : null;
   const relevantFieldsChanged =
     widgetFields.name !== undefined || widgetFields.systemPrompt !== undefined || widgetFields.openingMessage !== undefined;
 
-  if (vapiAssistantId && (relevantFieldsChanged || extraUpdate?.vapiAssistantId !== undefined)) {
-    const { data: llmModel } = data.llm_model_id
-      ? await supabase.from("llm_models").select("provider").eq("id", data.llm_model_id).maybeSingle()
-      : { data: null };
-
-    if (llmModel?.provider === "vapi") {
-      await updateVapiAssistant(vapiAssistantId, {
-        name: data.name,
-        systemPrompt: data.system_prompt ?? (await getDefaultSystemPrompt()),
-        firstMessage: data.opening_message ?? DEFAULT_VAPI_FIRST_MESSAGE,
-      }).catch((err) => {
-        console.error("Failed to sync widget to Vapi assistant:", err);
-      });
-    }
+  if (relevantFieldsChanged || extraUpdate?.vapiAssistantId !== undefined) {
+    await syncWidgetToVapiAssistant(data, extra);
   }
 
   await writeAuditLog({

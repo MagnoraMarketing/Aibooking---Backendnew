@@ -1,12 +1,12 @@
 import "server-only";
 
-export { createVapiAssistant, updateVapiAssistant, type VapiAssistantParams } from "./assistants";
-
-// Used whenever a widget doesn't have its own opening_message yet (e.g. a
-// freshly created agent) — same role as DEFAULT_REALTIME_INSTRUCTIONS in
-// lib/realtime/index.ts's caller, but Vapi calls it firstMessage rather
-// than instructions.
-export const DEFAULT_VAPI_FIRST_MESSAGE = "Hej, hvordan kan jeg hjælpe dig?";
+export {
+  createVapiAssistant,
+  updateVapiAssistant,
+  DEFAULT_VAPI_FIRST_MESSAGE,
+  type VapiAssistantParams,
+} from "./assistants";
+export { syncWidgetToVapiAssistant } from "./sync";
 
 function getPublicKey(): string {
   const publicKey = process.env.VAPI_PUBLIC_KEY;

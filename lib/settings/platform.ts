@@ -51,3 +51,32 @@ export async function setSummarizationModelName(modelName: string): Promise<void
 
   if (error) throw new Error(`Failed to update summarization model: ${error.message}`);
 }
+
+// Knowledge base ingestion (see lib/knowledge-base) has no per-token cost of
+// its own — the content is stuffed into the system prompt, so its real cost
+// is the extra tokens sent on every future turn. This rate converts ingested
+// characters into an equivalent one-time deduction from the same per-minute
+// credit ledger everything else uses, rather than adding a second pricing
+// dimension. Admin-configurable so the rate can be tuned without a deploy.
+const FALLBACK_KB_SECONDS_PER_1000_CHARS = 60;
+
+export async function getKnowledgeBaseSecondsPer1000Chars(): Promise<number> {
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from("platform_settings")
+    .select("value")
+    .eq("key", "knowledge_base_seconds_per_1000_chars")
+    .maybeSingle();
+
+  if (!data || typeof data.value !== "number") return FALLBACK_KB_SECONDS_PER_1000_CHARS;
+  return data.value;
+}
+
+export async function setKnowledgeBaseSecondsPer1000Chars(seconds: number): Promise<void> {
+  const supabase = getAdminClient();
+  const { error } = await supabase
+    .from("platform_settings")
+    .upsert({ key: "knowledge_base_seconds_per_1000_chars", value: seconds });
+
+  if (error) throw new Error(`Failed to update knowledge base pricing: ${error.message}`);
+}

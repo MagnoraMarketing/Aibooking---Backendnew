@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import type { LLMModel, Package, VoiceModel, Widget } from "@/types/database";
+import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { SettingsTab } from "./agent-tabs/settings-tab";
 import { TestAgentTab } from "./agent-tabs/test-agent";
 import { CustomizeWidgetTab } from "./agent-tabs/customize-widget";
 import { EmbedCodeTab } from "./agent-tabs/embed-code";
+import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
 
 export interface WidgetExtra {
   tagline?: string | null;
@@ -20,6 +22,7 @@ export interface WidgetExtra {
   showLeadForm?: boolean;
   agentMute?: boolean;
   vapiAssistantId?: string | null;
+  knowledgeBase?: KnowledgeBaseSource[];
 }
 
 export interface WidgetWithExtras extends Widget {
@@ -33,6 +36,7 @@ export type SavePatch = (patch: Record<string, unknown>) => Promise<boolean>;
 const TABS = [
   { key: "prompt", label: "Prompt Lab" },
   { key: "settings", label: "Settings" },
+  { key: "knowledge", label: "Knowledge Base" },
   { key: "test", label: "Test Agent" },
   { key: "customize", label: "Customise Widget" },
   { key: "embed", label: "Embed Code" },
@@ -99,6 +103,14 @@ export function AgentConfigurator({
       {activeTab === "prompt" ? <PromptLabTab widget={widget} savePatch={savePatch} /> : null}
       {activeTab === "settings" ? (
         <SettingsTab widget={widget} llmModels={llmModels} voiceModels={voiceModels} savePatch={savePatch} />
+      ) : null}
+      {activeTab === "knowledge" ? (
+        <KnowledgeBaseTab
+          widget={widget}
+          onSourcesChange={(knowledgeBase) =>
+            setWidget((prev) => ({ ...prev, extra: { ...prev.extra, knowledgeBase } }))
+          }
+        />
       ) : null}
       {activeTab === "test" ? <TestAgentTab widget={widget} /> : null}
       {activeTab === "customize" ? <CustomizeWidgetTab widget={widget} savePatch={savePatch} /> : null}
