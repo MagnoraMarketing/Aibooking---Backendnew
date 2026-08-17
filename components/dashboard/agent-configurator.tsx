@@ -19,6 +19,7 @@ export interface WidgetExtra {
   muteOnTabChange?: boolean;
   showLeadForm?: boolean;
   agentMute?: boolean;
+  vapiAssistantId?: string | null;
 }
 
 export interface WidgetWithExtras extends Widget {
