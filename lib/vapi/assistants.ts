@@ -1,0 +1,85 @@
+import "server-only";
+import { getSummarizationModelName } from "@/lib/settings/platform";
+
+const VAPI_API_BASE = "https://api.vapi.ai";
+
+function getPrivateKey(): string {
+  const privateKey = process.env.VAPI_PRIVATE_KEY;
+  if (!privateKey) throw new Error("Missing required environment variable: VAPI_PRIVATE_KEY");
+  return privateKey;
+}
+
+export interface VapiAssistantParams {
+  name: string;
+  systemPrompt: string;
+  firstMessage: string;
+}
+
+// Same Claude model the rest of the app treats as "the" canonical Anthropic
+// model for behind-the-scenes calls not tied to a specific widget's own LLM
+// choice (see getSummarizationModelName's own doc comment) — reused here
+// rather than inventing a second notion of "default model".
+async function resolveModelName(): Promise<string> {
+  return getSummarizationModelName();
+}
+
+// Fixed transcriber/voice combination, matching how this account's
+// hand-configured Vapi assistants are already set up (Soniox STT RT v5,
+// Vapi's own "Elliot" voice) — not per-widget configurable yet.
+function buildAssistantBody(params: VapiAssistantParams, modelName: string) {
+  return {
+    name: params.name,
+    firstMessage: params.firstMessage,
+    model: {
+      provider: "anthropic",
+      model: modelName,
+      messages: [{ role: "system", content: params.systemPrompt }],
+    },
+    transcriber: {
+      provider: "soniox",
+      model: "stt-rt-v5",
+      languageHints: ["da", "en"],
+    },
+    voice: {
+      provider: "vapi",
+      version: 2,
+      voiceId: "Elliot",
+    },
+  };
+}
+
+async function vapiFetch(path: string, init: RequestInit): Promise<Response> {
+  const response = await fetch(`${VAPI_API_BASE}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${getPrivateKey()}`,
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(`Vapi API request failed: ${response.status} ${errorBody}`);
+  }
+
+  return response;
+}
+
+export async function createVapiAssistant(params: VapiAssistantParams): Promise<{ id: string }> {
+  const modelName = await resolveModelName();
+  const response = await vapiFetch("/assistant", {
+    method: "POST",
+    body: JSON.stringify(buildAssistantBody(params, modelName)),
+  });
+  const data = (await response.json()) as { id: string };
+  return { id: data.id };
+}
+
+export async function updateVapiAssistant(assistantId: string, params: VapiAssistantParams): Promise<void> {
+  const modelName = await resolveModelName();
+  await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(buildAssistantBody(params, modelName)),
+  });
+}

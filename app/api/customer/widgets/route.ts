@@ -4,6 +4,7 @@ import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, createWidgetSchema } from "@/lib/security";
 import { generatePublicWidgetId, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
+import { createVapiAssistant, DEFAULT_VAPI_FIRST_MESSAGE } from "@/lib/vapi";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -58,6 +59,33 @@ export const POST = withErrorHandling(async (request) => {
   if (error) throw error;
 
   await supabase.from("widget_settings").insert({ widget_id: widget.id, extra: {} });
+
+  // Agents are now created exclusively on the Vapi model (see
+  // 0012_vapi_default_model.sql) — provision the matching Vapi assistant
+  // eagerly so the agent can actually take a call the moment it's created,
+  // rather than failing lazily on first session start.
+  const { data: llmModel } = body.llmModelId
+    ? await supabase.from("llm_models").select("provider").eq("id", body.llmModelId).maybeSingle()
+    : { data: null };
+
+  if (llmModel?.provider === "vapi") {
+    try {
+      const assistant = await createVapiAssistant({
+        name: widget.name,
+        systemPrompt,
+        firstMessage: widget.opening_message ?? DEFAULT_VAPI_FIRST_MESSAGE,
+      });
+      await supabase
+        .from("widget_settings")
+        .update({ extra: { vapiAssistantId: assistant.id } })
+        .eq("widget_id", widget.id);
+    } catch (err) {
+      // Don't leave behind a widget that can never take a call — widget_settings
+      // cascades on delete (see 0001_init_schema.sql).
+      await supabase.from("widgets").delete().eq("id", widget.id);
+      throw err;
+    }
+  }
 
   await writeAuditLog({
     actorId: ctx.userId,
