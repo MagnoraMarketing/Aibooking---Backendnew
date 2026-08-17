@@ -25,6 +25,12 @@ export function widgetUpdateToDbRow(input: WidgetUpdateInput): Record<string, un
   if (input.widgetSize !== undefined) row.widget_size = input.widgetSize;
   if (input.showBranding !== undefined) row.show_branding = input.showBranding;
   if (input.maxResponseChars !== undefined) row.max_response_chars = input.maxResponseChars;
+  if (input.businessDescription !== undefined) row.business_description = input.businessDescription;
+  if (input.businessPhone !== undefined) row.business_phone = input.businessPhone;
+  if (input.businessEmail !== undefined) row.business_email = input.businessEmail;
+  if (input.websiteUrl !== undefined) row.website_url = input.websiteUrl;
+  if (input.widgetMode !== undefined) row.widget_mode = input.widgetMode;
+  if (input.widgetTheme !== undefined) row.widget_theme = input.widgetTheme;
 
   return row;
 }

@@ -5,6 +5,7 @@ import type { LLMModel, VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 import { ComingSoonField } from "../coming-soon-field";
 import { ToggleSwitch } from "../toggle-switch";
+import { SUPPORTED_LANGUAGES } from "@/lib/widgets/languages";
 
 interface SettingsTabProps {
   widget: WidgetWithExtras;
@@ -85,8 +86,11 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
             onChange={(e) => setLanguage(e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           >
-            <option value="da">Dansk</option>
-            <option value="en">Engelsk</option>
+            {SUPPORTED_LANGUAGES.map((lang) => (
+              <option key={lang.code} value={lang.code}>
+                {lang.label}
+              </option>
+            ))}
           </select>
         </div>
 

@@ -4,6 +4,8 @@
 export type UserRole = "MASTER_ADMIN" | "CUSTOMER_ADMIN";
 export type CustomerStatus = "active" | "inactive" | "deleted";
 export type WidgetStatus = "active" | "paused";
+export type WidgetMode = "voice" | "chat" | "both";
+export type WidgetTheme = "light" | "dark";
 export type ConversationStatus = "active" | "ended";
 export type MessageRole = "system" | "user" | "assistant";
 export type CreditTransactionType =
@@ -133,6 +135,21 @@ export interface Widget {
   widget_size: string;
   show_branding: boolean;
   max_response_chars: number;
+  // Vapi integration — nullable/defaulted, unrelated to the fields above
+  // used by the existing custom Anthropic+ElevenLabs pipeline. A widget is
+  // "Vapi-backed" once vapi_assistant_id is set (see lib/vapi).
+  vapi_assistant_id: string | null;
+  vapi_voice_provider: string | null;
+  vapi_voice_id: string | null;
+  vapi_llm_provider: string;
+  vapi_llm_model: string;
+  widget_mode: WidgetMode;
+  widget_theme: WidgetTheme;
+  business_description: string | null;
+  business_phone: string | null;
+  business_email: string | null;
+  website_url: string | null;
+  vapi_synced_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -236,4 +253,25 @@ export interface StripeEventRow {
   type: string;
   payload: Record<string, unknown>;
   processed_at: string;
+}
+
+export interface VapiCall {
+  id: string;
+  customer_id: string;
+  widget_id: string | null;
+  vapi_call_id: string;
+  vapi_assistant_id: string;
+  status: string | null;
+  ended_reason: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  duration_seconds: number | null;
+  cost: number | null;
+  transcript: string | null;
+  summary: string | null;
+  recording_url: string | null;
+  customer_phone_number: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
