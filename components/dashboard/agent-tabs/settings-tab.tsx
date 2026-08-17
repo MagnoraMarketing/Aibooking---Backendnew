@@ -17,8 +17,12 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
   const [voiceModelId, setVoiceModelId] = useState(widget.voice_model_id ?? "");
   const [llmModelId, setLlmModelId] = useState(widget.llm_model_id ?? "");
   const [language, setLanguage] = useState(widget.language);
+  const [vapiAssistantId, setVapiAssistantId] = useState(widget.extra.vapiAssistantId ?? "");
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+
+  const selectedModel = llmModels.find((model) => model.id === llmModelId);
+  const isVapiModel = selectedModel?.provider === "vapi";
 
   async function handleSave() {
     setSaving(true);
@@ -27,6 +31,7 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
       voiceModelId: voiceModelId || null,
       llmModelId: llmModelId || null,
       language,
+      extra: { vapiAssistantId: vapiAssistantId.trim() || null },
     });
     setSaving(false);
     setStatus(ok ? "saved" : "error");
@@ -74,6 +79,25 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
             ))}
           </select>
         </div>
+
+        {isVapiModel ? (
+          <div>
+            <label htmlFor="vapi-assistant-id" className="mb-1 block text-sm font-medium text-slate-700">
+              Vapi Assistant ID
+            </label>
+            <input
+              id="vapi-assistant-id"
+              type="text"
+              value={vapiAssistantId}
+              onChange={(e) => setVapiAssistantId(e.target.value)}
+              placeholder="fx 8f1c2e3a-..."
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              ID&apos;et på den assistent i Vapi&apos;s dashboard, som denne widget skal ringe til.
+            </p>
+          </div>
+        ) : null}
 
         <div>
           <label htmlFor="language" className="mb-1 block text-sm font-medium text-slate-700">
