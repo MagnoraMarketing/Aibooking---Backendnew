@@ -61,6 +61,7 @@ export default async function AgentConfigurePage({ params }: { params: { id: str
       embedCodeUnlocked={embedCodeUnlocked}
       trialDaysRemaining={trialDaysRemaining(customer!.created_at)}
       pkg={subscription?.packages ?? null}
+      vapiPublicKey={process.env.VAPI_PUBLIC_KEY ?? null}
     />
   );
 }

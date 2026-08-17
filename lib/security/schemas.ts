@@ -113,10 +113,52 @@ export const widgetUpdateSchema = z.object({
   widgetSize: z.enum(["small", "medium", "large"]).optional(),
   showBranding: z.boolean().optional(),
   maxResponseChars: z.number().int().min(50).max(2000).optional(),
+  // Business info + Vapi widget-mode/theme — plain widgets columns, shared
+  // by the Voice Agent tab and (for widgetMode/widgetTheme) Customize Widget.
+  businessDescription: z.string().trim().max(2000).optional().nullable(),
+  businessPhone: z.string().trim().max(50).optional().nullable(),
+  businessEmail: z.string().trim().email().max(320).optional().nullable(),
+  websiteUrl: z.string().trim().url().max(2000).optional().nullable(),
+  widgetMode: z.enum(["voice", "chat", "both"]).optional(),
+  widgetTheme: z.enum(["light", "dark"]).optional(),
 });
 
 export const createWidgetSchema = widgetUpdateSchema.extend({
   name: z.string().trim().min(1).max(200).default("Main widget"),
+});
+
+// ---------------------------------------------------------------------------
+// Vapi voice agent (Agent Studio > Voice Agent tab)
+// ---------------------------------------------------------------------------
+export const agentCapabilitiesSchema = z
+  .object({
+    answerQuestions: z.boolean(),
+    collectContactInfo: z.boolean(),
+    bookAppointments: z.boolean(),
+    cancelAppointments: z.boolean(),
+    rescheduleAppointments: z.boolean(),
+    sendEmail: z.boolean(),
+    transferToHuman: z.boolean(),
+    captureLeads: z.boolean(),
+  })
+  .partial();
+
+// POST /api/customer/widgets/[id]/vapi — creates or syncs the Vapi assistant
+// for this widget. Business-info/mode fields are persisted to the widgets
+// row (same as a widgetUpdateSchema PATCH) before the Vapi assistant is
+// built from the widget's current full config, so this is the single call
+// the "Create Agent" / "Update Agent" button makes.
+export const vapiSyncSchema = z.object({
+  businessDescription: z.string().trim().max(2000).optional().nullable(),
+  businessPhone: z.string().trim().max(50).optional().nullable(),
+  businessEmail: z.string().trim().email().max(320).optional().nullable(),
+  websiteUrl: z.string().trim().url().max(2000).optional().nullable(),
+  voiceProvider: z.string().trim().min(1).max(50).optional(),
+  voiceId: z.string().trim().min(1).max(200).optional(),
+  llmProvider: z.enum(["openai", "anthropic"]).optional(),
+  llmModel: z.string().trim().min(1).max(100).optional(),
+  widgetMode: z.enum(["voice", "chat", "both"]).optional(),
+  capabilities: agentCapabilitiesSchema.optional(),
 });
 
 // Free-form widget preferences that don't have a dedicated widgets column —

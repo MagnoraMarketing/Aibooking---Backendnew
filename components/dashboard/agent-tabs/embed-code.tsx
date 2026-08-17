@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Package } from "@/types/database";
 import type { WidgetWithExtras } from "../agent-configurator";
+import { buildVapiEmbedSnippet, toVapiWidgetEmbedConfig } from "@/lib/vapi/widget-snippet";
 
 const FEATURES = [
   "Voice AI-bot – kunder taler direkte med AI'en",
@@ -19,10 +20,24 @@ interface EmbedCodeTabProps {
   unlocked: boolean;
   trialDaysRemaining: number;
   pkg: Package | null;
+  vapiPublicKey: string | null;
 }
 
-export function EmbedCodeTab({ widget, unlocked, trialDaysRemaining, pkg }: EmbedCodeTabProps) {
+export function EmbedCodeTab({ widget, unlocked, trialDaysRemaining, pkg, vapiPublicKey }: EmbedCodeTabProps) {
   const [copied, setCopied] = useState(false);
+  const [vapiCopied, setVapiCopied] = useState(false);
+
+  const vapiSnippet =
+    widget.vapi_assistant_id && vapiPublicKey
+      ? buildVapiEmbedSnippet(toVapiWidgetEmbedConfig(widget, vapiPublicKey))
+      : null;
+
+  async function handleCopyVapi() {
+    if (!vapiSnippet) return;
+    await navigator.clipboard.writeText(vapiSnippet);
+    setVapiCopied(true);
+    setTimeout(() => setVapiCopied(false), 2000);
+  }
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
@@ -112,39 +127,67 @@ export function EmbedCodeTab({ widget, unlocked, trialDaysRemaining, pkg }: Embe
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Indsæt på jeres hjemmeside</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Indsæt denne kode lige før <code>&lt;/body&gt;</code> på jeres side.
-        </p>
-      </div>
+    <div className="space-y-6">
+      {vapiSnippet ? (
+        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Voice-agent widget (Vapi)
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Indsæt denne kode lige før <code>&lt;/body&gt;</code> for at tilføje jeres voice-agent på hjemmesiden.
+            </p>
+          </div>
 
-      {trialDaysRemaining > 0 ? (
-        <p className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">
-          {trialDaysRemaining} dages gratis prøveperiode tilbage.
-        </p>
+          <div className="relative">
+            <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
+              <code>{vapiSnippet}</code>
+            </pre>
+            <button
+              type="button"
+              onClick={handleCopyVapi}
+              className="absolute right-3 top-3 rounded-md bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20"
+            >
+              {vapiCopied ? "Kopieret!" : "Kopiér"}
+            </button>
+          </div>
+        </div>
       ) : null}
 
-      <div className="relative">
-        <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
-          <code>{widget.embedSnippet}</code>
-        </pre>
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="absolute right-3 top-3 rounded-md bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20"
-        >
-          {copied ? "Kopieret!" : "Kopiér"}
-        </button>
-      </div>
+      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Indsæt på jeres hjemmeside</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Indsæt denne kode lige før <code>&lt;/body&gt;</code> på jeres side.
+          </p>
+        </div>
 
-      <p className="text-sm text-slate-500">
-        Del-link (til test eller sociale medier):{" "}
-        <a href={widget.shareUrl} target="_blank" rel="noreferrer" className="font-medium text-brand-600">
-          {widget.shareUrl}
-        </a>
-      </p>
+        {trialDaysRemaining > 0 ? (
+          <p className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">
+            {trialDaysRemaining} dages gratis prøveperiode tilbage.
+          </p>
+        ) : null}
+
+        <div className="relative">
+          <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
+            <code>{widget.embedSnippet}</code>
+          </pre>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="absolute right-3 top-3 rounded-md bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20"
+          >
+            {copied ? "Kopieret!" : "Kopiér"}
+          </button>
+        </div>
+
+        <p className="text-sm text-slate-500">
+          Del-link (til test eller sociale medier):{" "}
+          <a href={widget.shareUrl} target="_blank" rel="noreferrer" className="font-medium text-brand-600">
+            {widget.shareUrl}
+          </a>
+        </p>
+      </div>
     </div>
   );
 }
