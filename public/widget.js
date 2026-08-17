@@ -497,6 +497,217 @@
     });
   }
 
+  // "Vapi model" widgets are also speech-to-speech, but the call itself is
+  // driven by the Vapi Web SDK (loaded from its CDN below) instead of us
+  // negotiating WebRTC by hand like buildRealtimeUI does — see
+  // lib/vapi/index.ts and app/api/webhooks/vapi/route.ts on the server side.
+  var VAPI_SDK_URL = "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/vapi.js";
+  var vapiSdkPromise = null;
+
+  function loadVapiSdk() {
+    if (vapiSdkPromise) return vapiSdkPromise;
+    vapiSdkPromise = new Promise(function (resolve, reject) {
+      if (window.Vapi) {
+        resolve(window.Vapi);
+        return;
+      }
+      var script = document.createElement("script");
+      script.src = VAPI_SDK_URL;
+      script.async = true;
+      script.onload = function () {
+        if (window.Vapi) resolve(window.Vapi);
+        else reject(new Error("Vapi SDK loaded but window.Vapi is missing"));
+      };
+      script.onerror = function () {
+        reject(new Error("Failed to load Vapi SDK"));
+      };
+      document.head.appendChild(script);
+    });
+    return vapiSdkPromise;
+  }
+
+  function buildVapiUI(config) {
+    var positionStyles = {
+      "bottom-right": "bottom:20px;right:20px;",
+      "bottom-left": "bottom:20px;left:20px;",
+      "top-right": "top:20px;right:20px;",
+      "top-left": "top:20px;left:20px;",
+    };
+    var pos = positionStyles[config.position] || positionStyles["bottom-right"];
+
+    var launcher = el(
+      "button",
+      {
+        id: "aibooking-launcher",
+        style:
+          "position:fixed;" +
+          pos +
+          "width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;" +
+          "background:" +
+          config.primaryColor +
+          ";color:#fff;font-size:24px;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:999999;",
+      },
+      ["🎙"]
+    );
+
+    var transcriptEl = el("div", {
+      id: "aibooking-transcript",
+      style: "flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;",
+    });
+
+    var statusEl = el(
+      "div",
+      { style: "font-size:13px;color:#666;text-align:center;padding:4px 0 10px;" },
+      ["Klik på mikrofonen for at starte samtalen"]
+    );
+
+    var callBtn = el(
+      "button",
+      {
+        style:
+          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;" +
+          "background:" +
+          config.primaryColor +
+          ";color:#fff;font-size:26px;",
+      },
+      ["🎙"]
+    );
+
+    var panel = el(
+      "div",
+      {
+        id: "aibooking-panel",
+        style:
+          "position:fixed;" +
+          pos +
+          "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
+          "background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.2);" +
+          "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
+      },
+      [
+        el(
+          "div",
+          {
+            style:
+              "background:" +
+              config.secondaryColor +
+              ";color:#fff;padding:14px 16px;font-weight:600;display:flex;align-items:center;gap:8px;",
+          },
+          [config.businessName || "AI-assistent"]
+        ),
+        transcriptEl,
+        el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
+        config.showBranding
+          ? el(
+              "div",
+              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
+              ["Powered by AIbooking.dk"]
+            )
+          : el("div", {}, []),
+      ]
+    );
+
+    document.body.appendChild(panel);
+    document.body.appendChild(launcher);
+
+    function addTranscriptLine(text, role) {
+      var bubble = el(
+        "div",
+        {
+          style:
+            "max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.4;" +
+            (role === "user"
+              ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
+              : "align-self:flex-start;background:#f1f1f1;color:#222;"),
+        },
+        [text]
+      );
+      transcriptEl.appendChild(bubble);
+      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    }
+
+    var call = { client: null, active: false, startedAt: null };
+
+    // All end-of-call bookkeeping (duration, billing PATCH, UI reset) lives
+    // here and only here — the call button just tells the SDK to stop,
+    // whether the user hangs up or the assistant/Vapi ends the call first,
+    // both paths converge on the SDK's own "call-end" event.
+    function handleCallEnd() {
+      if (!call.active) return;
+      call.active = false;
+      var durationSeconds = call.startedAt ? (Date.now() - call.startedAt) / 1000 : 0;
+      statusEl.textContent = "Samtalen er afsluttet";
+      callBtn.textContent = "🎙";
+
+      if (state.sessionId) {
+        var sessionId = state.sessionId;
+        state.sessionId = null;
+        apiFetch("/api/widget/session", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: sessionId, clientMeasuredDurationSeconds: durationSeconds }),
+        }).catch(function () {});
+      }
+    }
+
+    function handleMessage(message) {
+      if (message && message.type === "transcript" && message.transcriptType === "final" && message.transcript) {
+        addTranscriptLine(message.transcript, message.role === "user" ? "user" : "assistant");
+      }
+    }
+
+    function startCall() {
+      statusEl.textContent = "Forbinder...";
+      apiFetch("/api/widget/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicId: publicId }),
+      })
+        .then(function (data) {
+          state.sessionId = data.sessionId;
+          state.conversationId = data.conversationId;
+          if (!data.vapi || !data.vapi.publicKey || !data.vapi.assistantId) {
+            throw new Error("Vapi session unavailable");
+          }
+          return loadVapiSdk().then(function (Vapi) {
+            if (!call.client) {
+              call.client = new Vapi(data.vapi.publicKey);
+              call.client.on("call-start", function () {
+                call.active = true;
+                call.startedAt = Date.now();
+                statusEl.textContent = "Forbundet — I taler nu sammen";
+                callBtn.textContent = "⏹";
+              });
+              call.client.on("call-end", handleCallEnd);
+              call.client.on("message", handleMessage);
+              call.client.on("error", function () {
+                statusEl.textContent = "Der opstod en fejl under samtalen.";
+              });
+            }
+            call.client.start(data.vapi.assistantId);
+          });
+        })
+        .catch(function (err) {
+          statusEl.textContent =
+            err.status === 402 ? "Ikke flere minutter tilgængelige lige nu." : "Kunne ikke forbinde. Prøv igen.";
+        });
+    }
+
+    callBtn.addEventListener("click", function () {
+      if (call.active) call.client.stop();
+      else startCall();
+    });
+
+    window.addEventListener("beforeunload", function () {
+      if (call.active && call.client) call.client.stop();
+    });
+
+    launcher.addEventListener("click", function () {
+      state.open = !state.open;
+      panel.style.display = state.open ? "flex" : "none";
+    });
+  }
+
   fetch(apiBase + "/api/widget/config?publicId=" + encodeURIComponent(publicId))
     .then(function (res) {
       if (!res.ok) throw new Error("widget config unavailable");
@@ -505,6 +716,7 @@
     .then(function (data) {
       state.config = data.config;
       if (data.config.mode === "realtime") buildRealtimeUI(data.config);
+      else if (data.config.mode === "vapi") buildVapiUI(data.config);
       else buildUI(data.config);
     })
     .catch(function (err) {

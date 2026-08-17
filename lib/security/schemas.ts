@@ -134,6 +134,11 @@ export const widgetExtraSettingsSchema = z
     muteOnTabChange: z.boolean(),
     showLeadForm: z.boolean(),
     agentMute: z.boolean(),
+    // Vapi assistant id for widgets on the Vapi model (provider='vapi', see
+    // 0011_vapi_model.sql) — configured per-widget since each customer's
+    // assistant is a separate resource in Vapi, unlike the shared
+    // llm_models row that just marks the widget as using Vapi at all.
+    vapiAssistantId: z.string().trim().min(1).max(200).nullable(),
   })
   .partial();
 

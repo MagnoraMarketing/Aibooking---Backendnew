@@ -16,10 +16,17 @@ export interface PublicWidgetConfig {
   position: string;
   widgetSize: string;
   showBranding: boolean;
-  // "realtime" widgets (Expert model / OpenAI Realtime over WebRTC) get a
-  // voice-first UI in widget.js instead of the text-chat panel — see
-  // buildRealtimeUI() there.
-  mode: "text" | "realtime";
+  // "realtime" widgets (Expert model / OpenAI Realtime over WebRTC) and
+  // "vapi" widgets (Vapi model / Vapi Web SDK) get a voice-first UI in
+  // widget.js instead of the text-chat panel — see buildRealtimeUI() and
+  // buildVapiUI() there.
+  mode: "text" | "realtime" | "vapi";
+}
+
+function resolveMode(provider: string | undefined): PublicWidgetConfig["mode"] {
+  if (provider === "openai") return "realtime";
+  if (provider === "vapi") return "vapi";
+  return "text";
 }
 
 export function toPublicWidgetConfig(bundle: WidgetBundle): PublicWidgetConfig {
@@ -37,6 +44,6 @@ export function toPublicWidgetConfig(bundle: WidgetBundle): PublicWidgetConfig {
     position: widget.position,
     widgetSize: widget.widget_size,
     showBranding: widget.show_branding,
-    mode: bundle.llmModel?.provider === "openai" ? "realtime" : "text",
+    mode: resolveMode(bundle.llmModel?.provider),
   };
 }
