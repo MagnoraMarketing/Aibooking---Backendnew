@@ -82,12 +82,17 @@ tests/  Vitest unit tests (credit ledger math, tenant isolation guards, Stripe w
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
      `SUPABASE_SERVICE_ROLE_KEY`
    - `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`
+   - `OPENAI_API_KEY` ("Expert model" — OpenAI Realtime API over WebRTC)
+   - `VAPI_PUBLIC_KEY`, `VAPI_WEBHOOK_SECRET` ("Vapi model" — Vapi Web SDK)
    - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
    - `NEXT_PUBLIC_APP_URL`
 3. Update the seeded `voice_models` rows with real ElevenLabs voice IDs
    (`provider_voice_id`), and the seeded `packages` row with a real
    `stripe_price_id`, via the admin API once you're up and running (or
-   directly in Supabase for the very first setup).
+   directly in Supabase for the very first setup). Widgets on the Vapi
+   model also need a `vapiAssistantId` set in their
+   `widget_settings.extra` (see `lib/security/schemas.ts`), pointing at an
+   assistant created in the Vapi dashboard/API.
 4. Bootstrap the first Master Admin (there is deliberately no HTTP endpoint
    for this — see spec section 28):
    ```

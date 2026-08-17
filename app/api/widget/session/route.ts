@@ -12,6 +12,7 @@ import { getWidgetBundleByPublicId } from "@/lib/widgets";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { createUsageSession, finalizeUsageSession, setUsageSessionDuration } from "@/lib/usage";
 import { createRealtimeClientSecret } from "@/lib/realtime";
+import { getVapiCallConfig } from "@/lib/vapi";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -33,10 +34,12 @@ export const POST = withErrorHandling(async (request) => {
     throw ApiError.badRequest("Widget is not fully configured yet");
   }
 
-  // "Expert model" (provider=openai) is speech-to-speech via OpenAI's own
-  // Realtime API — it doesn't use our TTS pipeline or voice_models table.
+  // "Expert model" (provider=openai) and "Vapi model" (provider=vapi) are
+  // both speech-to-speech via the provider's own realtime infrastructure —
+  // neither uses our TTS pipeline or voice_models table.
   const isRealtime = bundle.llmModel.provider === "openai";
-  if (!isRealtime && !bundle.voiceModel) {
+  const isVapi = bundle.llmModel.provider === "vapi";
+  if (!isRealtime && !isVapi && !bundle.voiceModel) {
     throw ApiError.badRequest("Widget is not fully configured yet");
   }
 
@@ -85,6 +88,40 @@ export const POST = withErrorHandling(async (request) => {
           clientSecret: realtimeSession.clientSecret,
           model: realtimeSession.model,
           expiresAt: realtimeSession.expiresAt,
+        },
+      },
+      { status: 201 }
+    );
+  }
+
+  if (isVapi) {
+    const { data: settings } = await supabase
+      .from("widget_settings")
+      .select("extra")
+      .eq("widget_id", bundle.widget.id)
+      .maybeSingle();
+    const assistantId = (settings?.extra as Record<string, unknown> | null)?.vapiAssistantId;
+
+    let vapiConfig;
+    try {
+      vapiConfig = getVapiCallConfig(typeof assistantId === "string" ? assistantId : null);
+    } catch (err) {
+      // Same invariant as the realtime branch above: don't leave an
+      // orphaned usage session/conversation behind if Vapi isn't configured
+      // yet (missing VAPI_PUBLIC_KEY or vapiAssistantId).
+      await finalizeUsageSession(usageSession.id);
+      throw err;
+    }
+
+    return NextResponse.json(
+      {
+        sessionId: usageSession.id,
+        conversationId: conversation.id,
+        openingMessage: bundle.widget.opening_message,
+        mode: "vapi",
+        vapi: {
+          publicKey: vapiConfig.publicKey,
+          assistantId: vapiConfig.assistantId,
         },
       },
       { status: 201 }
