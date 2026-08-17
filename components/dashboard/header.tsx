@@ -24,6 +24,7 @@ interface HeaderProps {
 export function Header({ customerName, userLabel, minutesRemaining }: HeaderProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const initials = userLabel
     .split(/[\s@.]+/)
@@ -32,29 +33,41 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
+  function isActiveItem(href: string): boolean {
+    return href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+  }
+
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
       <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
-        <div className="flex items-center gap-6 overflow-x-auto">
-          <Link href="/dashboard" className="shrink-0 text-sm font-semibold text-brand-700">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-6">
+          <button
+            type="button"
+            aria-label="Åbn menu"
+            onClick={() => setMobileNavOpen((open) => !open)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 sm:hidden"
+          >
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor" className="h-5 w-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+            </svg>
+          </button>
+
+          <Link href="/dashboard" className="shrink-0 truncate text-sm font-semibold text-brand-700">
             {customerName}
           </Link>
-          <nav className="flex items-center gap-1">
-            {NAV_ITEMS.map((item) => {
-              const isActive =
-                item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
-                    isActive ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+
+          <nav className="hidden items-center gap-1 sm:flex">
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
+                  isActiveItem(item.href) ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
         </div>
 
@@ -66,7 +79,7 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
           <button
             type="button"
             aria-label="Notifikationer"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+            className="hidden h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 sm:flex"
           >
             <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor" className="h-5 w-5">
               <path
@@ -97,6 +110,23 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
           </div>
         </div>
       </div>
+
+      {mobileNavOpen ? (
+        <nav className="flex flex-col gap-1 border-t border-slate-200 px-4 py-2 sm:hidden">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileNavOpen(false)}
+              className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                isActiveItem(item.href) ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
     </header>
   );
 }
