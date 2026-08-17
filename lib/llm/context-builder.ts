@@ -26,6 +26,7 @@ export function buildSystemPrompt(params: {
   basePrompt: string | null;
   summary: string | null;
   maxResponseChars: number;
+  knowledgeBase?: string | null;
 }): string {
   const approxWords = Math.max(10, Math.round(params.maxResponseChars / 6));
   const costControl = [
@@ -35,6 +36,10 @@ export function buildSystemPrompt(params: {
   ].join(" ");
 
   const parts = [(params.basePrompt ?? DEFAULT_SYSTEM_PROMPT).trim(), costControl];
+
+  if (params.knowledgeBase) {
+    parts.push(params.knowledgeBase);
+  }
 
   if (params.summary) {
     parts.push(`Resume af samtalen indtil videre:\n${params.summary}`);

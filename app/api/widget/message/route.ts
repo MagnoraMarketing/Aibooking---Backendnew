@@ -4,6 +4,7 @@ import { readJsonBody, withErrorHandling, rateLimit, getClientIp, widgetMessageS
 import { getWidgetBundleById } from "@/lib/widgets";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { handleConversationTurn } from "@/lib/conversation/handle-turn";
+import type { KnowledgeBaseSource } from "@/lib/knowledge-base";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -54,6 +55,7 @@ export const POST = withErrorHandling(async (request) => {
     customerId: usageSession.customer_id,
     userMessage: body.message,
     clientDurationSeconds: body.clientDurationSeconds,
+    knowledgeBase: (bundle.extra.knowledgeBase as KnowledgeBaseSource[] | undefined) ?? [],
   });
 
   return NextResponse.json({

@@ -157,6 +157,31 @@ export const widgetSessionEndSchema = z.object({
   clientMeasuredDurationSeconds: z.number().nonnegative().max(7200).optional(),
 });
 
+// Prompt Lab's "Generér prompt" (see app/api/customer/widgets/[id]/generate-prompt) —
+// a handful of plain-language business questions used to draft a system
+// prompt, rather than requiring the customer to write one from scratch.
+export const generatePromptInputSchema = z.object({
+  businessDescription: z.string().trim().min(1).max(1000),
+  keyServices: z.string().trim().max(1000).optional(),
+  openingHours: z.string().trim().max(300).optional(),
+  otherNotes: z.string().trim().max(1000).optional(),
+});
+
+// Knowledge base ingestion (see lib/knowledge-base) — PDF upload goes
+// through multipart/form-data instead (see the knowledge-base route),
+// since a base64-encoded file would blow past MAX_REQUEST_BODY_BYTES.
+export const knowledgeBaseInputSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("text"),
+    text: z.string().trim().min(1).max(50000),
+    label: z.string().trim().min(1).max(200).optional(),
+  }),
+  z.object({
+    type: z.literal("url"),
+    url: z.string().trim().url().max(2000),
+  }),
+]);
+
 export const widgetMessageSchema = z.object({
   sessionId: z.string().uuid(),
   conversationId: z.string().uuid(),

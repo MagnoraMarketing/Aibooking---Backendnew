@@ -7,6 +7,12 @@ export interface WidgetBundle {
   customer: Customer;
   llmModel: LLMModel | null;
   voiceModel: VoiceModel | null;
+  extra: Record<string, unknown>;
+}
+
+async function loadExtra(supabase: ReturnType<typeof getAdminClient>, widgetId: string): Promise<Record<string, unknown>> {
+  const { data } = await supabase.from("widget_settings").select("extra").eq("widget_id", widgetId).maybeSingle();
+  return (data?.extra as Record<string, unknown> | null) ?? {};
 }
 
 // Single lookup path used by every public /api/widget/* route. Returns null
@@ -32,16 +38,17 @@ export async function getWidgetBundleByPublicId(publicId: string): Promise<Widge
 
   if (!customer || customer.status !== "active") return null;
 
-  const [{ data: llmModel }, { data: voiceModel }] = await Promise.all([
+  const [{ data: llmModel }, { data: voiceModel }, extra] = await Promise.all([
     widget.llm_model_id
       ? supabase.from("llm_models").select("*").eq("id", widget.llm_model_id).maybeSingle<LLMModel>()
       : Promise.resolve({ data: null }),
     widget.voice_model_id
       ? supabase.from("voice_models").select("*").eq("id", widget.voice_model_id).maybeSingle<VoiceModel>()
       : Promise.resolve({ data: null }),
+    loadExtra(supabase, widget.id),
   ]);
 
-  return { widget, customer, llmModel: llmModel ?? null, voiceModel: voiceModel ?? null };
+  return { widget, customer, llmModel: llmModel ?? null, voiceModel: voiceModel ?? null, extra };
 }
 
 // Same shape, keyed by internal widget id — used by session/message routes
@@ -65,14 +72,15 @@ export async function getWidgetBundleById(widgetId: string): Promise<WidgetBundl
 
   if (!customer) return null;
 
-  const [{ data: llmModel }, { data: voiceModel }] = await Promise.all([
+  const [{ data: llmModel }, { data: voiceModel }, extra] = await Promise.all([
     widget.llm_model_id
       ? supabase.from("llm_models").select("*").eq("id", widget.llm_model_id).maybeSingle<LLMModel>()
       : Promise.resolve({ data: null }),
     widget.voice_model_id
       ? supabase.from("voice_models").select("*").eq("id", widget.voice_model_id).maybeSingle<VoiceModel>()
       : Promise.resolve({ data: null }),
+    loadExtra(supabase, widget.id),
   ]);
 
-  return { widget, customer, llmModel: llmModel ?? null, voiceModel: voiceModel ?? null };
+  return { widget, customer, llmModel: llmModel ?? null, voiceModel: voiceModel ?? null, extra };
 }

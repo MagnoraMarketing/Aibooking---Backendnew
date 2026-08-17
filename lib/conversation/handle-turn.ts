@@ -12,6 +12,7 @@ import {
 import { resolveTTSProvider, estimateTTSCost } from "@/lib/tts";
 import { recordLLMUsage, recordTTSUsage, appendTurnUsage, estimateSpeechDurationSeconds } from "@/lib/usage";
 import { getSummarizationModelName } from "@/lib/settings/platform";
+import { formatKnowledgeBaseForPrompt, type KnowledgeBaseSource } from "@/lib/knowledge-base";
 import type { LLMModel, VoiceModel, Widget } from "@/types/database";
 import { ApiError } from "@/types/errors";
 
@@ -24,6 +25,7 @@ export interface HandleTurnParams {
   customerId: string;
   userMessage: string;
   clientDurationSeconds?: number;
+  knowledgeBase?: KnowledgeBaseSource[];
 }
 
 export interface HandleTurnResult {
@@ -105,6 +107,7 @@ export async function handleConversationTurn(params: HandleTurnParams): Promise<
     basePrompt: params.widget.system_prompt,
     summary,
     maxResponseChars: params.widget.max_response_chars,
+    knowledgeBase: formatKnowledgeBaseForPrompt(params.knowledgeBase ?? []),
   });
 
   const messagesForLLM: LLMMessage[] = [

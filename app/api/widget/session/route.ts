@@ -13,6 +13,7 @@ import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { createUsageSession, finalizeUsageSession, setUsageSessionDuration } from "@/lib/usage";
 import { createRealtimeClientSecret } from "@/lib/realtime";
 import { getVapiCallConfig } from "@/lib/vapi";
+import { formatKnowledgeBaseForPrompt, type KnowledgeBaseSource } from "@/lib/knowledge-base";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -65,11 +66,18 @@ export const POST = withErrorHandling(async (request) => {
   });
 
   if (isRealtime) {
+    const knowledgeBase = formatKnowledgeBaseForPrompt(
+      (bundle.extra.knowledgeBase as KnowledgeBaseSource[] | undefined) ?? []
+    );
+    const instructions = [bundle.widget.system_prompt ?? DEFAULT_REALTIME_INSTRUCTIONS, knowledgeBase]
+      .filter(Boolean)
+      .join("\n\n");
+
     let realtimeSession;
     try {
       realtimeSession = await createRealtimeClientSecret({
         model: bundle.llmModel.model_name,
-        instructions: bundle.widget.system_prompt ?? DEFAULT_REALTIME_INSTRUCTIONS,
+        instructions,
       });
     } catch (err) {
       // Don't leave an orphaned usage session/conversation behind if OpenAI
@@ -95,12 +103,7 @@ export const POST = withErrorHandling(async (request) => {
   }
 
   if (isVapi) {
-    const { data: settings } = await supabase
-      .from("widget_settings")
-      .select("extra")
-      .eq("widget_id", bundle.widget.id)
-      .maybeSingle();
-    const assistantId = (settings?.extra as Record<string, unknown> | null)?.vapiAssistantId;
+    const assistantId = bundle.extra.vapiAssistantId;
 
     let vapiConfig;
     try {
