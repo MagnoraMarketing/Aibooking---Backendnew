@@ -4,7 +4,7 @@ import { readJsonBody, withErrorHandling, rateLimit, getClientIp, widgetMessageS
 import { getWidgetBundleById } from "@/lib/widgets";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { handleConversationTurn } from "@/lib/conversation/handle-turn";
-import type { KnowledgeBaseSource } from "@/lib/knowledge-base";
+import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —

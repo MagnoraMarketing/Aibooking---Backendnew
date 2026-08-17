@@ -12,7 +12,13 @@ import {
 import { resolveTTSProvider, estimateTTSCost } from "@/lib/tts";
 import { recordLLMUsage, recordTTSUsage, appendTurnUsage, estimateSpeechDurationSeconds } from "@/lib/usage";
 import { getSummarizationModelName } from "@/lib/settings/platform";
-import { formatKnowledgeBaseForPrompt, type KnowledgeBaseSource } from "@/lib/knowledge-base";
+// Import the specific submodules, not the @/lib/knowledge-base barrel —
+// the barrel also re-exports PDF/URL extraction, which would drag their
+// dependencies (pdf-parse, etc.) into every conversation turn for no
+// reason. See lib/knowledge-base/pdf.ts's top comment for why that's not
+// just a style nit: one such leak already broke an unrelated route.
+import { formatKnowledgeBaseForPrompt } from "@/lib/knowledge-base/format";
+import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import type { LLMModel, VoiceModel, Widget } from "@/types/database";
 import { ApiError } from "@/types/errors";
 
