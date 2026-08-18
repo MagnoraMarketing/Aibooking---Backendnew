@@ -13,7 +13,10 @@ import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { createUsageSession, finalizeUsageSession, setUsageSessionDuration } from "@/lib/usage";
 import { createRealtimeClientSecret } from "@/lib/realtime";
 import { getVapiCallConfig } from "@/lib/vapi";
-import { formatKnowledgeBaseForPrompt, type KnowledgeBaseSource } from "@/lib/knowledge-base";
+// Import the specific submodules, not the @/lib/knowledge-base barrel —
+// see lib/knowledge-base/pdf.ts's top comment for why.
+import { formatKnowledgeBaseForPrompt } from "@/lib/knowledge-base/format";
+import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —

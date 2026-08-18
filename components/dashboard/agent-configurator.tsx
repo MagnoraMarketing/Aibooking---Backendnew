@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
@@ -44,6 +45,10 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
+function isTabKey(value: string | null): value is TabKey {
+  return TABS.some((tab) => tab.key === value);
+}
+
 interface AgentConfiguratorProps {
   initialWidget: WidgetWithExtras;
   llmModels: LLMModel[];
@@ -62,7 +67,8 @@ export function AgentConfigurator({
   pkg,
 }: AgentConfiguratorProps) {
   const [widget, setWidget] = useState(initialWidget);
-  const [activeTab, setActiveTab] = useState<TabKey>("prompt");
+  const requestedTab = useSearchParams().get("tab");
+  const [activeTab, setActiveTab] = useState<TabKey>(isTabKey(requestedTab) ? requestedTab : "prompt");
 
   const savePatch: SavePatch = async (patch) => {
     const res = await fetch(`/api/customer/widgets/${widget.id}`, {

@@ -1,7 +1,10 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
-import { formatKnowledgeBaseForPrompt, type KnowledgeBaseSource } from "@/lib/knowledge-base";
+// Import the specific submodules, not the @/lib/knowledge-base barrel —
+// see lib/knowledge-base/pdf.ts's top comment for why.
+import { formatKnowledgeBaseForPrompt } from "@/lib/knowledge-base/format";
+import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import type { Widget } from "@/types/database";
 import { updateVapiAssistant, DEFAULT_VAPI_FIRST_MESSAGE } from "./assistants";
 

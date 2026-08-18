@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling, writeAuditLog, requireParam } from "@/lib/security";
-import type { KnowledgeBaseSource } from "@/lib/knowledge-base";
+import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import { syncWidgetToVapiAssistant } from "@/lib/vapi";
 import { ApiError } from "@/types/errors";
 
