@@ -7,8 +7,34 @@ import type { SavePatch, WidgetWithExtras } from "./agent-configurator";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { WizardVoiceStep } from "./agent-tabs/wizard-voice-step";
 import { EmbedCodeTab } from "./agent-tabs/embed-code";
+import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
-const STEPS = ["Navn & model", "Prompt", "Stemme", "Embed-kode"] as const;
+type AgentType = "widget" | "phone";
+
+const TYPE_OPTIONS: {
+  value: AgentType;
+  title: string;
+  description: string;
+  provider: "vapi" | "anthropic";
+}[] = [
+  {
+    value: "widget",
+    title: "Voice Widget",
+    description: "En chat-/stemme-widget til jeres hjemmeside — besøgende taler direkte med agenten i browseren.",
+    provider: "vapi",
+  },
+  {
+    value: "phone",
+    title: "Telefon (Inbound/Outbound)",
+    description: "Agenten besvarer og/eller foretager opkald via jeres telefonnummer — forbindes med Twilio.",
+    provider: "anthropic",
+  },
+];
+
+function stepsFor(agentType: AgentType | null) {
+  const lastStep = agentType === "phone" ? "Telefonnummer" : "Embed-kode";
+  return ["Navn & type", "Prompt", "Stemme", lastStep] as const;
+}
 
 interface AgentCreationWizardProps {
   llmModels: LLMModel[];
@@ -20,10 +46,10 @@ interface AgentCreationWizardProps {
   onComplete: (widget: WidgetWithExtras) => void;
 }
 
-function StepProgress({ step }: { step: number }) {
+function StepProgress({ step, steps }: { step: number; steps: readonly string[] }) {
   return (
     <div className="flex items-center gap-2">
-      {STEPS.map((label, i) => (
+      {steps.map((label, i) => (
         <div key={label} className="flex flex-1 items-center gap-2">
           <div className="flex items-center gap-2">
             <span
@@ -41,7 +67,7 @@ function StepProgress({ step }: { step: number }) {
               {label}
             </span>
           </div>
-          {i < STEPS.length - 1 ? <div className={`h-px flex-1 ${i < step ? "bg-emerald-500" : "bg-slate-200"}`} /> : null}
+          {i < steps.length - 1 ? <div className={`h-px flex-1 ${i < step ? "bg-emerald-500" : "bg-slate-200"}`} /> : null}
         </div>
       ))}
     </div>
@@ -68,11 +94,11 @@ export function AgentCreationWizard({
   const [widget, setWidget] = useState<WidgetWithExtras | null>(null);
 
   const [name, setName] = useState("");
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(
-    llmModels.find((m) => m.is_default)?.id ?? llmModels[0]?.id ?? null
-  );
+  const [agentType, setAgentType] = useState<AgentType | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const steps = stepsFor(agentType);
 
   const savePatch: SavePatch = async (patch) => {
     if (!widget) return false;
@@ -92,6 +118,17 @@ export function AgentCreationWizard({
       setError("Angiv et navn til agenten.");
       return;
     }
+    if (!agentType) {
+      setError("Vælg om agenten er en Voice Widget eller til Telefon.");
+      return;
+    }
+    const provider = TYPE_OPTIONS.find((t) => t.value === agentType)!.provider;
+    const selectedModelId = llmModels.find((m) => m.provider === provider)?.id ?? null;
+    if (!selectedModelId) {
+      setError("Ingen model tilgængelig for den valgte type endnu. Kontakt support.");
+      return;
+    }
+
     setCreating(true);
     setError(null);
 
@@ -122,7 +159,7 @@ export function AgentCreationWizard({
 
   return (
     <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <StepProgress step={step} />
+      <StepProgress step={step} steps={steps} />
 
       {step === 0 ? (
         <div className="space-y-4">
@@ -140,32 +177,27 @@ export function AgentCreationWizard({
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Model</p>
-            {llmModels.length === 0 ? (
-              <p className="text-sm text-slate-500">Ingen modeller tilgængelige endnu.</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {llmModels.map((model) => (
-                  <button
-                    key={model.id}
-                    type="button"
-                    onClick={() => setSelectedModelId(model.id)}
-                    className={`rounded-xl border p-4 text-left transition ${
-                      selectedModelId === model.id
-                        ? "border-brand-500 ring-1 ring-brand-500"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-slate-800">{model.display_name}</p>
-                    {model.is_default ? (
-                      <span className="mt-1 inline-block rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-600">
-                        Anbefalet
-                      </span>
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-            )}
+            <p className="mb-2 text-sm font-medium text-slate-700">Hvad skal agenten bruges til?</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {TYPE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setAgentType(option.value)}
+                  className={`rounded-xl border p-4 text-left transition ${
+                    agentType === option.value
+                      ? "border-brand-500 ring-1 ring-brand-500"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-slate-800">{option.title}</p>
+                  <p className="mt-1 text-xs text-slate-500">{option.description}</p>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              Resten af opsætningen tilpasses automatisk efter jeres valg — I skal ikke selv vælge teknisk model.
+            </p>
           </div>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -181,7 +213,7 @@ export function AgentCreationWizard({
             <button
               type="button"
               onClick={handleCreate}
-              disabled={creating}
+              disabled={creating || !agentType}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
               {creating ? "Opretter…" : "Næste →"}
@@ -227,7 +259,11 @@ export function AgentCreationWizard({
 
       {step === 3 && widget ? (
         <div className="space-y-4">
-          <EmbedCodeTab widget={widget} unlocked={embedCodeUnlocked} trialDaysRemaining={trialDaysRemaining} pkg={pkg} />
+          {agentType === "phone" ? (
+            <WizardPhoneStep widget={widget} />
+          ) : (
+            <EmbedCodeTab widget={widget} unlocked={embedCodeUnlocked} trialDaysRemaining={trialDaysRemaining} pkg={pkg} />
+          )}
           <button
             type="button"
             onClick={handleFinish}

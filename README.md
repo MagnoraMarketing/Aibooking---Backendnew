@@ -203,16 +203,41 @@ already what the web widget's text mode runs) for **both** channels:
   like a widget session, so it bills through the same credit ledger with no
   separate accounting path.
 
-**Known limitations**: only numbers bought through us are supported for
-this model (`lib/twilio/subaccounts.ts` credentials are what request-
-signature validation checks against — a BYO-Twilio import never persists
-credentials, so there'd be nothing to validate against later); attempting
-to import a BYO number for a Twilio-direct agent is rejected with a clear
-error. `<Play>` audio URLs are protected only by an unguessable
-message UUID, not a Twilio-signed fetch (Twilio doesn't sign media
-fetches). No dedicated call-log row is created yet for these calls (the
-existing Conversations list already shows them; Vapi calls additionally get
-a `phone_calls` row via the Vapi webhook, this path doesn't yet).
+BYO-Twilio numbers work for this model too (0021_byo_twilio_direct.sql):
+platform-purchased numbers validate against the customer's Twilio subaccount
+(`lib/twilio/subaccounts.ts`) same as before, but a BYO number has no
+subaccount to fall back to, so its own customer-supplied credentials are
+stored directly on the `phone_numbers` row instead
+(`twilio_account_sid`/`twilio_auth_token`) — `lib/telephony/resolve.ts`
+branches on `source` to pick the right ones. `findIncomingPhoneNumberSid`
+(`lib/twilio/numbers.ts`) looks up the number's Twilio SID at import time,
+since `configureDirectVoiceWebhook` needs that, not the E.164 string.
+
+**Known limitations**: `<Play>` audio URLs are protected only by an
+unguessable message UUID, not a Twilio-signed fetch (Twilio doesn't sign
+media fetches). No dedicated call-log row is created yet for these calls
+(the existing Conversations list already shows them; Vapi calls
+additionally get a `phone_calls` row via the Vapi webhook, this path
+doesn't yet).
+
+### Agent type: Voice Widget vs Telefon (Inbound/Outbound)
+
+Creating an agent (`agent-creation-wizard.tsx`) no longer asks the customer
+to pick a "model" — it asks what the agent is *for*, and assigns the right
+model automatically: **Voice Widget** → the Vapi model (real-time voice in
+the browser, `provider='vapi'`); **Telefon (Inbound/Outbound)** → the
+Twilio-direct model (`provider='anthropic'`, see above). This is a
+one-time choice baked into `llm_model_id` at creation — there's no
+"agent type" column of its own, every downstream check (phone import,
+Configure Agent's tabs) just reads the provider off the widget's model.
+
+The wizard's final step and Configure Agent's tab bar
+(`agent-configurator.tsx`) both branch on it: a Widget agent gets
+"Customise Widget" + "Embed Code" same as before; a Telefon agent gets
+neither (no website embed to speak of) and a "Telefonnummer" tab instead
+(`wizard-phone-step.tsx`, shared by both the wizard and Configure Agent),
+which hands off to the Inbound page — where the BYO/purchase flow above
+takes over — rather than duplicating that flow a third time.
 
 ### Phone number marketplace ("buy a number through us")
 

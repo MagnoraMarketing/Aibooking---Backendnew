@@ -6,6 +6,7 @@ export {
   releaseTwilioNumber,
   configureDirectVoiceWebhook,
   listOwnedPhoneNumbers,
+  findIncomingPhoneNumberSid,
   DK_LOCAL_NUMBER_MONTHLY_PRICE_DKK,
   type AvailableTwilioNumber,
   type PurchasedTwilioNumber,

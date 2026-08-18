@@ -96,6 +96,24 @@ export async function listOwnedPhoneNumbers(credentials: TwilioCredentials): Pro
   }));
 }
 
+// Looks up the Twilio SID for a number already on the given account — BYO
+// Twilio-direct import (app/api/customer/phone-numbers/route.ts) needs this
+// to call configureDirectVoiceWebhook, which addresses a number by its SID,
+// not its E.164 string; the import request only carries the phone number
+// itself (typed manually, or picked from listOwnedPhoneNumbers's dropdown).
+export async function findIncomingPhoneNumberSid(
+  credentials: TwilioCredentials,
+  phoneNumber: string
+): Promise<string | null> {
+  const params = new URLSearchParams({ PhoneNumber: phoneNumber, PageSize: "1" });
+  const response = await twilioFetch(`/IncomingPhoneNumbers.json?${params.toString()}`, credentials).catch((err) => {
+    throw ApiError.badRequest(`Kunne ikke finde nummeret på Twilio-kontoen. (${err.message})`);
+  });
+
+  const data = (await response.json()) as { incoming_phone_numbers: Array<{ sid: string }> };
+  return data.incoming_phone_numbers[0]?.sid ?? null;
+}
+
 // Releases a purchased number back to Twilio — irreversible on Twilio's
 // side, called only from the confirmed "Frigiv nummer" flow (see
 // app/api/customer/phone-numbers/[id]/route.ts).

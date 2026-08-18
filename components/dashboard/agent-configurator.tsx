@@ -10,6 +10,7 @@ import { TestAgentTab } from "./agent-tabs/test-agent";
 import { CustomizeWidgetTab } from "./agent-tabs/customize-widget";
 import { EmbedCodeTab } from "./agent-tabs/embed-code";
 import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
+import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
 export interface WidgetExtra {
   tagline?: string | null;
@@ -34,19 +35,29 @@ export interface WidgetWithExtras extends Widget {
 
 export type SavePatch = (patch: Record<string, unknown>) => Promise<boolean>;
 
-const TABS = [
-  { key: "prompt", label: "Prompt Lab" },
-  { key: "settings", label: "Settings" },
-  { key: "knowledge", label: "Knowledge Base" },
-  { key: "customize", label: "Customise Widget" },
-  { key: "test", label: "Test Agent" },
-  { key: "embed", label: "Embed Code" },
-] as const;
+type TabKey = "prompt" | "settings" | "knowledge" | "customize" | "test" | "embed" | "phone";
 
-type TabKey = (typeof TABS)[number]["key"];
+// Which tabs make sense depends on what the agent is for — chosen once at
+// creation (see agent-creation-wizard.tsx's Voice Widget / Telefon type
+// picker) and readable afterwards from the widget's model provider.
+// Customise Widget / Embed Code are meaningless for a phone-only agent
+// (there's no website embed); Telefonnummer replaces Embed Code for one
+// instead, handing off to the Inbound page the same way the wizard's final
+// step does.
+function tabsFor(isPhoneType: boolean): { key: TabKey; label: string }[] {
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: "prompt", label: "Prompt Lab" },
+    { key: "settings", label: "Settings" },
+    { key: "knowledge", label: "Knowledge Base" },
+  ];
+  if (!isPhoneType) tabs.push({ key: "customize", label: "Customise Widget" });
+  tabs.push({ key: "test", label: "Test Agent" });
+  tabs.push(isPhoneType ? { key: "phone", label: "Telefonnummer" } : { key: "embed", label: "Embed Code" });
+  return tabs;
+}
 
-function isTabKey(value: string | null): value is TabKey {
-  return TABS.some((tab) => tab.key === value);
+function isTabKey(value: string | null, tabs: { key: TabKey; label: string }[]): value is TabKey {
+  return tabs.some((tab) => tab.key === value);
 }
 
 interface AgentConfiguratorProps {
@@ -67,8 +78,10 @@ export function AgentConfigurator({
   pkg,
 }: AgentConfiguratorProps) {
   const [widget, setWidget] = useState(initialWidget);
+  const isPhoneType = llmModels.find((m) => m.id === widget.llm_model_id)?.provider === "anthropic";
+  const tabs = tabsFor(isPhoneType);
   const requestedTab = useSearchParams().get("tab");
-  const [activeTab, setActiveTab] = useState<TabKey>(isTabKey(requestedTab) ? requestedTab : "prompt");
+  const [activeTab, setActiveTab] = useState<TabKey>(isTabKey(requestedTab, tabs) ? requestedTab : "prompt");
 
   const savePatch: SavePatch = async (patch) => {
     const res = await fetch(`/api/customer/widgets/${widget.id}`, {
@@ -92,7 +105,7 @@ export function AgentConfigurator({
       </div>
 
       <div className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"
@@ -128,6 +141,7 @@ export function AgentConfigurator({
           pkg={pkg}
         />
       ) : null}
+      {activeTab === "phone" ? <WizardPhoneStep widget={widget} /> : null}
     </div>
   );
 }
