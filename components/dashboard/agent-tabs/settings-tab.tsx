@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { LLMModel, VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 import { ComingSoonField } from "../coming-soon-field";
@@ -20,6 +20,13 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
   const [vapiAssistantId, setVapiAssistantId] = useState(widget.extra.vapiAssistantId ?? "");
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+
+  // Picks up an id auto-provisioned server-side after save (e.g. the model
+  // was just switched to Vapi and the backend created the assistant) —
+  // the input's initial value only reflects widget.extra at first render.
+  useEffect(() => {
+    setVapiAssistantId(widget.extra.vapiAssistantId ?? "");
+  }, [widget.extra.vapiAssistantId]);
 
   const selectedModel = llmModels.find((model) => model.id === llmModelId);
   const isVapiModel = selectedModel?.provider === "vapi";

@@ -11,7 +11,8 @@ import {
   requireParam,
 } from "@/lib/security";
 import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
-import { syncWidgetToVapiAssistant } from "@/lib/vapi";
+import { syncWidgetToVapiAssistant, createVapiAssistant, DEFAULT_VAPI_FIRST_MESSAGE } from "@/lib/vapi";
+import { getDefaultSystemPrompt } from "@/lib/settings/platform";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -95,6 +96,26 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   if (extraUpdate) {
     extra = { ...extra, ...extraUpdate };
     await supabase.from("widget_settings").upsert({ widget_id: widgetId, extra });
+  }
+
+  // Self-heals widgets on the Vapi model that never got an assistant
+  // provisioned — unlike POST /api/customer/widgets (which creates the
+  // assistant eagerly at creation time), switching a widget onto the Vapi
+  // model here via llmModelId previously left it stuck with no assistant,
+  // requiring the customer to hand-paste a Vapi assistant id they have no
+  // way to get. Runs on every save, so an already-broken widget fixes
+  // itself the next time the customer touches Settings.
+  if (data.llm_model_id && !extra.vapiAssistantId) {
+    const { data: model } = await supabase.from("llm_models").select("provider").eq("id", data.llm_model_id).maybeSingle();
+    if (model?.provider === "vapi") {
+      const assistant = await createVapiAssistant({
+        name: data.name,
+        systemPrompt: data.system_prompt ?? (await getDefaultSystemPrompt()),
+        firstMessage: data.opening_message ?? DEFAULT_VAPI_FIRST_MESSAGE,
+      });
+      extra = { ...extra, vapiAssistantId: assistant.id };
+      await supabase.from("widget_settings").upsert({ widget_id: widgetId, extra });
+    }
   }
 
   // Keep the linked Vapi assistant (see lib/vapi/sync.ts) in sync whenever
