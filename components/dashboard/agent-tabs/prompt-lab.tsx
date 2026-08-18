@@ -42,7 +42,12 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
     setGenerating(false);
 
     if (!res.ok) {
-      setGenerateError("Kunne ikke generere en prompt. Prøv igen, eller skriv den selv nedenfor.");
+      const data = await res.json().catch(() => null);
+      setGenerateError(
+        data?.error?.message
+          ? `Kunne ikke generere en prompt: ${data.error.message}`
+          : "Kunne ikke generere en prompt. Prøv igen, eller skriv den selv nedenfor."
+      );
       return;
     }
 

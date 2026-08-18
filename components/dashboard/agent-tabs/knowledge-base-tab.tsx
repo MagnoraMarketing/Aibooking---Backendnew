@@ -56,10 +56,16 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
   }
 
   async function handleAddUrl() {
-    if (!url.trim()) return;
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    // The server requires an absolute URL (with scheme) — most people type
+    // "www.example.com" or "example.com" without one, so fill it in rather
+    // than bouncing them with a validation error over something this
+    // obvious to fix.
+    const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
     const ok = await addSource("url", {
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "url", url }),
+      body: JSON.stringify({ type: "url", url: normalized }),
     });
     if (ok) setUrl("");
   }

@@ -38,8 +38,8 @@ const TABS = [
   { key: "prompt", label: "Prompt Lab" },
   { key: "settings", label: "Settings" },
   { key: "knowledge", label: "Knowledge Base" },
-  { key: "test", label: "Test Agent" },
   { key: "customize", label: "Customise Widget" },
+  { key: "test", label: "Test Agent" },
   { key: "embed", label: "Embed Code" },
 ] as const;
 

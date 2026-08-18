@@ -104,7 +104,8 @@ export function AgentCreationWizard({
     setCreating(false);
 
     if (!res.ok) {
-      setError("Kunne ikke oprette agenten. Prøv igen.");
+      const data = await res.json().catch(() => null);
+      setError(data?.error?.message ?? "Kunne ikke oprette agenten. Prøv igen.");
       return;
     }
 
