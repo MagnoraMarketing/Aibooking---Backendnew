@@ -22,5 +22,9 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  // relay-server/ is a separate, standalone Node service (its own
+  // package.json, tsconfig, deployed independently to Fly.io — see its
+  // README) — not part of the Next.js app, and typechecked on its own via
+  // `npm run typecheck` inside that directory.
+  "exclude": ["node_modules", "relay-server"]
 }

@@ -1,10 +1,15 @@
 import "server-only";
+import { ApiError } from "@/types/errors";
 
 const VAPI_API_BASE = "https://api.vapi.ai";
 
 function getPrivateKey(): string {
   const privateKey = process.env.VAPI_PRIVATE_KEY;
-  if (!privateKey) throw new Error("Missing required environment variable: VAPI_PRIVATE_KEY");
+  if (!privateKey) {
+    throw ApiError.internal(
+      "Vapi er ikke konfigureret på platformen endnu (mangler VAPI_PRIVATE_KEY i miljøvariablerne)."
+    );
+  }
   return privateKey;
 }
 
@@ -20,7 +25,7 @@ export async function vapiFetch(path: string, init: RequestInit): Promise<Respon
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "");
-    throw new Error(`Vapi API request failed: ${response.status} ${errorBody}`);
+    throw ApiError.internal(`Vapi afviste anmodningen (${response.status}): ${errorBody || "ingen detaljer"}`);
   }
 
   return response;

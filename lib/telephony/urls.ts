@@ -17,7 +17,20 @@ export function twilioWebhookUrls() {
     status: `${base}/api/telephony/twilio/voice/status`,
     outboundStart: `${base}/api/telephony/twilio/voice/outbound-start`,
     audioBase: `${base}/api/telephony/twilio/audio`,
+    // The platform TwiML Application's Voice Request URL (see
+    // lib/twilio/voice-token.ts) — Twilio hits this when the browser Voice
+    // SDK places its call, not tied to any customer subaccount/number.
+    relayStart: `${base}/api/telephony/twilio/voice/relay-start`,
   };
+}
+
+// The standalone ConversationRelay WebSocket relay (relay-server/), which
+// deliberately does NOT run on Vercel — Twilio needs the connection to stay
+// open for the whole call, and Vercel serverless functions can't hold one
+// open that long. Returns null (rather than a default) when unconfigured,
+// so callers fail loudly instead of building TwiML that points nowhere.
+export function conversationRelayWebSocketUrl(): string | null {
+  return process.env.CONVERSATION_RELAY_WS_URL ?? null;
 }
 
 // Twilio's <Say>/<Gather> `language` attribute wants a BCP-47 tag, not the

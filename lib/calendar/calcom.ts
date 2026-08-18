@@ -17,7 +17,7 @@ async function calcomFetch(path: string, apiKey: string, init: RequestInit = {})
   }
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`Cal.com API request failed: ${response.status} ${body}`);
+    throw ApiError.internal(`Cal.com afviste anmodningen (${response.status}): ${body || "ingen detaljer"}`);
   }
   return response;
 }

@@ -42,7 +42,28 @@ export interface HandleTurnResult {
   audioContentType: string;
 }
 
-export async function handleConversationTurn(params: HandleTurnParams): Promise<HandleTurnResult> {
+export interface GenerateReplyTextParams {
+  widget: Widget;
+  llmModel: LLMModel;
+  usageSessionId: string;
+  conversationId: string;
+  customerId: string;
+  userMessage: string;
+  knowledgeBase?: KnowledgeBaseSource[];
+}
+
+// The LLM-generation half of handleConversationTurn below, minus TTS
+// synthesis — used directly by the Twilio ConversationRelay path (see
+// app/api/internal/conversation-relay/turn/route.ts), where Twilio's own
+// STT/TTS handles audio and there's no voice_model/ElevenLabs step at all.
+// handleConversationTurn (the phone/text-widget path, which does need audio
+// back) is now a thin wrapper around this plus synthesis.
+export interface GenerateReplyTextResult {
+  replyText: string;
+  llmCost: number;
+}
+
+export async function generateConversationReplyText(params: GenerateReplyTextParams): Promise<GenerateReplyTextResult> {
   const supabase = getAdminClient();
 
   const { data: historyRows, error: historyError } = await supabase
@@ -170,6 +191,12 @@ export async function handleConversationTurn(params: HandleTurnParams): Promise<
     estimatedCost: llmCost,
   });
 
+  return { replyText, llmCost };
+}
+
+export async function handleConversationTurn(params: HandleTurnParams): Promise<HandleTurnResult> {
+  const { replyText, llmCost } = await generateConversationReplyText(params);
+
   const ttsProvider = resolveTTSProvider(params.voiceModel.provider);
 
   let synthesis;
@@ -216,7 +243,7 @@ export async function handleConversationTurn(params: HandleTurnParams): Promise<
 // AI can actually check availability and book, not just talk about it.
 // Decrypts the stored key just for this one call; never persisted or
 // returned outside this function.
-async function resolveCalendarToolContext(params: HandleTurnParams): Promise<CalendarToolContext | null> {
+async function resolveCalendarToolContext(params: GenerateReplyTextParams): Promise<CalendarToolContext | null> {
   const supabase = getAdminClient();
   const { data: connection } = await supabase
     .from("calendar_connections")

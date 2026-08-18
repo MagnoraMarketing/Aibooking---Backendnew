@@ -40,7 +40,7 @@ export async function twilioFetch(path: string, credentials: TwilioCredentials, 
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "");
-    throw new Error(`Twilio API request failed: ${response.status} ${errorBody}`);
+    throw ApiError.internal(`Twilio afviste anmodningen (${response.status}): ${errorBody || "ingen detaljer"}`);
   }
 
   return response;

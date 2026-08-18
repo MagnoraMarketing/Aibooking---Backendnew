@@ -47,3 +47,26 @@ export function buildSayAndHangupResponse(params: { sayText: string; playUrl?: s
 export function twimlResponseHeaders(): Record<string, string> {
   return { "Content-Type": "text/xml; charset=utf-8" };
 }
+
+// <Connect><ConversationRelay> — routes a call (here, the browser Voice SDK
+// call placed against the platform TwiML App, see relay-start's route) into
+// Twilio's own STT/TTS relay, which then opens a WebSocket to `wsUrl`
+// (relay-server/) carrying `parameters` as the "setup" message's
+// customParameters. Deliberately omits ttsProvider/voice to use
+// ConversationRelay's own defaults for now — see the ConversationRelay
+// integration's README for why (V1 scope: Twilio's own voices, ElevenLabs
+// as a documented future option, not built yet).
+export function buildConversationRelayResponse(params: {
+  wsUrl: string;
+  welcomeGreeting: string;
+  language: string;
+  parameters: Record<string, string>;
+}): string {
+  const paramTags = Object.entries(params.parameters)
+    .map(([name, value]) => `<Parameter name="${escapeXml(name)}" value="${escapeXml(value)}"/>`)
+    .join("");
+
+  return `${XML_HEADER}<Response><Connect><ConversationRelay url="${escapeXml(params.wsUrl)}" welcomeGreeting="${escapeXml(
+    params.welcomeGreeting
+  )}" language="${params.language}">${paramTags}</ConversationRelay></Connect></Response>`;
+}

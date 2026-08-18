@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { escapeXml, buildGatherResponse, buildSayAndHangupResponse } from "@/lib/telephony/twiml";
+import { escapeXml, buildGatherResponse, buildSayAndHangupResponse, buildConversationRelayResponse } from "@/lib/telephony/twiml";
 
 describe("escapeXml", () => {
   it("escapes all five XML special characters", () => {
@@ -46,5 +46,43 @@ describe("buildSayAndHangupResponse", () => {
     expect(xml).toContain("<Say");
     expect(xml).toContain("<Hangup/>");
     expect(xml).not.toContain("<Gather");
+  });
+});
+
+describe("buildConversationRelayResponse", () => {
+  it("builds a Connect/ConversationRelay element with the wsUrl, greeting and language", () => {
+    const xml = buildConversationRelayResponse({
+      wsUrl: "wss://relay.test/ws",
+      welcomeGreeting: "Hej & velkommen",
+      language: "da-DK",
+      parameters: {},
+    });
+    expect(xml).toContain("<Connect><ConversationRelay");
+    expect(xml).toContain('url="wss://relay.test/ws"');
+    expect(xml).toContain('welcomeGreeting="Hej &amp; velkommen"');
+    expect(xml).toContain('language="da-DK"');
+    expect(xml).toContain("</ConversationRelay></Connect>");
+  });
+
+  it("emits one <Parameter> per entry, escaped, in the given order", () => {
+    const xml = buildConversationRelayResponse({
+      wsUrl: "wss://relay.test/ws",
+      welcomeGreeting: "Hi",
+      language: "da-DK",
+      parameters: { widgetId: "w1", customerId: 'c&<1>' },
+    });
+    expect(xml).toContain('<Parameter name="widgetId" value="w1"/>');
+    expect(xml).toContain('<Parameter name="customerId" value="c&amp;&lt;1&gt;"/>');
+    expect(xml.indexOf('name="widgetId"')).toBeLessThan(xml.indexOf('name="customerId"'));
+  });
+
+  it("emits no <Parameter> elements when parameters is empty", () => {
+    const xml = buildConversationRelayResponse({
+      wsUrl: "wss://relay.test/ws",
+      welcomeGreeting: "Hi",
+      language: "da-DK",
+      parameters: {},
+    });
+    expect(xml).not.toContain("<Parameter");
   });
 });

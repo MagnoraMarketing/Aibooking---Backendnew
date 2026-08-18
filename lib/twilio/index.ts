@@ -14,3 +14,4 @@ export {
 } from "./numbers";
 export { createTwilioOutboundCall, type CreateTwilioOutboundCallParams } from "./calls";
 export { validateTwilioSignature, formDataToParams } from "./signature";
+export { createVoiceAccessToken } from "./voice-token";
