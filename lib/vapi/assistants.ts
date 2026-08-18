@@ -22,6 +22,20 @@ async function resolveModelName(): Promise<string> {
   return getSummarizationModelName();
 }
 
+// Without this, Vapi has nowhere to send call events (transcripts,
+// recordings, end-of-call-report) — app/api/webhooks/vapi/route.ts would
+// simply never be called, silently breaking phone-call billing
+// (recordAndBillCall) and the vapi_events audit log for every assistant
+// this platform creates. Only set when VAPI_WEBHOOK_SECRET is actually
+// configured — a serverUrl with no secret to hand Vapi would just make
+// every delivery fail signature verification instead of never being sent.
+function webhookConfig(): { serverUrl: string; serverUrlSecret: string } | Record<string, never> {
+  const secret = process.env.VAPI_WEBHOOK_SECRET;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!secret || !appUrl) return {};
+  return { serverUrl: `${appUrl}/api/webhooks/vapi`, serverUrlSecret: secret };
+}
+
 // Fixed transcriber/voice combination, matching how this account's
 // hand-configured Vapi assistants are already set up (Soniox STT RT v5,
 // Vapi's own "Elliot" voice) — not per-widget configurable yet.
@@ -44,6 +58,7 @@ function buildAssistantBody(params: VapiAssistantParams, modelName: string) {
       version: 2,
       voiceId: "Elliot",
     },
+    ...webhookConfig(),
   };
 }
 
