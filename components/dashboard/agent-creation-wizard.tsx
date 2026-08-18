@@ -6,6 +6,7 @@ import type { LLMModel, Package, VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "./agent-configurator";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { WizardVoiceStep } from "./agent-tabs/wizard-voice-step";
+import { WizardCalendarStep } from "./agent-tabs/wizard-calendar-step";
 import { EmbedCodeTab } from "./agent-tabs/embed-code";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
@@ -33,7 +34,7 @@ const TYPE_OPTIONS: {
 
 function stepsFor(agentType: AgentType | null) {
   const lastStep = agentType === "phone" ? "Telefonnummer" : "Embed-kode";
-  return ["Navn & type", "Prompt", "Stemme", lastStep] as const;
+  return ["Navn & type", "Prompt", "Stemme", "Kalender", lastStep] as const;
 }
 
 interface AgentCreationWizardProps {
@@ -257,7 +258,9 @@ export function AgentCreationWizard({
         </div>
       ) : null}
 
-      {step === 3 && widget ? (
+      {step === 3 && widget ? <WizardCalendarStep widget={widget} onNext={() => setStep(4)} /> : null}
+
+      {step === 4 && widget ? (
         <div className="space-y-4">
           {agentType === "phone" ? (
             <WizardPhoneStep widget={widget} />

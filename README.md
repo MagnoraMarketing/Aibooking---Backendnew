@@ -245,6 +245,51 @@ neither (no website embed to speak of) and a "Telefonnummer" tab instead
 which hands off to the Inbound page — where the BYO/purchase flow above
 takes over — rather than duplicating that flow a third time.
 
+### Cal.com integration and AI booking
+
+Cal.com connects with a pasted API key (`lib/calendar/calcom.ts`,
+`app/api/customer/calendar/calcom/route.ts`) — no OAuth round-trip.
+Connecting now runs the full setup the spec calls for: `fetchCalcomMe`
+doubles as the "test authentication" step, `fetchCalcomEventTypes` lists
+Event Types so the customer picks which one the agent books against, and
+the key itself is AES-256-GCM encrypted before it's ever written to
+`calendar_connections.calcom_api_key` (`lib/security/crypto.ts`,
+`CALENDAR_CREDENTIALS_ENCRYPTION_KEY` — required, not optional, to connect
+Cal.com at all). Nothing selects that ciphertext column back into a
+client-facing response anywhere; every server-side caller decrypts it
+just-in-time for one Cal.com API call. The dashboard's connected-state card
+(`calendar-integrations-manager.tsx`) shows status/account/timezone and a
+"Test forbindelse" button (`POST /api/customer/calendar/[id]/test`,
+re-runs `fetchCalcomMe`), and a dropdown to change the Event Type
+(`PATCH /api/customer/calendar/[id]`) without disconnecting. Setting up
+Cal.com is also a step in the agent creation wizard now
+(`wizard-calendar-step.tsx`), not only reachable from the separate
+Integrations page.
+
+**AI booking loop**: a connected, `status='connected'` Cal.com calendar
+makes the AI's replies run through a tool-use loop instead of a plain
+completion (`lib/conversation/calendar-tools.ts`,
+`generateReplyWithCalendarTools`) — two tools, `check_availability` and
+`book_meeting`, backed by `fetchCalcomAvailability`/`createCalcomBooking`.
+`handle-turn.ts` looks the connection up per turn and only takes this path
+for `provider='anthropic'` widgets (tool-use is called directly against the
+Anthropic SDK, not through the generic `LLMProvider` interface — see that
+file's module comment for why); a successful or failed `book_meeting` call
+writes a row to `appointments` (`status: 'booked' | 'failed'`), matching
+the diagrammed flow: AI → backend → Cal.com API → availability → lead picks
+a time → Cal.com API → booking created → booking id → Supabase → AI
+confirms. Token usage across every call in the loop is summed and recorded
+once, so billing in `handle-turn.ts` needed no changes.
+
+**Known limitation / please verify**: the Cal.com v1 API's `/slots` and
+`/bookings` request/response shapes in `lib/calendar/calcom.ts` are
+implemented from documented API knowledge, not tested against a live
+Cal.com account — this sandbox has no way to call out to Cal.com. Test
+`check_availability`/`book_meeting` against a real Cal.com event type
+before relying on this in production; `/me` and `/event-types` (used by
+the connect/test flow) are more likely correct since they're simpler and
+more stable endpoints.
+
 ### Phone number marketplace ("buy a number through us")
 
 A customer never touches Twilio Console. The flow:

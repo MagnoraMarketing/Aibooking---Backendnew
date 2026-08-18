@@ -5,9 +5,15 @@ import { useSearchParams } from "next/navigation";
 import type { Widget } from "@/types/database";
 import type { CalendarConnectionSummary } from "@/app/dashboard/integrations/page";
 
+interface CalcomEventType {
+  id: number;
+  title: string;
+}
+
 interface CalendarIntegrationsManagerProps {
   widgets: Widget[];
   initialConnections: CalendarConnectionSummary[];
+  eventTypesByConnection: Record<string, CalcomEventType[]>;
 }
 
 const PROVIDERS = [
@@ -74,13 +80,20 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-export function CalendarIntegrationsManager({ widgets, initialConnections }: CalendarIntegrationsManagerProps) {
+export function CalendarIntegrationsManager({
+  widgets,
+  initialConnections,
+  eventTypesByConnection,
+}: CalendarIntegrationsManagerProps) {
   const [connections, setConnections] = useState(initialConnections);
   const [widgetId, setWidgetId] = useState(widgets[0]?.id ?? "");
   const [calcomForm, setCalcomForm] = useState<{ apiKey: string; open: boolean }>({ apiKey: "", open: false });
   const [calcomConnecting, setCalcomConnecting] = useState(false);
   const [calcomError, setCalcomError] = useState<string | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testMessage, setTestMessage] = useState<{ id: string; ok: boolean; text: string } | null>(null);
+  const [changingEventTypeId, setChangingEventTypeId] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
   const banner = useMemo(() => {
@@ -128,6 +141,44 @@ export function CalendarIntegrationsManager({ widgets, initialConnections }: Cal
     const { connection } = await res.json();
     setConnections((prev) => [connection, ...prev.filter((c) => c.id !== connection.id)]);
     setCalcomForm({ apiKey: "", open: false });
+  }
+
+  async function handleTestConnection(connectionId: string) {
+    setTestingId(connectionId);
+    setTestMessage(null);
+
+    const res = await fetch(`/api/customer/calendar/${connectionId}/test`, { method: "POST" });
+    setTestingId(null);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setTestMessage({ id: connectionId, ok: false, text: data?.error?.message ?? "Kunne ikke forbinde til Cal.com." });
+      return;
+    }
+
+    const { connection } = await res.json();
+    setConnections((prev) => prev.map((c) => (c.id === connectionId ? connection : c)));
+    setTestMessage({ id: connectionId, ok: true, text: "Forbindelsen virker." });
+  }
+
+  async function handleChangeEventType(connectionId: string, eventTypeId: number) {
+    setChangingEventTypeId(connectionId);
+
+    const res = await fetch(`/api/customer/calendar/${connectionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventTypeId }),
+    });
+    setChangingEventTypeId(null);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setTestMessage({ id: connectionId, ok: false, text: data?.error?.message ?? "Kunne ikke skifte event-type." });
+      return;
+    }
+
+    const { connection } = await res.json();
+    setConnections((prev) => prev.map((c) => (c.id === connectionId ? connection : c)));
   }
 
   return (
@@ -196,13 +247,61 @@ export function CalendarIntegrationsManager({ widgets, initialConnections }: Cal
                     </div>
                     <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">{provider.category}</p>
                     <p className="mt-1 text-xs text-slate-500">{provider.description}</p>
-                    {connection?.external_account_email ? (
+                    {connection && connection.provider !== "calcom" && connection.external_account_email ? (
                       <p className="mt-2 text-xs font-medium text-slate-600">{connection.external_account_email}</p>
                     ) : null}
-                    {connection?.provider === "calcom" && connection.calcom_event_type_id ? (
-                      <p className="mt-2 text-xs font-medium text-slate-600">
-                        Event-type-id: {connection.calcom_event_type_id}
-                      </p>
+
+                    {connection && connection.provider === "calcom" ? (
+                      <div className="mt-3 space-y-2.5 border-t border-slate-100 pt-3">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              connection.status === "connected" ? "bg-emerald-500" : "bg-red-500"
+                            }`}
+                          />
+                          <span className="font-medium text-slate-700">
+                            {connection.status === "connected" ? "Connected" : "Fejl — tjek forbindelsen"}
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Account</p>
+                          <p className="text-xs text-slate-700">{connection.external_account_email ?? "—"}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Event Type</p>
+                          <select
+                            value={connection.calcom_event_type_id ?? ""}
+                            onChange={(e) => handleChangeEventType(connection.id, Number(e.target.value))}
+                            disabled={changingEventTypeId === connection.id}
+                            className="mt-0.5 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+                          >
+                            {(eventTypesByConnection[connection.id] ?? []).map((eventType) => (
+                              <option key={eventType.id} value={eventType.id}>
+                                {eventType.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Timezone</p>
+                          <p className="text-xs text-slate-700">{connection.calcom_timezone ?? "—"}</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleTestConnection(connection.id)}
+                          disabled={testingId === connection.id}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          {testingId === connection.id ? "Tester…" : "Test forbindelse"}
+                        </button>
+                        {testMessage?.id === connection.id ? (
+                          <p className={`text-xs ${testMessage.ok ? "text-emerald-600" : "text-red-600"}`}>{testMessage.text}</p>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
 

@@ -1,5 +1,6 @@
 export * from "./types";
 export { resolveLLMProvider } from "./registry";
+export { getAnthropicClient } from "./anthropic-provider";
 export { estimateLLMCost } from "./cost";
 export {
   buildSystemPrompt,

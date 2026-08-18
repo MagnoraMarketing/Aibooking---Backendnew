@@ -10,7 +10,12 @@ import type {
 
 let client: Anthropic | null = null;
 
-function getClient(): Anthropic {
+// Exported so lib/conversation/calendar-tools.ts can reuse the same
+// singleton for its tool-use loop — that path talks to the Anthropic SDK
+// directly (tool_use isn't part of the generic LLMProvider interface, and
+// Anthropic is the only provider that needs it) rather than going through
+// generateReply below.
+export function getAnthropicClient(): Anthropic {
   if (client) return client;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("Missing required environment variable: ANTHROPIC_API_KEY");
@@ -22,7 +27,7 @@ export class AnthropicProvider implements LLMProvider {
   readonly name = "anthropic";
 
   async generateReply(params: LLMGenerateParams): Promise<LLMGenerateResult> {
-    const response = await getClient().messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: params.model,
       system: params.systemPrompt,
       max_tokens: params.maxTokens,
@@ -51,7 +56,7 @@ export class AnthropicProvider implements LLMProvider {
       ? `Eksisterende resume af samtalen indtil videre:\n${params.existingSummary}\n\nOpdater resumeet med denne nye del af samtalen. Hold det kort (maks 5 sætninger) og bevar kun fakta der er relevante for at fortsætte samtalen (kundens behov, aftaler, navn, kontaktinfo, beslutninger).\n\nNy del af samtalen:\n${transcript}`
       : `Lav et kort resume (maks 5 sætninger) af denne samtale. Bevar kun fakta der er relevante for at fortsætte samtalen (kundens behov, aftaler, navn, kontaktinfo, beslutninger).\n\nSamtale:\n${transcript}`;
 
-    const response = await getClient().messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: params.model,
       max_tokens: 300,
       messages: [{ role: "user", content: prompt }],
