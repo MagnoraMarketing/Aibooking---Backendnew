@@ -1,6 +1,7 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { twilioFetch, getPlatformTwilioCredentials, type TwilioCredentials } from "./client";
+import { ApiError } from "@/types/errors";
 
 // Every customer who buys a number through us gets their own Twilio
 // subaccount, created lazily on first purchase attempt (see
@@ -23,7 +24,9 @@ export async function getOrCreateSubaccount(customerId: string): Promise<TwilioC
     return { accountSid: existing.twilio_subaccount_sid, authToken: existing.twilio_subaccount_auth_token };
   }
   if (existing) {
-    throw new Error(`Twilio subaccount for customer ${customerId} is ${existing.status}, not active`);
+    throw ApiError.internal(
+      `Jeres Twilio-forbindelse er ikke aktiv (status: ${existing.status}). Kontakt support.`
+    );
   }
 
   const platformCredentials = getPlatformTwilioCredentials();
