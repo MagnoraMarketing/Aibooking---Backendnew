@@ -231,6 +231,41 @@ export interface AuditLog {
   created_at: string;
 }
 
+export type PhoneNumberSource = "byo_twilio" | "platform_twilio";
+
+export interface PhoneNumber {
+  id: string;
+  customer_id: string;
+  widget_id: string;
+  vapi_phone_number_id: string;
+  phone_number: string;
+  label: string | null;
+  source: PhoneNumberSource;
+  twilio_sid: string | null;
+  monthly_price_dkk: number | null;
+  created_at: string;
+}
+
+export type CalendarProvider = "google" | "outlook" | "calcom";
+export type CalendarConnectionStatus = "connected" | "error";
+
+export interface CalendarConnection {
+  id: string;
+  customer_id: string;
+  widget_id: string;
+  provider: CalendarProvider;
+  status: CalendarConnectionStatus;
+  external_account_email: string | null;
+  calendar_id: string | null;
+  access_token: string | null;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  calcom_api_key: string | null;
+  calcom_event_type_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface StripeEventRow {
   id: string;
   type: string;

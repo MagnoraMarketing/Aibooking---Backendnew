@@ -219,6 +219,33 @@ export const widgetMessageSchema = z.object({
   clientDurationSeconds: z.number().nonnegative().max(600).optional(),
 });
 
+// Calendar integrations (see 0014_calendar_integrations.sql and
+// lib/calendar) — Google/Outlook connect via OAuth (widgetId passed as a
+// query param, not a body), Cal.com connects with a pasted API key instead.
+export const calendarOAuthConnectQuerySchema = z.object({
+  widgetId: z.string().uuid(),
+});
+
+export const calcomConnectInputSchema = z.object({
+  widgetId: z.string().uuid(),
+  apiKey: z.string().trim().min(1).max(500),
+  eventTypeId: z.number().int().positive().optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Phone numbers purchased through us (see 0015_platform_phone_numbers.sql
+// and lib/twilio) — search available Danish Twilio numbers, then buy one.
+// ---------------------------------------------------------------------------
+export const searchPhoneNumbersQuerySchema = z.object({
+  areaCode: z.string().trim().max(10).optional(),
+});
+
+export const purchasePhoneNumberInputSchema = z.object({
+  widgetId: z.string().uuid(),
+  phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
+  label: z.string().trim().max(200).optional(),
+});
+
 // ---------------------------------------------------------------------------
 // Billing
 // ---------------------------------------------------------------------------

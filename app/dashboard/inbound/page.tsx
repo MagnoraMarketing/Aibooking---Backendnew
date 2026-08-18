@@ -1,17 +1,11 @@
 import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { InboundManager } from "@/components/dashboard/inbound-manager";
-import type { Widget } from "@/types/database";
+import type { PhoneNumber, Widget } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-export interface PhoneNumberRow {
-  id: string;
-  widget_id: string;
-  phone_number: string;
-  label: string | null;
-  created_at: string;
-}
+export type PhoneNumberRow = PhoneNumber;
 
 export default async function InboundPage() {
   const ctx = await requireCustomerAdminForPage();

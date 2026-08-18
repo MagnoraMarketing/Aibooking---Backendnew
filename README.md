@@ -85,6 +85,13 @@ tests/  Vitest unit tests (credit ledger math, tenant isolation guards, Stripe w
    - `OPENAI_API_KEY` ("Expert model" — OpenAI Realtime API over WebRTC)
    - `VAPI_PUBLIC_KEY`, `VAPI_WEBHOOK_SECRET`, `VAPI_PRIVATE_KEY` ("Claude"
      agents — Vapi Web SDK, assistants auto-provisioned via the Vapi API)
+   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (optional — platform Twilio
+     account used to sell DK numbers through Inbound; the BYO-Twilio import
+     path works without these)
+   - `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and
+     `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET` (optional — Google
+     Calendar and Outlook/Microsoft 365 connect buttons under Integrations;
+     Cal.com needs no platform credentials, it's API-key based)
    - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
    - `NEXT_PUBLIC_APP_URL`
 3. Update the seeded `voice_models` rows with real ElevenLabs voice IDs
@@ -121,15 +128,31 @@ audio → usage/cost recorded → credits deducted), the credit ledger with
 automatic overage refill, Stripe subscription sync + webhook idempotency,
 and a working (text-input, audio-output) embeddable widget.
 
+Also implemented: a step-by-step "Kom i gang" wizard
+(`/dashboard/getting-started`) tying the whole setup together; inbound
+calling via a Vapi phone number, either bought through the platform's own
+Twilio account (`lib/twilio`, `app/api/customer/phone-numbers/search` +
+`/purchase`) or a customer's own BYO-Twilio number (existing import route),
+plus in-app call-forwarding instructions (`components/dashboard/
+call-forwarding-instructions.tsx`) for diverting an existing DK number to
+it; and calendar connect/disconnect for Google Calendar, Outlook/Microsoft
+365 (OAuth, `lib/calendar`), and Cal.com (API key) at
+`/dashboard/integrations`, storing connections in `calendar_connections`
+(0014_calendar_integrations.sql).
+
 **Deliberately deferred** (per spec section 33 — MVP scope, and because this
-task is backend-only): the admin/customer dashboard UIs, real end-user
-speech-to-text in the widget (the widget currently takes typed input and
-plays back synthesized voice replies — swapping in the browser's
-`SpeechRecognition` API or a hosted STT provider is a frontend-only change
-against the existing `/api/widget/message` contract), booking/calendar/CRM
-integrations, and a knowledge-base/RAG layer. `widget_settings.extra`
-(jsonb) exists specifically so those can be added later without a schema
-migration.
+task is backend-only): the admin dashboard UI beyond what's listed above,
+real end-user speech-to-text in the widget (the widget currently takes
+typed input and plays back synthesized voice replies — swapping in the
+browser's `SpeechRecognition` API or a hosted STT provider is a
+frontend-only change against the existing `/api/widget/message` contract),
+CRM integrations, a knowledge-base/RAG layer, and actually reading/writing
+calendar events during a live call — the calendar connections above are
+wired for that (tokens + event type stored) but nothing in the conversation
+pipeline calls out to Google/Outlook/Cal.com yet, same "connected but not
+consumed" status the `appointments` table has had since
+0010_appointments.sql. `widget_settings.extra` (jsonb) exists specifically
+so further additions like this can land without a schema migration.
 
 **Known follow-up**: Next.js is pinned to the latest 14.2.x patch; a major
 version upgrade (15/16) was intentionally left out of this change to avoid
