@@ -162,19 +162,25 @@ of the package's included minutes — the excess is expired on each renewal
 trial countdown, and is where "Administrer betaling / opsig abonnement"
 opens the Stripe billing portal.
 
-**BYO-Twilio 30-day trial**: connecting your own Twilio number through the
-Inbound page's "Prøv gratis i 30 dage" banner/modal
-(`components/dashboard/inbound-manager.tsx`) grants a separate, longer trial
-— `customers.byo_trial_expires_at`, set once on first successful BYO import
-(`app/api/customer/phone-numbers/route.ts`), never re-extended by later
-imports. Unlike the signup trial it has no minute cap
-(`isWithinByoTrial`/`hasEmbedCodeAccess` in `lib/billing/trial.ts`), since
-the customer is drawing on their own Twilio account rather than our
-credits. The pitch is deliberately risk-free: it's just a call-forward from
-their existing number to the new Twilio number, so nothing about their real
-phone setup changes. The modal's SMS/Voice/Email/WhatsApp overview card is
-informational only (what a fresh Twilio trial account typically includes,
-for the number they're connecting) — this app only implements Voice.
+**Intro offer (499 kr / 30 days, then 999 kr/md)**: `/dashboard/inbound/free-trial`
+pitches a real, paid Stripe subscription rather than a free-access bypass —
+`POST /api/billing/intro-offer` checks out the default package with a
+one-time 50%-off coupon on the first invoice (`getOrCreateIntroOfferCoupon`
+in `lib/billing/checkout.ts`, a get-or-create against a fixed Stripe coupon
+id so it's only ever created once). Gated to genuinely new customers: 409s
+if `customers.intro_offer_used_at` is already set, or if the customer has
+any `subscriptions` row at all. On successful checkout, `success_url`
+redirects to `/dashboard/inbound?openTrial=1`, which auto-opens the
+BYO-Twilio connect popup (`components/dashboard/inbound-manager.tsx`) so
+the customer lands straight in "now forward your number" instead of back
+on a generic billing page. `intro_offer_used_at` itself is stamped by the
+Stripe webhook (`syncSubscriptionFromStripe` in
+`lib/billing/subscription-sync.ts`), keyed off a
+`aibooking_intro_offer: 'true'` subscription metadata flag — not at
+checkout-session-creation time, so an abandoned checkout doesn't burn the
+customer's one shot at the offer. Once redeemed, access comes from the
+real subscription's `active` status like any other paid customer — no
+separate trial-access bypass in `hasEmbedCodeAccess` needed.
 
 ### Twilio-direct voice (Claude, no Vapi)
 

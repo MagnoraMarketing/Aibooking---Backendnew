@@ -10,21 +10,11 @@ import { CallForwardingInstructions } from "./call-forwarding-instructions";
 interface InboundManagerProps {
   widgets: Widget[];
   initialPhoneNumbers: PhoneNumberRow[];
-  initialByoTrialExpiresAt: string | null;
+  // Whether this customer can still start the "/dashboard/inbound/free-trial"
+  // paid intro offer (499 kr for 30 days) — false once they've redeemed it
+  // or already have a subscription (see app/dashboard/inbound/page.tsx).
+  introOfferAvailable: boolean;
 }
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-// Mirrors the free-unit overview Twilio itself shows a brand-new trial
-// account — purely informative context for what "connect your own Twilio
-// account" involves, not a feature this app builds (only Voice is real
-// here; see the "Kun Voice" scope decision for this trial flow).
-const TWILIO_TRIAL_UNITS = [
-  { label: "SMS", value: "100 gratis SMS" },
-  { label: "Voice", value: "~75 gratis minutter" },
-  { label: "Email", value: "3.000 gratis emails" },
-  { label: "WhatsApp", value: "100 gratis beskeder" },
-] as const;
 
 interface AvailableNumber {
   phoneNumber: string;
@@ -86,11 +76,10 @@ function DirectionPicker({ value, onChange }: { value: PhoneNumberDirection; onC
   );
 }
 
-export function InboundManager({ widgets, initialPhoneNumbers, initialByoTrialExpiresAt }: InboundManagerProps) {
+export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailable }: InboundManagerProps) {
   const [phoneNumbers, setPhoneNumbers] = useState(initialPhoneNumbers);
   const [showForm, setShowForm] = useState(initialPhoneNumbers.length === 0);
   const [mode, setMode] = useState<Mode>("buy");
-  const [byoTrialExpiresAt, setByoTrialExpiresAt] = useState(initialByoTrialExpiresAt);
   const [showTrialModal, setShowTrialModal] = useState(false);
   const [widgetId, setWidgetId] = useState(widgets[0]?.id ?? "");
   const [label, setLabel] = useState("");
@@ -113,12 +102,6 @@ export function InboundManager({ widgets, initialPhoneNumbers, initialByoTrialEx
 
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  const byoTrialActive = byoTrialExpiresAt !== null && new Date(byoTrialExpiresAt).getTime() > Date.now();
-  const byoTrialUsed = byoTrialExpiresAt !== null;
-  const byoTrialDaysLeft = byoTrialActive
-    ? Math.max(0, Math.ceil((new Date(byoTrialExpiresAt as string).getTime() - Date.now()) / MS_PER_DAY))
-    : 0;
 
   function widgetName(id: string): string {
     return widgets.find((w) => w.id === id)?.name ?? "Ukendt agent";
@@ -255,9 +238,8 @@ export function InboundManager({ widgets, initialPhoneNumbers, initialByoTrialEx
       return;
     }
 
-    const { phoneNumber, byoTrialExpiresAt: grantedTrial } = await res.json();
+    const { phoneNumber } = await res.json();
     setPhoneNumbers((prev) => [phoneNumber, ...prev]);
-    if (grantedTrial) setByoTrialExpiresAt(grantedTrial);
     setTwilioAccountSid("");
     setTwilioAuthToken("");
     setTwilioPhoneNumber("");
@@ -308,62 +290,25 @@ export function InboundManager({ widgets, initialPhoneNumbers, initialByoTrialEx
         ) : null}
       </div>
 
-      {widgets.length > 0 && byoTrialActive ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          🎉 I har <strong>{byoTrialDaysLeft} {byoTrialDaysLeft === 1 ? "dag" : "dage"}</strong> tilbage af jeres gratis
-          PRO-prøveperiode — fuld adgang, ingen minutbegrænsning.
-        </div>
-      ) : widgets.length > 0 && !byoTrialUsed ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-[1.3fr_1fr]">
-            <div className="space-y-3">
-              <span className="inline-block rounded-full bg-brand-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
-                Risikofrit
-              </span>
-              <h2 className="text-lg font-semibold text-slate-900">Prøv jeres AI-agent gratis i 30 dage</h2>
-              <p className="text-sm text-slate-600">
-                Forbind jeres eget Twilio-nummer, og prøv agenten live ved blot at viderestille jeres eksisterende
-                firmanummer til testnummeret — I rører ikke ved jeres nuværende opsætning, og kan stille
-                viderestillingen tilbage når som helst. Ingen binding, ingen betalingskort krævet.
-              </p>
-              <p className="text-sm text-slate-600">
-                Har I ikke allerede en Twilio-konto, opretter I en gratis på 2 minutter — I får med det samme et
-                testnummer at viderestille til.
-              </p>
-              <div className="flex flex-wrap items-center gap-4">
-                <button
-                  type="button"
-                  onClick={handleOpenTrialModal}
-                  className="mt-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-                >
-                  Prøv gratis i 30 dage →
-                </button>
-                <Link
-                  href="/dashboard/inbound/free-trial"
-                  className="mt-2 text-sm font-medium text-brand-600 hover:text-brand-700"
-                >
-                  Se alle fordele →
-                </Link>
-              </div>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Se hvad en gratis Twilio-konto giver</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Til jeres testnummer — Twilios egen gratis-kvote, ikke en del af AIbooking-pakken.
-              </p>
-              <ul className="mt-3 space-y-2 text-sm">
-                {TWILIO_TRIAL_UNITS.map((unit) => (
-                  <li key={unit.label} className="flex items-center justify-between border-b border-slate-200 pb-2 last:border-0 last:pb-0">
-                    <span className="text-slate-600">{unit.label}</span>
-                    <span className="font-medium text-slate-800">{unit.value}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-4 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">
-                + 30 dage fuld PRO-adgang hos AIbooking.dk
-              </div>
-            </div>
+      {widgets.length > 0 && introOfferAvailable ? (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-brand-200 bg-brand-50 p-5">
+          <div>
+            <span className="inline-block rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
+              Introtilbud
+            </span>
+            <h2 className="mt-1.5 text-base font-semibold text-slate-900">
+              Prøv AIbooking.dk Reception i 30 dage for 499 kr
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Testnummer, ~75 min taletid og fuld PRO-adgang — derefter 999 kr/md.
+            </p>
           </div>
+          <Link
+            href="/dashboard/inbound/free-trial"
+            className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Se tilbuddet →
+          </Link>
         </div>
       ) : null}
 
@@ -626,10 +571,10 @@ export function InboundManager({ widgets, initialPhoneNumbers, initialByoTrialEx
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Prøv jeres AI-agent gratis i 30 dage</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Sidste trin — forbind jeres Twilio-nummer</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Helt risikofrit — I viderestiller blot jeres eksisterende firmanummer til testnummeret. Jeres
-                  rigtige opsætning rører vi ikke ved, og I kan stille viderestillingen tilbage når som helst.
+                  I viderestiller blot jeres eksisterende firmanummer til testnummeret. Jeres rigtige opsætning
+                  rører vi ikke ved, og I kan stille viderestillingen tilbage når som helst.
                 </p>
               </div>
               <button
@@ -787,7 +732,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, initialByoTrialEx
                 disabled={importing}
                 className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {importing ? "Forbinder…" : "Forbind og start gratis prøve →"}
+                {importing ? "Forbinder…" : "Forbind nummer →"}
               </button>
             </div>
           </div>

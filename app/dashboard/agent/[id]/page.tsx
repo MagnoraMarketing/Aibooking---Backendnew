@@ -51,7 +51,6 @@ export default async function AgentConfigurePage({ params }: { params: { id: str
     customerCreatedAt: customer!.created_at,
     subscriptionStatus: subscription?.status ?? null,
     balanceSeconds,
-    byoTrialExpiresAt: customer!.byo_trial_expires_at,
   });
 
   return (

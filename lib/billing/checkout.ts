@@ -43,6 +43,14 @@ function nextBillingCycleAnchor(): number {
 export async function createCheckoutSession(params: {
   customer: Customer;
   pkg: Package;
+  // Optional overrides for a special-cased checkout (e.g. the Inbound
+  // page's intro offer) — a specific Stripe coupon to apply, redirect URLs
+  // other than the billing page, and extra subscription metadata for the
+  // webhook to key off later (see subscription-sync.ts).
+  discountCouponId?: string;
+  successUrl?: string;
+  cancelUrl?: string;
+  subscriptionMetadata?: Record<string, string>;
 }): Promise<{ url: string }> {
   if (!params.pkg.stripe_price_id) {
     throw new Error(`Package "${params.pkg.package_name}" has no stripe_price_id configured`);
@@ -75,8 +83,9 @@ export async function createCheckoutSession(params: {
     mode: "subscription",
     customer: stripeCustomerId,
     line_items: lineItems,
-    success_url: `${appUrl}/dashboard/billing?checkout=success`,
-    cancel_url: `${appUrl}/dashboard/billing?checkout=cancelled`,
+    success_url: params.successUrl ?? `${appUrl}/dashboard/billing?checkout=success`,
+    cancel_url: params.cancelUrl ?? `${appUrl}/dashboard/billing?checkout=cancelled`,
+    discounts: params.discountCouponId ? [{ coupon: params.discountCouponId }] : undefined,
     metadata: {
       aibooking_customer_id: params.customer.id,
       aibooking_package_id: params.pkg.id,
@@ -87,12 +96,37 @@ export async function createCheckoutSession(params: {
       metadata: {
         aibooking_customer_id: params.customer.id,
         aibooking_package_id: params.pkg.id,
+        ...params.subscriptionMetadata,
       },
     },
   });
 
   if (!session.url) throw new Error("Stripe did not return a checkout URL");
   return { url: session.url };
+}
+
+// The Inbound page's "30 dage til 499 kr, derefter 999 kr" intro offer
+// (app/api/billing/intro-offer) — one-time-per-customer 50% off the first
+// invoice, via a stable, reusable Stripe Coupon rather than creating a new
+// one per checkout. Get-or-create: Stripe has no "upsert" for coupons, and
+// creating with a fixed id twice just errors, so we retrieve first and only
+// create on a genuine 404.
+const INTRO_OFFER_COUPON_ID = "aibooking-intro-offer-50";
+
+export async function getOrCreateIntroOfferCoupon(): Promise<string> {
+  const stripe = getStripeClient();
+  try {
+    const existing = await stripe.coupons.retrieve(INTRO_OFFER_COUPON_ID);
+    return existing.id;
+  } catch {
+    const created = await stripe.coupons.create({
+      id: INTRO_OFFER_COUPON_ID,
+      percent_off: 50,
+      duration: "once",
+      name: "AIbooking.dk — 30 dages introtilbud",
+    });
+    return created.id;
+  }
 }
 
 export async function createBillingPortalSession(customer: Customer): Promise<{ url: string }> {

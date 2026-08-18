@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
+import { IntroOfferButton } from "@/components/dashboard/intro-offer-button";
 import type { Customer } from "@/types/database";
 
 export const dynamic = "force-dynamic";
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const BENEFITS = [
   {
@@ -33,7 +32,23 @@ const BENEFITS = [
   },
 ];
 
+const INCLUDED = [
+  { title: "1 testnummer", description: "Jeres eget Twilio-nummer, klar til at viderestille til med det samme." },
+  {
+    title: "Op til 75 min. taletid",
+    description: "Twilios egen gratis-kvote til en ny Twilio-konto, brugt til at teste agenten live på opkald.",
+  },
+  {
+    title: "Fuld PRO-adgang",
+    description: "Alle funktioner i AIbooking.dk-platformen låst op — agent, widget, kalender, det hele.",
+  },
+];
+
 const STEPS = [
+  {
+    title: "Betal 499 kr for de første 30 dage",
+    description: "Via Stripe — sikker betaling, kvittering på mail. Herefter fortsætter det automatisk til normalpris.",
+  },
   {
     title: "Forbind jeres Twilio-konto",
     description:
@@ -44,11 +59,6 @@ const STEPS = [
     description:
       "Stil jeres firmanummer om til at viderestille til det nye nummer. Det er den eneste ændring — jeres nuværende opsætning rører vi ikke ved.",
   },
-  {
-    title: "Test det live i 30 dage",
-    description:
-      "Ring ind, prøv agenten af, og se hvordan den håndterer rigtige opkald — helt gratis, ingen binding, ingen betalingskort.",
-  },
 ];
 
 export default async function InboundFreeTrialPage() {
@@ -56,36 +66,59 @@ export default async function InboundFreeTrialPage() {
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
-  const { data: customer } = await supabase
-    .from("customers")
-    .select("byo_trial_expires_at")
-    .eq("id", customerId)
-    .single<Pick<Customer, "byo_trial_expires_at">>();
+  const [{ data: customer }, { data: subscription }] = await Promise.all([
+    supabase
+      .from("customers")
+      .select("intro_offer_used_at")
+      .eq("id", customerId)
+      .single<Pick<Customer, "intro_offer_used_at">>(),
+    supabase.from("subscriptions").select("id").eq("customer_id", customerId).maybeSingle(),
+  ]);
 
-  const byoTrialExpiresAt = customer?.byo_trial_expires_at ?? null;
-  const byoTrialActive = byoTrialExpiresAt !== null && new Date(byoTrialExpiresAt).getTime() > Date.now();
-  const byoTrialUsed = byoTrialExpiresAt !== null;
-  const byoTrialDaysLeft = byoTrialActive
-    ? Math.max(0, Math.ceil((new Date(byoTrialExpiresAt as string).getTime() - Date.now()) / MS_PER_DAY))
-    : 0;
+  const offerAvailable = !customer?.intro_offer_used_at && !subscription;
 
   return (
     <div className="mx-auto max-w-3xl space-y-10">
       <div className="space-y-3">
         <span className="inline-block rounded-full bg-brand-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
-          Risikofrit
+          Introtilbud
         </span>
-        <h1 className="text-3xl font-semibold text-slate-900">Prøv AIbooking.dk Reception gratis i 30 dage</h1>
+        <h1 className="text-3xl font-semibold text-slate-900">
+          Prøv AIbooking.dk Reception i 30 dage for <span className="text-brand-600">499 kr</span>
+        </h1>
         <p className="text-base text-slate-600">
-          En AI-receptionist der besvarer jeres opkald, booker aftaler og aldrig går glip af en kunde — prøv den live
-          på jeres eget telefonnummer, uden at ændre noget ved jeres nuværende opsætning.
+          En AI-receptionist der besvarer jeres opkald, booker aftaler og aldrig går glip af en kunde — sæt den op på
+          jeres eget telefonnummer i dag.
         </p>
       </div>
 
-      {byoTrialActive ? (
+      {offerAvailable ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="text-3xl font-bold text-slate-900">499 kr</span>
+            <span className="text-sm text-slate-500">for de første 30 dage, derefter 999 kr/md — fortsætter automatisk</span>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {INCLUDED.map((item) => (
+              <div key={item.title} className="rounded-lg bg-slate-50 p-3">
+                <p className="text-xs font-semibold text-slate-800">{item.title}</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">{item.description}</p>
+              </div>
+            ))}
+          </div>
+          <IntroOfferButton className="mt-5 rounded-lg bg-brand-600 px-5 py-3 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60">
+            Prøv nu — 499 kr for 30 dage →
+          </IntroOfferButton>
+          <p className="mt-3 text-xs text-slate-500">
+            Betales sikkert via Stripe. I kan opsige når som helst under Betaling. De 75 gratis minutter er Twilios
+            egen kvote til en ny Twilio-konto — har I allerede en Twilio-konto, kan jeres saldo se anderledes ud.
+          </p>
+        </div>
+      ) : (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
-          🎉 I er allerede i gang — <strong>{byoTrialDaysLeft} {byoTrialDaysLeft === 1 ? "dag" : "dage"}</strong> tilbage
-          af jeres gratis PRO-prøveperiode.
+          {customer?.intro_offer_used_at
+            ? "I har allerede brugt introtilbuddet — men kan stadig forbinde flere numre under Inbound."
+            : "I har allerede et abonnement — introtilbuddet er kun for nye kunder."}
           <div className="mt-3">
             <Link
               href="/dashboard/inbound"
@@ -94,26 +127,6 @@ export default async function InboundFreeTrialPage() {
               Gå til Inbound →
             </Link>
           </div>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <Link
-            href="/dashboard/inbound?openTrial=1"
-            className="inline-block rounded-lg bg-brand-600 px-5 py-3 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            Kom i gang — forbind jeres Twilio-nummer →
-          </Link>
-          {byoTrialUsed ? (
-            <p className="mt-3 text-xs text-slate-500">
-              Jeres 30-dages prøveperiode er brugt. Se abonnementer under{" "}
-              <Link href="/dashboard/billing" className="font-medium text-brand-600 hover:text-brand-700">
-                Betaling
-              </Link>
-              .
-            </p>
-          ) : (
-            <p className="mt-3 text-xs text-slate-500">Ingen binding. Ingen betalingskort krævet.</p>
-          )}
         </div>
       )}
 
@@ -154,7 +167,7 @@ export default async function InboundFreeTrialPage() {
             Test Agent
           </Link>
           , eller læg den direkte ind på jeres hjemmeside med embed-koden. Alle nye konti får 5 gratis minutter i 7
-          dage til det, helt uafhængigt af telefon-prøveperioden ovenfor.
+          dage til det, helt uafhængigt af introtilbuddet ovenfor.
         </p>
       </div>
     </div>

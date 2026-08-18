@@ -12,7 +12,7 @@ export default async function InboundPage() {
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
-  const [{ data: widgets }, { data: phoneNumbers }, { data: customer }] = await Promise.all([
+  const [{ data: widgets }, { data: phoneNumbers }, { data: customer }, { data: subscription }] = await Promise.all([
     supabase
       .from("widgets")
       .select("*")
@@ -25,14 +25,15 @@ export default async function InboundPage() {
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false })
       .returns<PhoneNumberRow[]>(),
-    supabase.from("customers").select("byo_trial_expires_at").eq("id", customerId).single<Pick<Customer, "byo_trial_expires_at">>(),
+    supabase.from("customers").select("intro_offer_used_at").eq("id", customerId).single<Pick<Customer, "intro_offer_used_at">>(),
+    supabase.from("subscriptions").select("id").eq("customer_id", customerId).maybeSingle(),
   ]);
 
   return (
     <InboundManager
       widgets={widgets ?? []}
       initialPhoneNumbers={phoneNumbers ?? []}
-      initialByoTrialExpiresAt={customer?.byo_trial_expires_at ?? null}
+      introOfferAvailable={!customer?.intro_offer_used_at && !subscription}
     />
   );
 }
