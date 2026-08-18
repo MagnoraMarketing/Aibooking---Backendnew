@@ -62,6 +62,131 @@
     return node;
   }
 
+  // Shared by all three UI builders below (text chat, OpenAI Realtime, Vapi)
+  // so the avatar/branding treatment stays identical across every widget
+  // mode instead of drifting between three copies.
+  function buildHeader(config) {
+    var avatar = config.avatarUrl
+      ? el("img", {
+          src: config.avatarUrl,
+          alt: "",
+          style:
+            "width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" +
+            "border:2px solid rgba(255,255,255,.35);",
+        })
+      : el(
+          "div",
+          {
+            style:
+              "width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;" +
+              "justify-content:center;background:rgba(255,255,255,.18);font-size:14px;font-weight:600;",
+          },
+          [(config.businessName || "AI").trim().charAt(0).toUpperCase()]
+        );
+
+    return el(
+      "div",
+      {
+        style:
+          "background:" +
+          config.secondaryColor +
+          ";color:#fff;padding:14px 16px;font-weight:600;display:flex;align-items:center;gap:10px;",
+      },
+      [avatar, el("span", { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" }, [config.businessName || "AI-assistent"])]
+    );
+  }
+
+  // The round launcher button — the uploaded avatar when there is one
+  // (cropped into the circle), the given emoji glyph otherwise.
+  function buildLauncher(config, pos, glyph) {
+    var baseStyle =
+      "position:fixed;" +
+      pos +
+      "width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;" +
+      "box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:999999;";
+
+    if (config.avatarUrl) {
+      return el("button", {
+        id: "aibooking-launcher",
+        style:
+          baseStyle +
+          "background-image:url('" +
+          config.avatarUrl +
+          "');background-size:cover;background-position:center;background-color:" +
+          config.primaryColor +
+          ";",
+      });
+    }
+
+    return el(
+      "button",
+      {
+        id: "aibooking-launcher",
+        style: baseStyle + "background:" + config.primaryColor + ";color:#fff;font-size:24px;",
+      },
+      [glyph]
+    );
+  }
+
+  // A mic button for the text-chat panel: dictate instead of type, using
+  // the browser's own speech recognition (no server round-trip, no extra
+  // provider — Chrome/Edge/Safari support it, Firefox doesn't, hence the
+  // feature-detect and graceful "just don't show the button" fallback).
+  // `onResult` receives the final transcript.
+  function buildMicButton(config, language, onResult) {
+    var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) return null;
+
+    var recognition = new Recognition();
+    recognition.lang = language;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    var listening = false;
+
+    var micBtn = el(
+      "button",
+      {
+        type: "button",
+        title: "Tal i stedet for at skrive",
+        style:
+          "border:none;background:#f1f1f1;color:#555;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:15px;",
+      },
+      ["🎤"]
+    );
+
+    recognition.onstart = function () {
+      listening = true;
+      micBtn.style.background = config.primaryColor;
+      micBtn.style.color = "#fff";
+    };
+    recognition.onend = function () {
+      listening = false;
+      micBtn.style.background = "#f1f1f1";
+      micBtn.style.color = "#555";
+    };
+    recognition.onresult = function (event) {
+      var transcript = event.results[0] && event.results[0][0] && event.results[0][0].transcript;
+      if (transcript) onResult(transcript);
+    };
+    recognition.onerror = function () {
+      listening = false;
+    };
+
+    micBtn.addEventListener("click", function () {
+      if (listening) {
+        recognition.stop();
+        return;
+      }
+      try {
+        recognition.start();
+      } catch (e) {
+        // Already-started/permission errors — nothing useful to recover to.
+      }
+    });
+
+    return micBtn;
+  }
+
   function buildUI(config) {
     var positionStyles = {
       "bottom-right": "bottom:20px;right:20px;",
@@ -71,20 +196,7 @@
     };
     var pos = positionStyles[config.position] || positionStyles["bottom-right"];
 
-    var launcher = el(
-      "button",
-      {
-        id: "aibooking-launcher",
-        style:
-          "position:fixed;" +
-          pos +
-          "width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;" +
-          "background:" +
-          config.primaryColor +
-          ";color:#fff;font-size:24px;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:999999;",
-      },
-      ["💬"]
-    );
+    var launcher = buildLauncher(config, pos, "💬");
 
     var messagesEl = el("div", {
       id: "aibooking-messages",
@@ -106,6 +218,12 @@
       ["Send"]
     );
 
+    var speechLang = config.language === "en" ? "en-US" : "da-DK";
+    var micBtn = buildMicButton(config, speechLang, function (transcript) {
+      input.value = transcript;
+      send();
+    });
+
     var panel = el(
       "div",
       {
@@ -114,22 +232,18 @@
           "position:fixed;" +
           pos +
           "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.2);" +
+          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
+          "border:1px solid rgba(0,0,0,.06);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
+        buildHeader(config),
+        messagesEl,
         el(
           "div",
-          {
-            style:
-              "background:" +
-              config.secondaryColor +
-              ";color:#fff;padding:14px 16px;font-weight:600;display:flex;align-items:center;gap:8px;",
-          },
-          [config.businessName || "AI-assistent"]
+          { style: "display:flex;gap:8px;padding:10px;border-top:1px solid #eee;" },
+          micBtn ? [micBtn, input, sendBtn] : [input, sendBtn]
         ),
-        messagesEl,
-        el("div", { style: "display:flex;gap:8px;padding:10px;border-top:1px solid #eee;" }, [input, sendBtn]),
         config.showBranding
           ? el(
               "div",
@@ -248,20 +362,7 @@
     };
     var pos = positionStyles[config.position] || positionStyles["bottom-right"];
 
-    var launcher = el(
-      "button",
-      {
-        id: "aibooking-launcher",
-        style:
-          "position:fixed;" +
-          pos +
-          "width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;" +
-          "background:" +
-          config.primaryColor +
-          ";color:#fff;font-size:24px;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:999999;",
-      },
-      ["🎙"]
-    );
+    var launcher = buildLauncher(config, pos, "🎙");
 
     var transcriptEl = el("div", {
       id: "aibooking-transcript",
@@ -294,20 +395,12 @@
           "position:fixed;" +
           pos +
           "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.2);" +
+          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
+          "border:1px solid rgba(0,0,0,.06);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
-        el(
-          "div",
-          {
-            style:
-              "background:" +
-              config.secondaryColor +
-              ";color:#fff;padding:14px 16px;font-weight:600;display:flex;align-items:center;gap:8px;",
-          },
-          [config.businessName || "AI-assistent"]
-        ),
+        buildHeader(config),
         transcriptEl,
         el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
         config.showBranding
@@ -535,20 +628,7 @@
     };
     var pos = positionStyles[config.position] || positionStyles["bottom-right"];
 
-    var launcher = el(
-      "button",
-      {
-        id: "aibooking-launcher",
-        style:
-          "position:fixed;" +
-          pos +
-          "width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;" +
-          "background:" +
-          config.primaryColor +
-          ";color:#fff;font-size:24px;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:999999;",
-      },
-      ["🎙"]
-    );
+    var launcher = buildLauncher(config, pos, "🎙");
 
     var transcriptEl = el("div", {
       id: "aibooking-transcript",
@@ -581,20 +661,12 @@
           "position:fixed;" +
           pos +
           "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.2);" +
+          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
+          "border:1px solid rgba(0,0,0,.06);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
-        el(
-          "div",
-          {
-            style:
-              "background:" +
-              config.secondaryColor +
-              ";color:#fff;padding:14px 16px;font-weight:600;display:flex;align-items:center;gap:8px;",
-          },
-          [config.businessName || "AI-assistent"]
-        ),
+        buildHeader(config),
         transcriptEl,
         el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
         config.showBranding

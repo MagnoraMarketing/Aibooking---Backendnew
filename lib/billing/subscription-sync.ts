@@ -1,7 +1,13 @@
 import "server-only";
 import type Stripe from "stripe";
 import { getAdminClient } from "@/lib/database/admin";
-import { grantCredits } from "@/lib/credits/ledger";
+import { grantCredits, getBalanceSeconds, expireCredits } from "@/lib/credits/ledger";
+
+// Unused minutes carry over, but not forever — cap how many months' worth
+// of included_minutes a balance can accumulate to before expiring the
+// excess on the next renewal. Matches "unused credits are kept for up to 3
+// months" rather than rolling over indefinitely.
+const ROLLOVER_MONTHS_CAP = 3;
 
 // Stripe is the source of truth for payment status; these functions just
 // mirror that state into our local `subscriptions` table and, on payment,
@@ -96,4 +102,18 @@ export async function grantCreditsForPaidInvoice(params: {
     description: `${pkg.package_name}: ${pkg.included_minutes} minutter tilføjet`,
     stripeEventId: params.stripeEventId,
   });
+
+  // Rollover cap: if this renewal pushed the balance past
+  // ROLLOVER_MONTHS_CAP worth of included_minutes, expire the excess.
+  // Runs after granting (not before) so the credits just paid for this
+  // period are never themselves the ones expired.
+  const capSeconds = pkg.included_minutes * 60 * ROLLOVER_MONTHS_CAP;
+  const balance = await getBalanceSeconds(subscription.customer_id);
+  if (balance > capSeconds) {
+    await expireCredits({
+      customerId: subscription.customer_id,
+      seconds: balance - capSeconds,
+      description: `Ubrugte credits udløbet (gemmes maks. ${ROLLOVER_MONTHS_CAP} måneder)`,
+    });
+  }
 }

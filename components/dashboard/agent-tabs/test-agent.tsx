@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { WidgetWithExtras } from "../agent-configurator";
 
 // Widget-controlled text (business_name, welcome_message) is interpolated
@@ -59,9 +59,50 @@ function buildPreviewHtml(widget: WidgetWithExtras): string {
 </html>`;
 }
 
+// widget.js fails silently by design in production (a console.error, no
+// visible UI) so a broken embed never wrecks a customer's real site — but
+// that same silence makes this preview useless for diagnosing why nothing
+// shows up. Fetch the same config endpoint widget.js calls, from the
+// dashboard page itself, so a failure here surfaces as a real banner
+// instead of an empty box with no explanation.
+function useWidgetConfigCheck(publicId: string) {
+  const [status, setStatus] = useState<"checking" | "ok" | "error">("checking");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("checking");
+    setErrorMessage(null);
+
+    fetch(`/api/widget/config?publicId=${encodeURIComponent(publicId)}`)
+      .then(async (res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          setErrorMessage(data?.error?.message ?? `HTTP ${res.status}`);
+          setStatus("error");
+          return;
+        }
+        setStatus("ok");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setErrorMessage(err instanceof Error ? err.message : "Ukendt fejl");
+        setStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [publicId]);
+
+  return { status, errorMessage };
+}
+
 export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
   const [showCode, setShowCode] = useState(false);
   const previewHtml = useMemo(() => buildPreviewHtml(widget), [widget]);
+  const configCheck = useWidgetConfigCheck(widget.public_id);
 
   if (widget.status !== "active") {
     return (
@@ -75,6 +116,16 @@ export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
 
   return (
     <div className="space-y-3">
+      {configCheck.status === "error" ? (
+        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="font-medium">Widget-boblen kunne ikke indlæses herunder.</p>
+          <p className="mt-1">
+            Fejl fra <code>/api/widget/config</code>: {configCheck.errorMessage}. Samme fejl vil ramme agenten på
+            jeres rigtige hjemmeside — ret dette før I går live.
+          </p>
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <iframe
           srcDoc={previewHtml}

@@ -1,24 +1,18 @@
 import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { InboundManager } from "@/components/dashboard/inbound-manager";
-import type { Widget } from "@/types/database";
+import type { Customer, PhoneNumber, Widget } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-export interface PhoneNumberRow {
-  id: string;
-  widget_id: string;
-  phone_number: string;
-  label: string | null;
-  created_at: string;
-}
+export type PhoneNumberRow = PhoneNumber;
 
 export default async function InboundPage() {
   const ctx = await requireCustomerAdminForPage();
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
-  const [{ data: widgets }, { data: phoneNumbers }] = await Promise.all([
+  const [{ data: widgets }, { data: phoneNumbers }, { data: customer }] = await Promise.all([
     supabase
       .from("widgets")
       .select("*")
@@ -31,7 +25,14 @@ export default async function InboundPage() {
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false })
       .returns<PhoneNumberRow[]>(),
+    supabase.from("customers").select("byo_trial_expires_at").eq("id", customerId).single<Pick<Customer, "byo_trial_expires_at">>(),
   ]);
 
-  return <InboundManager widgets={widgets ?? []} initialPhoneNumbers={phoneNumbers ?? []} />;
+  return (
+    <InboundManager
+      widgets={widgets ?? []}
+      initialPhoneNumbers={phoneNumbers ?? []}
+      initialByoTrialExpiresAt={customer?.byo_trial_expires_at ?? null}
+    />
+  );
 }

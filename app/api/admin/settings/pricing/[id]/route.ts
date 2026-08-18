@@ -19,6 +19,7 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   if (body.currency !== undefined) row.currency = body.currency;
   if (body.includedMinutes !== undefined) row.included_minutes = body.includedMinutes;
   if (body.overagePricePerMinute !== undefined) row.overage_price_per_minute = body.overagePricePerMinute;
+  if (body.setupFee !== undefined) row.setup_fee = body.setupFee;
   if (body.renewalType !== undefined) row.renewal_type = body.renewalType;
   if (body.stripePriceId !== undefined) row.stripe_price_id = body.stripePriceId;
   if (body.active !== undefined) row.active = body.active;

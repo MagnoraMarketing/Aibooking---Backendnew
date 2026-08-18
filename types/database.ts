@@ -30,6 +30,7 @@ export interface Customer {
   email: string;
   status: CustomerStatus;
   stripe_customer_id: string | null;
+  byo_trial_expires_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +42,7 @@ export interface Package {
   currency: string;
   included_minutes: number;
   overage_price_per_minute: number;
+  setup_fee: number | null;
   renewal_type: RenewalType;
   stripe_price_id: string | null;
   active: boolean;
@@ -144,11 +146,15 @@ export interface WidgetSettings {
   updated_at: string;
 }
 
+export type ConversationChannel = "widget" | "phone";
+
 export interface Conversation {
   id: string;
   widget_id: string;
   customer_id: string;
   status: ConversationStatus;
+  channel: ConversationChannel;
+  twilio_call_sid: string | null;
   started_at: string;
   ended_at: string | null;
   created_at: string;
@@ -161,6 +167,7 @@ export interface ConversationMessage {
   role: MessageRole;
   content: string;
   token_count: number | null;
+  audio_base64: string | null;
   created_at: string;
 }
 
@@ -229,6 +236,67 @@ export interface AuditLog {
   entity_id: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
+}
+
+export type PhoneNumberSource = "byo_twilio" | "platform_twilio";
+export type PhoneNumberPurchaseStatus =
+  | "pending_payment"
+  | "payment_confirmed"
+  | "provisioning"
+  | "active"
+  | "failed"
+  | "released";
+export type PhoneNumberDirection = "inbound" | "outbound" | "both";
+
+export interface PhoneNumber {
+  id: string;
+  customer_id: string;
+  widget_id: string;
+  vapi_phone_number_id: string;
+  phone_number: string;
+  label: string | null;
+  source: PhoneNumberSource;
+  twilio_sid: string | null;
+  monthly_price_dkk: number | null;
+  purchase_status: PhoneNumberPurchaseStatus;
+  direction: PhoneNumberDirection;
+  stripe_checkout_session_id: string | null;
+  stripe_subscription_id: string | null;
+  failure_reason: string | null;
+  released_at: string | null;
+  created_at: string;
+}
+
+export type TwilioSubaccountStatus = "active" | "suspended" | "closed";
+
+export interface TwilioSubaccount {
+  id: string;
+  customer_id: string;
+  twilio_subaccount_sid: string;
+  twilio_subaccount_auth_token: string;
+  status: TwilioSubaccountStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CalendarProvider = "google" | "outlook" | "calcom";
+export type CalendarConnectionStatus = "connected" | "error";
+
+export interface CalendarConnection {
+  id: string;
+  customer_id: string;
+  widget_id: string;
+  provider: CalendarProvider;
+  status: CalendarConnectionStatus;
+  external_account_email: string | null;
+  calendar_id: string | null;
+  access_token: string | null;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  calcom_api_key: string | null;
+  calcom_event_type_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface StripeEventRow {

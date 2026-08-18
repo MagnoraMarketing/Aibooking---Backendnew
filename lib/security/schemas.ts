@@ -47,6 +47,7 @@ export const packageInputSchema = z.object({
   currency: z.string().trim().length(3).default("DKK"),
   includedMinutes: z.number().int().positive(),
   overagePricePerMinute: z.number().nonnegative().default(0),
+  setupFee: z.number().nonnegative().optional().nullable(),
   renewalType: z.enum(["automatic", "manual"]).default("automatic"),
   stripePriceId: z.string().trim().optional().nullable(),
   active: z.boolean().default(true),
@@ -186,12 +187,18 @@ export const knowledgeBaseInputSchema = z.discriminatedUnion("type", [
 // lib/vapi/phone-numbers.ts, lib/vapi/calls.ts.
 const E164_REGEX = /^\+[1-9]\d{6,14}$/;
 
+export const listByoPhoneNumbersInputSchema = z.object({
+  twilioAccountSid: z.string().trim().min(1).max(200),
+  twilioAuthToken: z.string().trim().min(1).max(200),
+});
+
 export const importPhoneNumberInputSchema = z.object({
   widgetId: z.string().uuid(),
   twilioAccountSid: z.string().trim().min(1).max(200),
   twilioAuthToken: z.string().trim().min(1).max(200),
   twilioPhoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
   label: z.string().trim().max(200).optional(),
+  direction: z.enum(["inbound", "outbound", "both"]).default("both"),
 });
 
 // Capped at 100 contacts per campaign for v1 — launch fires one Vapi call
@@ -217,6 +224,36 @@ export const widgetMessageSchema = z.object({
   conversationId: z.string().uuid(),
   message: z.string().trim().min(1).max(4000),
   clientDurationSeconds: z.number().nonnegative().max(600).optional(),
+});
+
+// Calendar integrations (see 0014_calendar_integrations.sql and
+// lib/calendar) — Google/Outlook connect via OAuth (widgetId passed as a
+// query param, not a body), Cal.com connects with a pasted API key instead.
+export const calendarOAuthConnectQuerySchema = z.object({
+  widgetId: z.string().uuid(),
+});
+
+export const calcomConnectInputSchema = z.object({
+  widgetId: z.string().uuid(),
+  apiKey: z.string().trim().min(1).max(500),
+  eventTypeId: z.number().int().positive().optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Phone numbers purchased through us (see 0015_platform_phone_numbers.sql
+// and lib/twilio) — search available Danish Twilio numbers, then buy one.
+// ---------------------------------------------------------------------------
+export const searchPhoneNumbersQuerySchema = z.object({
+  areaCode: z.string().trim().max(10).optional(),
+});
+
+export const phoneNumberDirectionSchema = z.enum(["inbound", "outbound", "both"]).default("both");
+
+export const purchasePhoneNumberInputSchema = z.object({
+  widgetId: z.string().uuid(),
+  phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
+  label: z.string().trim().max(200).optional(),
+  direction: phoneNumberDirectionSchema,
 });
 
 // ---------------------------------------------------------------------------

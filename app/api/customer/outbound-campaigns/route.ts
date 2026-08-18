@@ -41,12 +41,15 @@ export const POST = withErrorHandling(async (request) => {
 
   const { data: phoneNumber, error: phoneNumberError } = await supabase
     .from("phone_numbers")
-    .select("id, customer_id")
+    .select("id, customer_id, direction")
     .eq("id", body.phoneNumberId)
     .maybeSingle();
   if (phoneNumberError) throw phoneNumberError;
   if (!phoneNumber || phoneNumber.customer_id !== customerId) {
     throw ApiError.notFound("Phone number not found");
+  }
+  if (phoneNumber.direction === "inbound") {
+    throw ApiError.badRequest("Dette telefonnummer er kun sat op til inbound og kan ikke bruges til outbound-opkald");
   }
 
   const { data: campaign, error } = await supabase
