@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { Widget, PhoneNumberDirection } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import { CallForwardingInstructions } from "./call-forwarding-instructions";
@@ -128,6 +130,18 @@ export function InboundManager({ widgets, initialPhoneNumbers, initialByoTrialEx
     setShowTrialModal(true);
     setError(null);
   }
+
+  // Lets the descriptive "/dashboard/inbound/free-trial" landing page deep-link
+  // straight into the popup (?openTrial=1) instead of duplicating the
+  // SID/Token + number-fetch/import flow on a second page.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("openTrial") === "1" && widgets.length > 0) {
+      handleOpenTrialModal();
+      window.history.replaceState(null, "", "/dashboard/inbound");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function resetBuyState() {
     setAvailableNumbers(null);
@@ -316,13 +330,21 @@ export function InboundManager({ widgets, initialPhoneNumbers, initialByoTrialEx
                 Har I ikke allerede en Twilio-konto, opretter I en gratis på 2 minutter — I får med det samme et
                 testnummer at viderestille til.
               </p>
-              <button
-                type="button"
-                onClick={handleOpenTrialModal}
-                className="mt-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-              >
-                Prøv gratis i 30 dage →
-              </button>
+              <div className="flex flex-wrap items-center gap-4">
+                <button
+                  type="button"
+                  onClick={handleOpenTrialModal}
+                  className="mt-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+                >
+                  Prøv gratis i 30 dage →
+                </button>
+                <Link
+                  href="/dashboard/inbound/free-trial"
+                  className="mt-2 text-sm font-medium text-brand-600 hover:text-brand-700"
+                >
+                  Se alle fordele →
+                </Link>
+              </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Se hvad en gratis Twilio-konto giver</p>
