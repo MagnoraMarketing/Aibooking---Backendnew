@@ -3,6 +3,7 @@ import { getAdminClient } from "@/lib/database/admin";
 import { grantCredits } from "@/lib/credits/ledger";
 import { generatePublicWidgetId } from "@/lib/widgets/public-id";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
+import { TRIAL_MINUTES, TRIAL_SECONDS } from "@/lib/billing/trial";
 import { getDefaultOrSpecified } from "./onboarding";
 import type { Customer, LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 import { ApiError } from "@/types/errors";
@@ -53,10 +54,13 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
     status: "incomplete",
   });
 
+  // Self-signup starts with the free trial allowance, not the paid
+  // package's full minutes — those only apply once a subscription is
+  // actually active (see lib/billing/trial.ts's hasEmbedCodeAccess).
   await grantCredits({
     customerId: customer.id,
-    seconds: pkg.included_minutes * 60,
-    description: `Velkomstpakke: ${pkg.package_name} (${pkg.included_minutes} minutter)`,
+    seconds: TRIAL_SECONDS,
+    description: `Gratis prøveperiode: ${TRIAL_MINUTES} minutter (7 dage)`,
   });
 
   const defaultSystemPrompt = await getDefaultSystemPrompt();

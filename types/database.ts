@@ -41,6 +41,7 @@ export interface Package {
   currency: string;
   included_minutes: number;
   overage_price_per_minute: number;
+  setup_fee: number | null;
   renewal_type: RenewalType;
   stripe_price_id: string | null;
   active: boolean;

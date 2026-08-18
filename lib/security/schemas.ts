@@ -47,6 +47,7 @@ export const packageInputSchema = z.object({
   currency: z.string().trim().length(3).default("DKK"),
   includedMinutes: z.number().int().positive(),
   overagePricePerMinute: z.number().nonnegative().default(0),
+  setupFee: z.number().nonnegative().optional().nullable(),
   renewalType: z.enum(["automatic", "manual"]).default("automatic"),
   stripePriceId: z.string().trim().optional().nullable(),
   active: z.boolean().default(true),

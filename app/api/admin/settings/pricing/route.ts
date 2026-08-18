@@ -28,6 +28,7 @@ export const POST = withErrorHandling(async (request) => {
       currency: body.currency,
       included_minutes: body.includedMinutes,
       overage_price_per_minute: body.overagePricePerMinute,
+      setup_fee: body.setupFee,
       renewal_type: body.renewalType,
       stripe_price_id: body.stripePriceId,
       active: body.active,

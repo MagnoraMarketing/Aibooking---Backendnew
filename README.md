@@ -140,6 +140,29 @@ Calendar, Outlook/Microsoft 365 (OAuth, `lib/calendar`), and Cal.com (API
 key) at `/dashboard/integrations`, storing connections in
 `calendar_connections` (0014_calendar_integrations.sql).
 
+### Trial and billing
+
+New self-signups get a 5-minute free trial for 7 days (`lib/billing/trial.ts`)
+— voice and widget usage draw from the same shared credit pool, so there's
+no separate "widget minutes" vs. "voice minutes" to reconcile. The trial
+ends the moment either limit is hit (7 days pass, or the 5 minutes are
+used), at which point generating the embed code requires an active
+subscription. Packages (`packages` table, updated in
+0018_package_pricing_update.sql) match aibooking.dk's pricing: Starter
+(999 DKK/md, 200 min, 1998 DKK setup), Professional (2499 DKK/md, 600 min,
+4998 DKK setup), Enterprise (5999 DKK/md, 2000 min, 11998 DKK setup) — the
+"Demo" tier on the marketing site is the trial above, not a purchasable
+package row. Checkout (`lib/billing/checkout.ts`) bills the one-time setup
+fee alongside the first invoice (no pre-created Stripe Price needed for
+that part) and pins the recurring charge to the 1st of the month via
+`billing_cycle_anchor`. Unused minutes roll over, capped at 3 months' worth
+of the package's included minutes — the excess is expired on each renewal
+(`grantCreditsForPaidInvoice`) rather than accumulating indefinitely.
+`/dashboard/billing` (previously missing entirely, despite checkout's
+`success_url` already pointing at it) shows the current plan, balance, and
+trial countdown, and is where "Administrer betaling / opsig abonnement"
+opens the Stripe billing portal.
+
 ### Phone number marketplace ("buy a number through us")
 
 A customer never touches Twilio Console. The flow:
