@@ -251,11 +251,6 @@ export const purchasePhoneNumberInputSchema = z.object({
   direction: phoneNumberDirectionSchema,
 });
 
-// Same shape — kept as a separate name so the checkout route (payment-gated
-// purchase) and the direct-purchase route aren't coupled to the same type
-// alias if their inputs diverge later.
-export const checkoutPhoneNumberInputSchema = purchasePhoneNumberInputSchema;
-
 // ---------------------------------------------------------------------------
 // Billing
 // ---------------------------------------------------------------------------

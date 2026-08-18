@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
 import type { Widget, PhoneNumberDirection } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import { CallForwardingInstructions } from "./call-forwarding-instructions";
@@ -72,7 +71,6 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
   const [widgetId, setWidgetId] = useState(widgets[0]?.id ?? "");
   const [label, setLabel] = useState("");
   const [direction, setDirection] = useState<PhoneNumberDirection>("both");
-  const searchParams = useSearchParams();
 
   // Buy-a-number state
   const [searching, setSearching] = useState(false);
@@ -88,8 +86,6 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
 
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  const purchaseBanner = searchParams.get("purchase");
 
   function widgetName(id: string): string {
     return widgets.find((w) => w.id === id)?.name ?? "Ukendt agent";
@@ -131,15 +127,19 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
       body: JSON.stringify({ widgetId, phoneNumber: selectedNumber, label: label.trim() || undefined, direction }),
     });
 
+    setPurchasing(false);
+
     if (!res.ok) {
-      setPurchasing(false);
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke starte købet.");
+      setError(data?.error?.message ?? "Kunne ikke købe nummeret.");
       return;
     }
 
-    const { checkoutUrl } = await res.json();
-    window.location.href = checkoutUrl;
+    const { phoneNumber } = await res.json();
+    setPhoneNumbers((prev) => [phoneNumber, ...prev]);
+    resetBuyState();
+    setLabel("");
+    setShowForm(false);
   }
 
   async function handleImport() {
@@ -220,16 +220,6 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
         ) : null}
       </div>
 
-      {purchaseBanner === "processing" ? (
-        <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
-          Betaling modtaget — nummeret aktiveres om et øjeblik. Opdatér siden om lidt for at se det.
-        </div>
-      ) : purchaseBanner === "cancelled" ? (
-        <div className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600">
-          Købet blev annulleret — der er ikke sket noget.
-        </div>
-      ) : null}
-
       {widgets.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
           Opret en agent under &quot;Agent&quot; f&oslash;rst &mdash; et telefonnummer skal knyttes til en agent.
@@ -299,8 +289,8 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
           {mode === "buy" ? (
             <div className="space-y-3">
               <p className="text-sm text-slate-500">
-                Vi køber et dansk nummer til jer og forbinder det med agenten, så snart betalingen er gennemført.
-                Prisen lægges oveni jeres abonnement som en separat, opsigelig linje.
+                Vi køber et dansk nummer til jer og forbinder det med agenten med det samme. Nummeret er inkluderet i
+                jeres pakke — ingen ekstra betaling.
               </p>
 
               {availableNumbers === null ? (
@@ -337,7 +327,7 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
                             {n.locality ? <span className="ml-2 text-xs text-slate-500">{n.locality}</span> : null}
                           </span>
                         </span>
-                        <span className="text-xs font-medium text-slate-500">{n.monthlyPriceDkk} DKK/md</span>
+                        <span className="text-xs font-medium text-emerald-600">Inkluderet i pakke</span>
                       </label>
                     </li>
                   ))}
@@ -411,7 +401,7 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
                 disabled={purchasing || !selectedNumber}
                 className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {purchasing ? "Åbner betaling…" : "Betal og aktivér →"}
+                {purchasing ? "Køber…" : "Køb nummer →"}
               </button>
             ) : (
               <button
@@ -445,9 +435,7 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
                     <p className="text-xs text-slate-500">
                       {phoneNumber.phone_number} · {widgetName(phoneNumber.widget_id)} ·{" "}
                       {DIRECTION_LABELS[phoneNumber.direction]}
-                      {phoneNumber.source === "platform_twilio" && phoneNumber.monthly_price_dkk
-                        ? ` · ${phoneNumber.monthly_price_dkk} DKK/md`
-                        : null}
+                      {phoneNumber.source === "platform_twilio" ? " · Inkluderet i pakke" : null}
                     </p>
                     <p className="mt-1 text-xs font-medium text-slate-500">
                       {STATUS_LABELS[phoneNumber.purchase_status]}

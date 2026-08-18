@@ -8,7 +8,6 @@ import {
   grantCreditsForPaidInvoice,
 } from "@/lib/billing/subscription-sync";
 import { writeAuditLog } from "@/lib/security/audit";
-import { provisionPurchasedNumber } from "@/lib/phone-numbers";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -62,33 +61,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const phoneNumberRowId = session.metadata?.phone_number_row_id;
-
-        if (session.metadata?.type === "phone_number_purchase" && phoneNumberRowId) {
-          // A phone number checkout's subscription tracks the number's own
-          // rental billing, not the customer's package — never feed it into
-          // syncSubscriptionFromStripe, which assumes aibooking_package_id
-          // metadata. Guarded by purchase_status so a duplicate delivery
-          // (this event under a different Stripe event id, or a retry) is a
-          // no-op instead of re-provisioning.
-          const { data: row } = await supabase
-            .from("phone_numbers")
-            .select("purchase_status")
-            .eq("id", phoneNumberRowId)
-            .maybeSingle();
-
-          if (row?.purchase_status === "pending_payment") {
-            await supabase
-              .from("phone_numbers")
-              .update({
-                purchase_status: "payment_confirmed",
-                stripe_subscription_id: typeof session.subscription === "string" ? session.subscription : null,
-              })
-              .eq("id", phoneNumberRowId);
-
-            await provisionPurchasedNumber(phoneNumberRowId);
-          }
-        } else if (typeof session.subscription === "string") {
+        if (typeof session.subscription === "string") {
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
           await syncSubscriptionFromStripe(subscription);
         }
@@ -98,7 +71,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
-        if (subscription.metadata?.type === "phone_number_purchase") break;
         await syncSubscriptionFromStripe(subscription);
         break;
       }

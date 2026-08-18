@@ -85,10 +85,9 @@ tests/  Vitest unit tests (credit ledger math, tenant isolation guards, Stripe w
    - `OPENAI_API_KEY` ("Expert model" — OpenAI Realtime API over WebRTC)
    - `VAPI_PUBLIC_KEY`, `VAPI_WEBHOOK_SECRET`, `VAPI_PRIVATE_KEY` ("Claude"
      agents — Vapi Web SDK, assistants auto-provisioned via the Vapi API)
-   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `STRIPE_PHONE_NUMBER_PRICE_ID`
-     (optional — platform Twilio master account + Stripe price used to sell
-     DK numbers through Inbound; the BYO-Twilio import path works without
-     these)
+   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (optional — platform Twilio
+     master account used to sell DK numbers through Inbound, included free
+     in a paid package; the BYO-Twilio import path works without these)
    - `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and
      `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET` (optional — Google
      Calendar and Outlook/Microsoft 365 connect buttons under Integrations;
@@ -217,36 +216,30 @@ A customer never touches Twilio Console. The flow:
 2. **Search**: `GET /api/customer/phone-numbers/search` — Danish
    voice-enabled local numbers via Twilio's `AvailablePhoneNumbers` API,
    rate-limited.
-3. **Checkout**: `POST /api/customer/phone-numbers/purchase` creates a
-   `phone_numbers` row with `purchase_status='pending_payment'` for the
-   selected number, then a Stripe Checkout Session (recurring monthly price,
-   `STRIPE_PHONE_NUMBER_PRICE_ID`) and returns its URL — the browser
-   redirects there. **The Twilio purchase never happens in this request**,
-   and never based on a price the frontend sent.
-4. **Webhook confirms payment**: Stripe's `checkout.session.completed`
-   event (`app/api/webhooks/stripe/route.ts`) is the only trigger that
-   flips the row to `payment_confirmed` and calls
-   `lib/phone-numbers/provisionPurchasedNumber`, which actually buys the
-   number from Twilio (under the customer's subaccount) and imports it into
-   Vapi, ending at `active` or `failed` (with `failure_reason` recorded and
-   no further Twilio charge). Idempotent against webhook redelivery.
-5. **Retry/release**: `POST /api/customer/phone-numbers/[id]/retry`
+3. **Purchase**: numbers bought through us are included free in a paid
+   package (no per-number Stripe charge) — `POST
+   /api/customer/phone-numbers/purchase` requires an active subscription,
+   then provisions synchronously: buys the number from Twilio (under the
+   customer's subaccount) and either imports it into Vapi or points it at
+   our own Twilio-direct webhooks (see "Twilio-direct voice" above),
+   depending on the agent's model, ending at `active` or `failed` (with
+   `failure_reason` recorded).
+4. **Retry/release**: `POST /api/customer/phone-numbers/[id]/retry`
    re-attempts a `failed` provisioning (no new charge); `DELETE
    .../[id]` releases an active number back to Twilio and marks it
    `released` (kept, not deleted, so history survives). Master admin has the
    same actions at `/admin/phone-numbers` for support use, plus a
    cross-customer view.
-6. **Direction**: every number (bought or BYO) has `direction` —
+5. **Direction**: every number (bought or BYO) has `direction` —
    `inbound`, `outbound`, or `both` — enforced when launching an outbound
    campaign against it (`app/api/customer/outbound-campaigns/*`).
 
 **Known limitations / follow-ups**, called out explicitly rather than
 silently:
-- The monthly phone-number charge is its own separate Stripe subscription
-  per number (its own Checkout Session), not a line item merged into the
-  customer's main package subscription — simpler to implement correctly
-  (clean webhook-confirmed-before-purchase flow) at the cost of a second
-  entry on the customer's Stripe invoice.
+- No cap yet on how many free numbers a customer can buy — the number
+  itself is free to the customer, but Twilio still rents it to us, so an
+  unbounded quantity is a real cost-abuse surface. Worth a per-package
+  included-quantity limit before this goes to production traffic.
 - A failed retry re-attempts buying the *same* number the customer
   originally picked; if it's gone (sniped by another buyer in the
   meantime), retry fails again with a clear reason and the customer needs
