@@ -57,6 +57,18 @@ export async function syncSubscriptionFromStripe(subscription: Stripe.Subscripti
   );
 
   if (error) throw new Error(`Failed to sync subscription: ${error.message}`);
+
+  // Marks the Inbound page's "30 dage til 499 kr" intro offer as redeemed
+  // (see app/api/billing/intro-offer) so it can't be started a second time —
+  // guarded on still-null so a later subscription update for the same
+  // customer never overwrites the original redemption timestamp.
+  if (subscription.metadata?.aibooking_intro_offer === "true") {
+    await supabase
+      .from("customers")
+      .update({ intro_offer_used_at: new Date().toISOString() })
+      .eq("id", customerId)
+      .is("intro_offer_used_at", null);
+  }
 }
 
 export async function markSubscriptionCanceled(subscription: Stripe.Subscription): Promise<void> {

@@ -162,19 +162,25 @@ of the package's included minutes — the excess is expired on each renewal
 trial countdown, and is where "Administrer betaling / opsig abonnement"
 opens the Stripe billing portal.
 
-**BYO-Twilio 30-day trial**: connecting your own Twilio number through the
-Inbound page's "Prøv gratis i 30 dage" banner/modal
-(`components/dashboard/inbound-manager.tsx`) grants a separate, longer trial
-— `customers.byo_trial_expires_at`, set once on first successful BYO import
-(`app/api/customer/phone-numbers/route.ts`), never re-extended by later
-imports. Unlike the signup trial it has no minute cap
-(`isWithinByoTrial`/`hasEmbedCodeAccess` in `lib/billing/trial.ts`), since
-the customer is drawing on their own Twilio account rather than our
-credits. The pitch is deliberately risk-free: it's just a call-forward from
-their existing number to the new Twilio number, so nothing about their real
-phone setup changes. The modal's SMS/Voice/Email/WhatsApp overview card is
-informational only (what a fresh Twilio trial account typically includes,
-for the number they're connecting) — this app only implements Voice.
+**Intro offer (499 kr / 30 days, then 999 kr/md)**: `/dashboard/inbound/free-trial`
+pitches a real, paid Stripe subscription rather than a free-access bypass —
+`POST /api/billing/intro-offer` checks out the default package with a
+one-time 50%-off coupon on the first invoice (`getOrCreateIntroOfferCoupon`
+in `lib/billing/checkout.ts`, a get-or-create against a fixed Stripe coupon
+id so it's only ever created once). Gated to genuinely new customers: 409s
+if `customers.intro_offer_used_at` is already set, or if the customer has
+any `subscriptions` row at all. On successful checkout, `success_url`
+redirects to `/dashboard/inbound?openTrial=1`, which auto-opens the
+BYO-Twilio connect popup (`components/dashboard/inbound-manager.tsx`) so
+the customer lands straight in "now forward your number" instead of back
+on a generic billing page. `intro_offer_used_at` itself is stamped by the
+Stripe webhook (`syncSubscriptionFromStripe` in
+`lib/billing/subscription-sync.ts`), keyed off a
+`aibooking_intro_offer: 'true'` subscription metadata flag — not at
+checkout-session-creation time, so an abandoned checkout doesn't burn the
+customer's one shot at the offer. Once redeemed, access comes from the
+real subscription's `active` status like any other paid customer — no
+separate trial-access bypass in `hasEmbedCodeAccess` needed.
 
 ### Twilio-direct voice (Claude, no Vapi)
 
@@ -238,6 +244,77 @@ neither (no website embed to speak of) and a "Telefonnummer" tab instead
 (`wizard-phone-step.tsx`, shared by both the wizard and Configure Agent),
 which hands off to the Inbound page — where the BYO/purchase flow above
 takes over — rather than duplicating that flow a third time.
+
+### Cal.com integration and AI booking
+
+Cal.com connects with a pasted API key (`lib/calendar/calcom.ts`,
+`app/api/customer/calendar/calcom/route.ts`) — no OAuth round-trip.
+Connecting now runs the full setup the spec calls for: `fetchCalcomMe`
+doubles as the "test authentication" step, `fetchCalcomEventTypes` lists
+Event Types so the customer picks which one the agent books against, and
+the key itself is AES-256-GCM encrypted before it's ever written to
+`calendar_connections.calcom_api_key` (`lib/security/crypto.ts`,
+`CALENDAR_CREDENTIALS_ENCRYPTION_KEY` — required, not optional, to connect
+Cal.com at all). Nothing selects that ciphertext column back into a
+client-facing response anywhere; every server-side caller decrypts it
+just-in-time for one Cal.com API call. The dashboard's connected-state card
+(`calendar-integrations-manager.tsx`) shows status/account/timezone and a
+"Test forbindelse" button (`POST /api/customer/calendar/[id]/test`,
+re-runs `fetchCalcomMe`), and a dropdown to change the Event Type
+(`PATCH /api/customer/calendar/[id]`) without disconnecting. Setting up
+Cal.com is also a step in the agent creation wizard now
+(`wizard-calendar-step.tsx`), not only reachable from the separate
+Integrations page.
+
+**AI booking loop**: a connected, `status='connected'` Cal.com calendar
+makes the AI's replies run through a tool-use loop instead of a plain
+completion (`lib/conversation/calendar-tools.ts`,
+`generateReplyWithCalendarTools`) — two tools, `check_availability` and
+`book_meeting`, backed by `fetchCalcomAvailability`/`createCalcomBooking`.
+`handle-turn.ts` looks the connection up per turn and only takes this path
+for `provider='anthropic'` widgets (tool-use is called directly against the
+Anthropic SDK, not through the generic `LLMProvider` interface — see that
+file's module comment for why); a successful or failed `book_meeting` call
+writes a row to `appointments` (`status: 'booked' | 'failed'`), matching
+the diagrammed flow: AI → backend → Cal.com API → availability → lead picks
+a time → Cal.com API → booking created → booking id → Supabase → AI
+confirms. Token usage across every call in the loop is summed and recorded
+once, so billing in `handle-turn.ts` needed no changes.
+
+**Known limitation / please verify**: the Cal.com v1 API's `/slots` and
+`/bookings` request/response shapes in `lib/calendar/calcom.ts` are
+implemented from documented API knowledge, not tested against a live
+Cal.com account — this sandbox has no way to call out to Cal.com. Test
+`check_availability`/`book_meeting` against a real Cal.com event type
+before relying on this in production; `/me` and `/event-types` (used by
+the connect/test flow) are more likely correct since they're simpler and
+more stable endpoints.
+
+### Widget Agents vs Telefon agents — separate nav, lists, and dashboard stats
+
+The header nav's "Agent" item is now "Widget Agents" — `/dashboard/agent`
+(and `AgentsManager`) only ever shows/creates `provider='vapi'` widgets,
+filtered server-side by joining each widget's `llm_model_id` against
+`llm_models.provider`. Telefon (Inbound/Outbound) agents get the same
+`AgentsManager` component reused with `agentType="phone"`, embedded
+directly on `/dashboard/inbound` above the phone-number management UI —
+`AgentCreationWizard`'s new `fixedType` prop skips the type-picker step
+there and locks the wizard to Telefon, since the page context already
+answered that question. The Outbound page's own agent picker is filtered
+the same way. This keeps every "create/manage an agent" entry point
+type-specific rather than adding a second global nav item, and means an
+agent never appears somewhere it can't actually be used from (a Widget
+agent can't be assigned a phone number, a Telefon agent has no
+embed-code step to reach).
+
+The main dashboard (`app/dashboard/page.tsx`) adds a Widget vs Telefon
+split under the existing total stats — `getUsageByAgentType`
+(`lib/analytics/usage-by-agent-type.ts`) groups every widget by that same
+provider check rather than `conversations.channel` (which only the
+Twilio-direct pipeline ever sets — grouping by provider instead covers
+Vapi-routed phone calls and Vapi widget sessions too, since it's a
+property of the agent, not of which pipeline a given session happened to
+run through).
 
 ### Phone number marketplace ("buy a number through us")
 

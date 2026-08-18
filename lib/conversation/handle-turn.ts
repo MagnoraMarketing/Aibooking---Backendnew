@@ -12,6 +12,8 @@ import {
 import { resolveTTSProvider, estimateTTSCost } from "@/lib/tts";
 import { recordLLMUsage, recordTTSUsage, appendTurnUsage, estimateSpeechDurationSeconds } from "@/lib/usage";
 import { getSummarizationModelName } from "@/lib/settings/platform";
+import { decryptSecret } from "@/lib/security";
+import { generateReplyWithCalendarTools, type CalendarToolContext } from "./calendar-tools";
 // Import the specific submodules, not the @/lib/knowledge-base barrel —
 // the barrel also re-exports PDF/URL extraction, which would drag their
 // dependencies (pdf-parse, etc.) into every conversation turn for no
@@ -121,12 +123,27 @@ export async function handleConversationTurn(params: HandleTurnParams): Promise<
     { role: "user", content: params.userMessage },
   ];
 
-  const generation = await llmProvider.generateReply({
-    model: params.llmModel.model_name,
-    systemPrompt,
-    messages: messagesForLLM,
-    maxTokens: params.llmModel.max_tokens,
-  });
+  // Only Anthropic-provider widgets can run the tool-use booking loop (see
+  // calendar-tools.ts's module comment for why this stays out of the
+  // generic LLMProvider interface) — a connected Cal.com calendar on any
+  // other provider just doesn't get tool access, same as no connection.
+  const calendarContext =
+    llmProvider.name === "anthropic" ? await resolveCalendarToolContext(params) : null;
+
+  const generation = calendarContext
+    ? await generateReplyWithCalendarTools({
+        model: params.llmModel.model_name,
+        systemPrompt,
+        messages: messagesForLLM,
+        maxTokens: params.llmModel.max_tokens,
+        calendar: calendarContext,
+      })
+    : await llmProvider.generateReply({
+        model: params.llmModel.model_name,
+        systemPrompt,
+        messages: messagesForLLM,
+        maxTokens: params.llmModel.max_tokens,
+      });
 
   const replyText = generation.content.slice(0, params.widget.max_response_chars);
 
@@ -192,4 +209,34 @@ export async function handleConversationTurn(params: HandleTurnParams): Promise<
   });
 
   return { replyText, audioBase64: synthesis.audioBase64, audioContentType: synthesis.contentType };
+}
+
+// Looks up whether this widget has a working Cal.com connection — if so,
+// the turn runs through the tool-use loop instead of a plain reply so the
+// AI can actually check availability and book, not just talk about it.
+// Decrypts the stored key just for this one call; never persisted or
+// returned outside this function.
+async function resolveCalendarToolContext(params: HandleTurnParams): Promise<CalendarToolContext | null> {
+  const supabase = getAdminClient();
+  const { data: connection } = await supabase
+    .from("calendar_connections")
+    .select("calcom_api_key, calcom_event_type_id, calcom_timezone")
+    .eq("widget_id", params.widget.id)
+    .eq("provider", "calcom")
+    .eq("status", "connected")
+    .maybeSingle();
+
+  if (!connection?.calcom_api_key || !connection.calcom_event_type_id) return null;
+
+  const eventTypeId = Number(connection.calcom_event_type_id);
+  if (!Number.isFinite(eventTypeId)) return null;
+
+  return {
+    apiKey: decryptSecret(connection.calcom_api_key),
+    eventTypeId,
+    timezone: connection.calcom_timezone ?? "Europe/Copenhagen",
+    customerId: params.customerId,
+    widgetId: params.widget.id,
+    conversationId: params.conversationId,
+  };
 }

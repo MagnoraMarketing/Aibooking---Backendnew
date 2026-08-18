@@ -1,0 +1,12 @@
+-- ---------------------------------------------------------------------------
+-- Repurposes the BYO-Twilio trial column: connecting your own Twilio number
+-- is no longer a free unlimited-access bypass — it now points customers at
+-- a real, paid intro offer (499 DKK for the first 30 days on the default
+-- package, then full price) via a normal Stripe subscription with a
+-- one-time 50%-off coupon (see lib/billing/checkout.ts). A real active
+-- subscription already grants full access through the existing
+-- hasEmbedCodeAccess check, so there's no separate bypass to track — this
+-- column now just marks that a customer has redeemed the intro offer once,
+-- so it can't be redeemed again (see app/api/billing/intro-offer).
+-- ---------------------------------------------------------------------------
+alter table public.customers rename column byo_trial_expires_at to intro_offer_used_at;

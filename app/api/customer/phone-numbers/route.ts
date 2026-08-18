@@ -5,7 +5,6 @@ import { readJsonBody, withErrorHandling, writeAuditLog, importPhoneNumberInputS
 import { importTwilioPhoneNumber } from "@/lib/vapi";
 import { findIncomingPhoneNumberSid, configureDirectVoiceWebhook } from "@/lib/twilio";
 import { twilioWebhookUrls } from "@/lib/telephony/urls";
-import { BYO_TRIAL_DAYS } from "@/lib/billing";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -108,29 +107,6 @@ export const POST = withErrorHandling(async (request) => {
 
   if (error) throw error;
 
-  // Connecting your own Twilio number is the "prøv gratis i 30 dage" risk-free
-  // path (see components/dashboard/inbound-manager.tsx's trial banner/modal) —
-  // grant the one-time 30-day PRO trial on first successful import. Never
-  // re-extended by later imports (only set while still null).
-  const { data: customerRow } = await supabase
-    .from("customers")
-    .select("byo_trial_expires_at")
-    .eq("id", customerId)
-    .single();
-  let byoTrialExpiresAt: string | null = customerRow?.byo_trial_expires_at ?? null;
-  if (!byoTrialExpiresAt) {
-    byoTrialExpiresAt = new Date(Date.now() + BYO_TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    const { error: trialError } = await supabase
-      .from("customers")
-      .update({ byo_trial_expires_at: byoTrialExpiresAt })
-      .eq("id", customerId)
-      .is("byo_trial_expires_at", null);
-    if (trialError) {
-      console.error("Failed to grant BYO trial:", trialError);
-      byoTrialExpiresAt = null;
-    }
-  }
-
   await writeAuditLog({
     actorId: ctx.userId,
     actorRole: ctx.profile.role,
@@ -141,5 +117,5 @@ export const POST = withErrorHandling(async (request) => {
     metadata: { widgetId: widget.id, phoneNumber: phoneNumber.phone_number },
   });
 
-  return NextResponse.json({ phoneNumber, byoTrialExpiresAt }, { status: 201 });
+  return NextResponse.json({ phoneNumber }, { status: 201 });
 });

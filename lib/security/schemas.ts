@@ -239,6 +239,12 @@ export const calcomConnectInputSchema = z.object({
   eventTypeId: z.number().int().positive().optional(),
 });
 
+// Switching which Event Type an already-connected Cal.com account books
+// against — see app/api/customer/calendar/[id]/route.ts's PATCH.
+export const calcomUpdateEventTypeSchema = z.object({
+  eventTypeId: z.number().int().positive(),
+});
+
 // ---------------------------------------------------------------------------
 // Phone numbers purchased through us (see 0015_platform_phone_numbers.sql
 // and lib/twilio) — search available Danish Twilio numbers, then buy one.

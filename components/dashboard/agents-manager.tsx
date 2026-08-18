@@ -13,7 +13,17 @@ interface AgentsManagerProps {
   embedCodeUnlocked: boolean;
   trialDaysRemaining: number;
   pkg: Package | null;
+  // Locks this instance to one agent type — the Widget Agents page passes
+  // "widget", the Inbound/Outbound phone-agent panel passes "phone". Widget
+  // list is expected to already be pre-filtered by the caller; this just
+  // threads the fixed type through to the wizard and adjusts copy.
+  agentType: "widget" | "phone";
 }
+
+const HEADING_BY_TYPE = {
+  widget: { title: "Widget Agents", subtitle: "Administrer og opret jeres AI-widget-agenter", listTitle: "Dine widget-agenter" },
+  phone: { title: "Telefon-agenter", subtitle: "Administrer og opret jeres inbound/outbound AI-agenter", listTitle: "Dine telefon-agenter" },
+} as const;
 
 export function AgentsManager({
   initialWidgets,
@@ -22,6 +32,7 @@ export function AgentsManager({
   embedCodeUnlocked,
   trialDaysRemaining,
   pkg,
+  agentType,
 }: AgentsManagerProps) {
   const [widgets, setWidgets] = useState(initialWidgets);
   const [showWizard, setShowWizard] = useState(initialWidgets.length === 0);
@@ -56,12 +67,14 @@ export function AgentsManager({
     }
   }
 
+  const heading = HEADING_BY_TYPE[agentType];
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">AI Agents</h1>
-          <p className="mt-1 text-sm text-slate-500">Administrer og opret jeres AI-assistenter</p>
+          <h1 className="text-2xl font-semibold text-slate-900">{heading.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{heading.subtitle}</p>
         </div>
         {!showWizard ? (
           <button
@@ -81,13 +94,14 @@ export function AgentsManager({
           embedCodeUnlocked={embedCodeUnlocked}
           trialDaysRemaining={trialDaysRemaining}
           pkg={pkg}
+          fixedType={agentType}
           onCancel={() => setShowWizard(false)}
           onComplete={handleWizardComplete}
         />
       ) : null}
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">Dine agenter</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{heading.listTitle}</h2>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}

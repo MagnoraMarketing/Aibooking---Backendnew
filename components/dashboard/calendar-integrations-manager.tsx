@@ -5,39 +5,95 @@ import { useSearchParams } from "next/navigation";
 import type { Widget } from "@/types/database";
 import type { CalendarConnectionSummary } from "@/app/dashboard/integrations/page";
 
+interface CalcomEventType {
+  id: number;
+  title: string;
+}
+
 interface CalendarIntegrationsManagerProps {
   widgets: Widget[];
   initialConnections: CalendarConnectionSummary[];
+  eventTypesByConnection: Record<string, CalcomEventType[]>;
 }
 
 const PROVIDERS = [
   {
     key: "google" as const,
-    name: "Google Kalender",
+    name: "Google Calendar",
+    category: "Kalender",
+    popular: true,
     description: "Den mest udbredte kalender blandt danske virksomheder. Forbindes med ét klik via Google.",
     kind: "oauth" as const,
   },
   {
     key: "outlook" as const,
-    name: "Outlook / Microsoft 365",
+    name: "Outlook",
+    category: "Kalender",
+    popular: true,
     description: "Til virksomheder der bruger Microsoft 365 eller Outlook som kalender.",
     kind: "oauth" as const,
   },
   {
     key: "calcom" as const,
     name: "Cal.com",
+    category: "Kalender",
+    popular: false,
     description: "Forbind med jeres Cal.com API-nøgle og vælg hvilken event-type agenten skal booke i.",
     kind: "apikey" as const,
   },
 ];
 
-export function CalendarIntegrationsManager({ widgets, initialConnections }: CalendarIntegrationsManagerProps) {
+// Everything else from aibooking.dk/integrationer's "Populære Integrationer"
+// showcase that this app doesn't build yet — shown in the same grid as the
+// working calendar providers above so the page reads as one coherent
+// roadmap, each clearly labelled "Kommer snart" rather than offering a
+// button that would do nothing.
+const COMING_SOON = [
+  { name: "WhatsApp", category: "Kommunikation", popular: true },
+  { name: "Slack", category: "Kommunikation", popular: false },
+  { name: "Shopify", category: "E-handel", popular: true },
+  { name: "Notion", category: "Produktivitet", popular: false },
+  { name: "WordPress", category: "Hjemmeside", popular: true },
+  { name: "Zapier", category: "Automatisering", popular: true },
+  { name: "Zoom", category: "Video", popular: true },
+  { name: "Microsoft Teams", category: "Video", popular: false },
+  { name: "Messenger", category: "Kommunikation", popular: false },
+  { name: "Discord", category: "Kommunikation", popular: false },
+  { name: "Webhooks", category: "Udvikler", popular: true },
+  { name: "REST API", category: "Udvikler", popular: true },
+  { name: "HubSpot", category: "CRM", popular: false },
+  { name: "Salesforce", category: "CRM", popular: false },
+  { name: "Pipedrive", category: "CRM", popular: false },
+  { name: "CalDAV", category: "Kalender", popular: false },
+  { name: "Google Docs", category: "Dokumenter", popular: false },
+  { name: "WooCommerce", category: "E-handel", popular: false },
+  { name: "Stripe", category: "E-handel", popular: false },
+  { name: "Make", category: "Automatisering", popular: false },
+];
+
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+export function CalendarIntegrationsManager({
+  widgets,
+  initialConnections,
+  eventTypesByConnection,
+}: CalendarIntegrationsManagerProps) {
   const [connections, setConnections] = useState(initialConnections);
   const [widgetId, setWidgetId] = useState(widgets[0]?.id ?? "");
   const [calcomForm, setCalcomForm] = useState<{ apiKey: string; open: boolean }>({ apiKey: "", open: false });
   const [calcomConnecting, setCalcomConnecting] = useState(false);
   const [calcomError, setCalcomError] = useState<string | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testMessage, setTestMessage] = useState<{ id: string; ok: boolean; text: string } | null>(null);
+  const [changingEventTypeId, setChangingEventTypeId] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
   const banner = useMemo(() => {
@@ -87,12 +143,51 @@ export function CalendarIntegrationsManager({ widgets, initialConnections }: Cal
     setCalcomForm({ apiKey: "", open: false });
   }
 
+  async function handleTestConnection(connectionId: string) {
+    setTestingId(connectionId);
+    setTestMessage(null);
+
+    const res = await fetch(`/api/customer/calendar/${connectionId}/test`, { method: "POST" });
+    setTestingId(null);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setTestMessage({ id: connectionId, ok: false, text: data?.error?.message ?? "Kunne ikke forbinde til Cal.com." });
+      return;
+    }
+
+    const { connection } = await res.json();
+    setConnections((prev) => prev.map((c) => (c.id === connectionId ? connection : c)));
+    setTestMessage({ id: connectionId, ok: true, text: "Forbindelsen virker." });
+  }
+
+  async function handleChangeEventType(connectionId: string, eventTypeId: number) {
+    setChangingEventTypeId(connectionId);
+
+    const res = await fetch(`/api/customer/calendar/${connectionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventTypeId }),
+    });
+    setChangingEventTypeId(null);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setTestMessage({ id: connectionId, ok: false, text: data?.error?.message ?? "Kunne ikke skifte event-type." });
+      return;
+    }
+
+    const { connection } = await res.json();
+    setConnections((prev) => prev.map((c) => (c.id === connectionId ? connection : c)));
+  }
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Integrationer</h1>
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-semibold text-slate-900">Populære Integrationer</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Forbind jeres kalender, så agenten kan se ledige tider og booke direkte i jeres kalender.
+          Arbejd problemfrit med jeres eksisterende værktøjer — forbind jeres kalender nedenfor, så agenten kan se
+          ledige tider og booke direkte.
         </p>
       </div>
 
@@ -144,16 +239,69 @@ export function CalendarIntegrationsManager({ widgets, initialConnections }: Cal
                         <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                           Forbundet
                         </span>
+                      ) : provider.popular ? (
+                        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-600">
+                          Populær
+                        </span>
                       ) : null}
                     </div>
+                    <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">{provider.category}</p>
                     <p className="mt-1 text-xs text-slate-500">{provider.description}</p>
-                    {connection?.external_account_email ? (
+                    {connection && connection.provider !== "calcom" && connection.external_account_email ? (
                       <p className="mt-2 text-xs font-medium text-slate-600">{connection.external_account_email}</p>
                     ) : null}
-                    {connection?.provider === "calcom" && connection.calcom_event_type_id ? (
-                      <p className="mt-2 text-xs font-medium text-slate-600">
-                        Event-type-id: {connection.calcom_event_type_id}
-                      </p>
+
+                    {connection && connection.provider === "calcom" ? (
+                      <div className="mt-3 space-y-2.5 border-t border-slate-100 pt-3">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              connection.status === "connected" ? "bg-emerald-500" : "bg-red-500"
+                            }`}
+                          />
+                          <span className="font-medium text-slate-700">
+                            {connection.status === "connected" ? "Connected" : "Fejl — tjek forbindelsen"}
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Account</p>
+                          <p className="text-xs text-slate-700">{connection.external_account_email ?? "—"}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Event Type</p>
+                          <select
+                            value={connection.calcom_event_type_id ?? ""}
+                            onChange={(e) => handleChangeEventType(connection.id, Number(e.target.value))}
+                            disabled={changingEventTypeId === connection.id}
+                            className="mt-0.5 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+                          >
+                            {(eventTypesByConnection[connection.id] ?? []).map((eventType) => (
+                              <option key={eventType.id} value={eventType.id}>
+                                {eventType.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Timezone</p>
+                          <p className="text-xs text-slate-700">{connection.calcom_timezone ?? "—"}</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleTestConnection(connection.id)}
+                          disabled={testingId === connection.id}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          {testingId === connection.id ? "Tester…" : "Test forbindelse"}
+                        </button>
+                        {testMessage?.id === connection.id ? (
+                          <p className={`text-xs ${testMessage.ok ? "text-emerald-600" : "text-red-600"}`}>{testMessage.text}</p>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
 
@@ -218,6 +366,37 @@ export function CalendarIntegrationsManager({ widgets, initialConnections }: Cal
           </div>
         </>
       )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+        {COMING_SOON.map((tool) => (
+          <div
+            key={tool.name}
+            className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 opacity-90"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-xs font-semibold text-slate-600">
+              {initials(tool.name)}
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <p className="text-sm font-semibold text-slate-800">{tool.name}</p>
+                {tool.popular ? (
+                  <span className="rounded-full bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                    Populær
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-400">{tool.category}</p>
+              <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                Kommer snart
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-center text-xs text-slate-500">
+        Mangler I en integration? Vi tilføjer løbende nye — skriv til support, så hører I fra os når den lander.
+      </p>
     </div>
   );
 }
