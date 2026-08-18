@@ -226,6 +226,25 @@ export const widgetMessageSchema = z.object({
   clientDurationSeconds: z.number().nonnegative().max(600).optional(),
 });
 
+// Twilio ConversationRelay — see app/api/widget/relay-token,
+// app/api/internal/conversation-relay/turn and /end.
+export const widgetRelayTokenSchema = z.object({
+  publicId: z.string().trim().min(1).max(64),
+});
+
+export const internalConversationRelayTurnSchema = z.object({
+  widgetId: z.string().uuid(),
+  customerId: z.string().uuid(),
+  conversationId: z.string().uuid(),
+  usageSessionId: z.string().uuid(),
+  userText: z.string().trim().min(1).max(4000),
+});
+
+export const internalConversationRelayEndSchema = z.object({
+  usageSessionId: z.string().uuid(),
+  durationSeconds: z.number().nonnegative().max(7200),
+});
+
 // Calendar integrations (see 0014_calendar_integrations.sql and
 // lib/calendar) — Google/Outlook connect via OAuth (widgetId passed as a
 // query param, not a body), Cal.com connects with a pasted API key instead.

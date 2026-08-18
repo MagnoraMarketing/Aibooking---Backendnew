@@ -1,0 +1,22 @@
+{
+  "name": "aibooking-conversation-relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone WebSocket relay between Twilio ConversationRelay and the AIbooking backend — see this repo's root README for why this can't live inside the Next.js app on Vercel.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

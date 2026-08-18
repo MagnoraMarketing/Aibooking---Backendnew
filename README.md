@@ -230,12 +230,16 @@ doesn't yet).
 
 Creating an agent (`agent-creation-wizard.tsx`) no longer asks the customer
 to pick a "model" — it asks what the agent is *for*, and assigns the right
-model automatically: **Voice Widget** → the Vapi model (real-time voice in
-the browser, `provider='vapi'`); **Telefon (Inbound/Outbound)** → the
-Twilio-direct model (`provider='anthropic'`, see above). This is a
-one-time choice baked into `llm_model_id` at creation — there's no
-"agent type" column of its own, every downstream check (phone import,
-Configure Agent's tabs) just reads the provider off the widget's model.
+model automatically: **Voice Widget** → either the Vapi model
+(`provider='vapi'`, recommended default) or the Twilio Relay model
+(`provider='twilio_relay'`, see below) depending on which engine the
+customer picks; **Telefon (Inbound/Outbound)** → the Twilio-direct model
+(`provider='anthropic'`, see above). This is a one-time choice baked into
+`llm_model_id` at creation — there's no "agent type" column of its own,
+every downstream check (phone import, dashboard nav/stats split, Configure
+Agent's tabs) just reads the provider off the widget's model:
+`provider === 'anthropic'` is a phone agent, anything else (`'vapi'`,
+`'twilio_relay'`, `'openai'`) is a widget agent.
 
 The wizard's final step and Configure Agent's tab bar
 (`agent-configurator.tsx`) both branch on it: a Widget agent gets
@@ -244,6 +248,78 @@ neither (no website embed to speak of) and a "Telefonnummer" tab instead
 (`wizard-phone-step.tsx`, shared by both the wizard and Configure Agent),
 which hands off to the Inbound page — where the BYO/purchase flow above
 takes over — rather than duplicating that flow a third time.
+
+### Twilio ConversationRelay (second Voice Widget engine)
+
+A second real-time voice engine for Voice Widgets, alongside Vapi —
+`provider='twilio_relay'` (0024_twilio_conversation_relay.sql). Vapi is
+untouched and stays the recommended default; this is an additional,
+customer-selectable option (`agent-creation-wizard.tsx`'s engine picker in
+step 0).
+
+**Why a separate service is involved.** Twilio ConversationRelay needs a
+WebSocket connection held open for the whole call — Vercel serverless
+functions can't do that, and Supabase Edge Functions can't either (their
+own docs cap every invocation, WebSocket included, at 400s wall-clock on
+paid plans / 150s free, which the platform enforces even on an open
+socket — too short for a real conversation). So the WebSocket half of this
+lives in **`relay-server/`**, a small standalone Node service with its own
+`package.json`, deployed separately (Fly.io recommended — see
+`relay-server/README.md` for the full deploy + Twilio Console setup steps).
+It is deliberately dumb: no AI logic, no DB access — it only relays
+messages and calls back into this app's `/api/internal/conversation-relay/*`
+routes (shared-secret protected, see `lib/security/internal-auth.ts`) for
+every actual decision, reusing the exact same
+`generateConversationReplyText` (extracted from `handleConversationTurn` in
+`lib/conversation/handle-turn.ts`) the phone and text-widget pipelines
+already run — including Cal.com tool-use booking, since `'twilio_relay'` is
+registered in `lib/llm/registry.ts` against the same `AnthropicProvider`
+instance as `'anthropic'`.
+
+**Call flow**: browser loads the vendored Twilio Voice SDK
+(`public/vendor/twilio-voice-sdk.min.js` — Twilio dropped CDN hosting for it
+at v2.0) → `POST /api/widget/relay-token` creates the usage
+session/conversation and mints a short-lived Twilio Access Token
+(`lib/twilio/voice-token.ts`, using the official `twilio` package just for
+this one JWT — its VoiceGrant claim shape is proprietary enough that
+hand-rolling it isn't worth the risk) → the browser calls the platform TwiML
+Application → Twilio hits `POST /api/telephony/twilio/voice/relay-start`
+(signed with the *platform* Twilio account, not a customer subaccount — this
+call isn't tied to any real phone number) → returns
+`<Connect><ConversationRelay>` TwiML pointing at `relay-server/`'s `wss://`
+URL, with the widget/customer/session ids as `<Parameter>` values → Twilio
+opens the WebSocket, relay-server forwards each finished utterance to
+`/api/internal/conversation-relay/turn` and speaks back the plain-text
+reply (no token streaming — one full reply per turn, since ConversationRelay
+does its own STT/TTS either side of that). Real call duration is measured by
+relay-server's own clock and reported to `/api/internal/conversation-relay/end`
+when the socket closes, then billed via `setUsageSessionDuration` +
+`finalizeUsageSession` exactly like the Vapi/OpenAI-realtime widget flow —
+never a browser timer.
+
+**V1 scope**: Twilio's own STT/TTS defaults (no `ttsProvider`/`voice`
+TwiML attributes set) — ElevenLabs as a ConversationRelay TTS provider is a
+documented Twilio option but deliberately not wired up yet. No DTMF menus.
+Unlike Vapi's SDK, the Twilio Voice SDK never exposes conversation
+transcripts to the browser, so this widget's UI shows call status only, not
+a live transcript.
+
+**Setup required beyond code** (can't be done from a coding session — needs
+your actual Twilio/Fly.io accounts): create a Twilio API Key + a TwiML App
+in the Twilio Console (Voice Request URL → `.../api/telephony/twilio/voice/relay-start`),
+deploy `relay-server/` to Fly.io, and set the six new env vars documented in
+`.env.example` (`TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`,
+`TWILIO_TWIML_APP_SID`, `CONVERSATION_RELAY_WS_URL`,
+`CONVERSATION_RELAY_INTERNAL_SECRET`, and `relay-server/`'s matching
+`AIBOOKING_APP_URL`/`CONVERSATION_RELAY_INTERNAL_SECRET`). Full checklist in
+`relay-server/README.md`.
+
+**Known risk**: the ConversationRelay TwiML attributes and WebSocket message
+shapes here were verified against Twilio's current docs and an official
+sample repo (not from training-data memory alone), but — like the Cal.com
+integration below — have not been exercised against a live Twilio account
+from this sandbox (no external network access to Twilio). Verify end-to-end
+against a real call before relying on it in production.
 
 ### Cal.com integration and AI booking
 

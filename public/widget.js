@@ -780,6 +780,171 @@
     });
   }
 
+  // "Twilio Relay" widgets are also speech-to-speech, but the call is
+  // placed via the official Twilio Voice SDK (vendored locally — Twilio
+  // stopped serving it via CDN as of v2.0, see public/vendor/README.md)
+  // against our platform TwiML Application, which routes into
+  // ConversationRelay server-side (see app/api/telephony/twilio/voice/
+  // relay-start and relay-server/). Unlike Vapi's SDK, the Twilio Voice SDK
+  // never exposes conversation transcripts to the browser — STT/TTS/routing
+  // all happen between Twilio and relay-server — so this UI can only show
+  // call status, not a live transcript.
+  var TWILIO_SDK_PATH = "/vendor/twilio-voice-sdk.min.js";
+  var twilioSdkPromise = null;
+
+  function loadTwilioSdk() {
+    if (twilioSdkPromise) return twilioSdkPromise;
+    twilioSdkPromise = new Promise(function (resolve, reject) {
+      if (window.Twilio && window.Twilio.Device) {
+        resolve(window.Twilio);
+        return;
+      }
+      var script = document.createElement("script");
+      script.src = apiBase + TWILIO_SDK_PATH;
+      script.async = true;
+      script.onload = function () {
+        if (window.Twilio && window.Twilio.Device) resolve(window.Twilio);
+        else reject(new Error("Twilio Voice SDK loaded but window.Twilio.Device is missing"));
+      };
+      script.onerror = function () {
+        reject(new Error("Failed to load Twilio Voice SDK"));
+      };
+      document.head.appendChild(script);
+    });
+    return twilioSdkPromise;
+  }
+
+  function buildTwilioRelayUI(config) {
+    var positionStyles = {
+      "bottom-right": "bottom:20px;right:20px;",
+      "bottom-left": "bottom:20px;left:20px;",
+      "top-right": "top:20px;right:20px;",
+      "top-left": "top:20px;left:20px;",
+    };
+    var pos = positionStyles[config.position] || positionStyles["bottom-right"];
+
+    var launcher = buildLauncher(config, pos, "🎙");
+
+    var statusEl = el(
+      "div",
+      { style: "flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#666;text-align:center;padding:12px;" },
+      ["Klik på mikrofonen for at starte samtalen"]
+    );
+
+    var callBtn = el(
+      "button",
+      {
+        style:
+          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;" +
+          "background:" +
+          config.primaryColor +
+          ";color:#fff;font-size:26px;",
+      },
+      ["🎙"]
+    );
+
+    var panel = el(
+      "div",
+      {
+        id: "aibooking-panel",
+        style:
+          "position:fixed;" +
+          pos +
+          "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
+          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
+          "border:1px solid rgba(0,0,0,.06);" +
+          "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
+      },
+      [
+        buildHeader(config),
+        statusEl,
+        el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn]),
+        config.showBranding
+          ? el(
+              "div",
+              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
+              ["Powered by AIbooking.dk"]
+            )
+          : el("div", {}, []),
+      ]
+    );
+
+    document.body.appendChild(panel);
+    document.body.appendChild(launcher);
+
+    var call = { device: null, activeCall: null, active: false };
+
+    // Billing is handled entirely server-side (relay-server measures the
+    // real ConversationRelay connection duration and reports it to
+    // /api/internal/conversation-relay/end when the call ends) — unlike the
+    // realtime/Vapi UIs above, this handler never PATCHes /api/widget/session.
+    function handleCallEnd() {
+      if (!call.active) return;
+      call.active = false;
+      call.activeCall = null;
+      statusEl.textContent = "Samtalen er afsluttet";
+      callBtn.textContent = "🎙";
+    }
+
+    function startCall() {
+      statusEl.textContent = "Forbinder...";
+      apiFetch("/api/widget/relay-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicId: publicId }),
+      })
+        .then(function (data) {
+          state.sessionId = data.sessionId;
+          state.conversationId = data.conversationId;
+          if (!data.token) throw new Error("Twilio Voice Relay token unavailable");
+
+          return loadTwilioSdk().then(function (Twilio) {
+            if (!call.device) {
+              call.device = new Twilio.Device(data.token);
+              call.device.on("error", function () {
+                statusEl.textContent = "Der opstod en fejl under samtalen.";
+              });
+            } else {
+              call.device.updateToken(data.token);
+            }
+            return call.device.connect({
+              params: { publicId: publicId, sessionId: data.sessionId, conversationId: data.conversationId },
+            });
+          });
+        })
+        .then(function (twilioCall) {
+          call.activeCall = twilioCall;
+          twilioCall.on("accept", function () {
+            call.active = true;
+            statusEl.textContent = "Forbundet — I taler nu sammen";
+            callBtn.textContent = "⏹";
+          });
+          twilioCall.on("disconnect", handleCallEnd);
+          twilioCall.on("error", function () {
+            statusEl.textContent = "Der opstod en fejl under samtalen.";
+          });
+        })
+        .catch(function (err) {
+          statusEl.textContent =
+            err.status === 402 ? "Ikke flere minutter tilgængelige lige nu." : "Kunne ikke forbinde. Prøv igen.";
+        });
+    }
+
+    callBtn.addEventListener("click", function () {
+      if (call.active && call.activeCall) call.activeCall.disconnect();
+      else startCall();
+    });
+
+    window.addEventListener("beforeunload", function () {
+      if (call.active && call.activeCall) call.activeCall.disconnect();
+    });
+
+    launcher.addEventListener("click", function () {
+      state.open = !state.open;
+      panel.style.display = state.open ? "flex" : "none";
+    });
+  }
+
   fetch(apiBase + "/api/widget/config?publicId=" + encodeURIComponent(publicId))
     .then(function (res) {
       if (!res.ok) throw new Error("widget config unavailable");
@@ -789,6 +954,7 @@
       state.config = data.config;
       if (data.config.mode === "realtime") buildRealtimeUI(data.config);
       else if (data.config.mode === "vapi") buildVapiUI(data.config);
+      else if (data.config.mode === "twilio_relay") buildTwilioRelayUI(data.config);
       else buildUI(data.config);
     })
     .catch(function (err) {

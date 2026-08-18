@@ -16,16 +16,18 @@ export interface PublicWidgetConfig {
   position: string;
   widgetSize: string;
   showBranding: boolean;
-  // "realtime" widgets (Expert model / OpenAI Realtime over WebRTC) and
-  // "vapi" widgets (Vapi model / Vapi Web SDK) get a voice-first UI in
-  // widget.js instead of the text-chat panel — see buildRealtimeUI() and
-  // buildVapiUI() there.
-  mode: "text" | "realtime" | "vapi";
+  // "realtime" widgets (Expert model / OpenAI Realtime over WebRTC), "vapi"
+  // widgets (Vapi model / Vapi Web SDK) and "twilio_relay" widgets (Twilio
+  // ConversationRelay via the Twilio Voice SDK) all get a voice-first UI in
+  // widget.js instead of the text-chat panel — see buildRealtimeUI(),
+  // buildVapiUI() and buildTwilioRelayUI() there.
+  mode: "text" | "realtime" | "vapi" | "twilio_relay";
 }
 
 function resolveMode(provider: string | undefined): PublicWidgetConfig["mode"] {
   if (provider === "openai") return "realtime";
   if (provider === "vapi") return "vapi";
+  if (provider === "twilio_relay") return "twilio_relay";
   return "text";
 }
 

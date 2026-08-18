@@ -1,0 +1,35 @@
+# Fly.io app config for the AIbooking Conversation Relay.
+#
+# Before first deploy:
+#   1. Install flyctl: https://fly.io/docs/flyctl/install/
+#   2. fly launch --no-deploy   (creates the app, pick the arn/Stockholm region for EU latency)
+#   3. Replace `app` below with the app name flyctl assigned you.
+#   4. fly secrets set AIBOOKING_APP_URL=https://<your-vercel-domain> CONVERSATION_RELAY_INTERNAL_SECRET=<same value as in Vercel>
+#   5. fly deploy
+#
+# Twilio needs the resulting wss:// URL (fly.io serves both https:// and
+# wss:// on the same hostname) as CONVERSATION_RELAY_WS_URL in Vercel, e.g.
+# wss://aibooking-conversation-relay.fly.dev
+
+app = "aibooking-conversation-relay"
+primary_region = "arn"
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "15s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
