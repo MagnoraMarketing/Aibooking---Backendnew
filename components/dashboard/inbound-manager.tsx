@@ -18,6 +18,12 @@ interface AvailableNumber {
   monthlyPriceDkk: number;
 }
 
+interface OwnedNumber {
+  sid: string;
+  phoneNumber: string;
+  friendlyName: string;
+}
+
 type Mode = "buy" | "byo";
 
 const STATUS_LABELS: Record<PhoneNumberRow["purchase_status"], string> = {
@@ -83,6 +89,9 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
   const [twilioAuthToken, setTwilioAuthToken] = useState("");
   const [twilioPhoneNumber, setTwilioPhoneNumber] = useState("");
   const [importing, setImporting] = useState(false);
+  const [fetchingByoNumbers, setFetchingByoNumbers] = useState(false);
+  const [byoNumbers, setByoNumbers] = useState<OwnedNumber[] | null>(null);
+  const [byoManualEntry, setByoManualEntry] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -142,6 +151,37 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
     setShowForm(false);
   }
 
+  async function handleFetchByoNumbers() {
+    if (!twilioAccountSid.trim() || !twilioAuthToken.trim()) {
+      setError("Udfyld Account SID og Auth Token først.");
+      return;
+    }
+    setFetchingByoNumbers(true);
+    setError(null);
+    setByoNumbers(null);
+
+    const res = await fetch("/api/customer/phone-numbers/byo/numbers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        twilioAccountSid: twilioAccountSid.trim(),
+        twilioAuthToken: twilioAuthToken.trim(),
+      }),
+    });
+
+    setFetchingByoNumbers(false);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setError(data?.error?.message ?? "Kunne ikke hente numre fra Twilio.");
+      return;
+    }
+
+    const { numbers } = await res.json();
+    setByoNumbers(numbers);
+    if (numbers.length > 0) setTwilioPhoneNumber(numbers[0].phoneNumber);
+  }
+
   async function handleImport() {
     if (!widgetId || !twilioAccountSid.trim() || !twilioAuthToken.trim() || !twilioPhoneNumber.trim()) {
       setError("Udfyld agent og alle Twilio-felter.");
@@ -176,6 +216,8 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
     setTwilioAccountSid("");
     setTwilioAuthToken("");
     setTwilioPhoneNumber("");
+    setByoNumbers(null);
+    setByoManualEntry(false);
     setLabel("");
     setShowForm(false);
   }
@@ -348,7 +390,10 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
                   <input
                     id="twilio-sid"
                     value={twilioAccountSid}
-                    onChange={(e) => setTwilioAccountSid(e.target.value)}
+                    onChange={(e) => {
+                      setTwilioAccountSid(e.target.value);
+                      setByoNumbers(null);
+                    }}
                     placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                   />
@@ -361,24 +406,78 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
                     id="twilio-token"
                     type="password"
                     value={twilioAuthToken}
-                    onChange={(e) => setTwilioAuthToken(e.target.value)}
+                    onChange={(e) => {
+                      setTwilioAuthToken(e.target.value);
+                      setByoNumbers(null);
+                    }}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                   />
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="twilio-number" className="mb-1 block text-sm font-medium text-slate-700">
-                  Telefonnummer
-                </label>
-                <input
-                  id="twilio-number"
-                  value={twilioPhoneNumber}
-                  onChange={(e) => setTwilioPhoneNumber(e.target.value)}
-                  placeholder="+4512345678"
-                  className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-                />
-              </div>
+              <button
+                type="button"
+                onClick={handleFetchByoNumbers}
+                disabled={fetchingByoNumbers || !twilioAccountSid.trim() || !twilioAuthToken.trim()}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {fetchingByoNumbers ? "Henter…" : "Hent numre fra Twilio →"}
+              </button>
+
+              {byoNumbers && byoNumbers.length === 0 ? (
+                <p className="text-sm text-amber-600">
+                  Ingen numre fundet på denne Twilio-konto. Indtast nummeret manuelt herunder.
+                </p>
+              ) : null}
+
+              {byoNumbers && byoNumbers.length > 0 && !byoManualEntry ? (
+                <div>
+                  <label htmlFor="twilio-number-select" className="mb-1 block text-sm font-medium text-slate-700">
+                    Telefonnummer
+                  </label>
+                  <select
+                    id="twilio-number-select"
+                    value={twilioPhoneNumber}
+                    onChange={(e) => setTwilioPhoneNumber(e.target.value)}
+                    className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  >
+                    {byoNumbers.map((n) => (
+                      <option key={n.sid} value={n.phoneNumber}>
+                        {n.friendlyName ? `${n.friendlyName} (${n.phoneNumber})` : n.phoneNumber}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setByoManualEntry(true)}
+                    className="mt-1 text-xs font-medium text-brand-600 hover:text-brand-700"
+                  >
+                    Indtast nummer manuelt i stedet
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="twilio-number" className="mb-1 block text-sm font-medium text-slate-700">
+                    Telefonnummer
+                  </label>
+                  <input
+                    id="twilio-number"
+                    value={twilioPhoneNumber}
+                    onChange={(e) => setTwilioPhoneNumber(e.target.value)}
+                    placeholder="+4512345678"
+                    className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                  {byoNumbers && byoNumbers.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setByoManualEntry(false)}
+                      className="mt-1 text-xs font-medium text-brand-600 hover:text-brand-700"
+                    >
+                      Vælg fra listen i stedet
+                    </button>
+                  ) : null}
+                </div>
+              )}
             </div>
           )}
 

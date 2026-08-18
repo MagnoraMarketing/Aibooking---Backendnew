@@ -187,6 +187,11 @@ export const knowledgeBaseInputSchema = z.discriminatedUnion("type", [
 // lib/vapi/phone-numbers.ts, lib/vapi/calls.ts.
 const E164_REGEX = /^\+[1-9]\d{6,14}$/;
 
+export const listByoPhoneNumbersInputSchema = z.object({
+  twilioAccountSid: z.string().trim().min(1).max(200),
+  twilioAuthToken: z.string().trim().min(1).max(200),
+});
+
 export const importPhoneNumberInputSchema = z.object({
   widgetId: z.string().uuid(),
   twilioAccountSid: z.string().trim().min(1).max(200),

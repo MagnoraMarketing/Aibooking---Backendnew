@@ -69,6 +69,33 @@ export async function purchaseTwilioNumber(
   return { sid: data.sid, phoneNumber: data.phone_number };
 }
 
+export interface OwnedTwilioNumber {
+  sid: string;
+  phoneNumber: string;
+  friendlyName: string;
+}
+
+// Lists the numbers already sitting on a customer-provided Twilio account —
+// lets the BYO-Twilio form (components/dashboard/inbound-manager.tsx) offer
+// a dropdown of their real numbers instead of asking them to type an
+// E.164 number by hand. Credentials are used transiently for this one
+// lookup, same as everywhere else in the BYO flow — never persisted.
+export async function listOwnedPhoneNumbers(credentials: TwilioCredentials): Promise<OwnedTwilioNumber[]> {
+  const response = await twilioFetch("/IncomingPhoneNumbers.json?PageSize=100", credentials).catch((err) => {
+    throw ApiError.badRequest(`Kunne ikke hente numre — tjek Account SID og Auth Token. (${err.message})`);
+  });
+
+  const data = (await response.json()) as {
+    incoming_phone_numbers: Array<{ sid: string; phone_number: string; friendly_name: string }>;
+  };
+
+  return data.incoming_phone_numbers.map((n) => ({
+    sid: n.sid,
+    phoneNumber: n.phone_number,
+    friendlyName: n.friendly_name,
+  }));
+}
+
 // Releases a purchased number back to Twilio — irreversible on Twilio's
 // side, called only from the confirmed "Frigiv nummer" flow (see
 // app/api/customer/phone-numbers/[id]/route.ts).
