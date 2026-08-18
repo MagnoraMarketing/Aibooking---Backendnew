@@ -48,10 +48,14 @@ function buildAssistantBody(params: VapiAssistantParams, modelName: string) {
       model: modelName,
       messages: [{ role: "system", content: params.systemPrompt }],
     },
+    // `languageHints` was removed live from a production 400: "transcriber
+    // .property languageHints should not exist" — Vapi's current API
+    // rejects it for the soniox/stt-rt-v5 transcriber, even though it's
+    // documented for other providers. Soniox's stt-rt-v5 auto-detects
+    // language, so no replacement field is needed here.
     transcriber: {
       provider: "soniox",
       model: "stt-rt-v5",
-      languageHints: ["da", "en"],
     },
     voice: {
       provider: "vapi",
