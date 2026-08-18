@@ -128,6 +128,65 @@
     );
   }
 
+  // A mic button for the text-chat panel: dictate instead of type, using
+  // the browser's own speech recognition (no server round-trip, no extra
+  // provider — Chrome/Edge/Safari support it, Firefox doesn't, hence the
+  // feature-detect and graceful "just don't show the button" fallback).
+  // `onResult` receives the final transcript.
+  function buildMicButton(config, language, onResult) {
+    var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) return null;
+
+    var recognition = new Recognition();
+    recognition.lang = language;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    var listening = false;
+
+    var micBtn = el(
+      "button",
+      {
+        type: "button",
+        title: "Tal i stedet for at skrive",
+        style:
+          "border:none;background:#f1f1f1;color:#555;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:15px;",
+      },
+      ["🎤"]
+    );
+
+    recognition.onstart = function () {
+      listening = true;
+      micBtn.style.background = config.primaryColor;
+      micBtn.style.color = "#fff";
+    };
+    recognition.onend = function () {
+      listening = false;
+      micBtn.style.background = "#f1f1f1";
+      micBtn.style.color = "#555";
+    };
+    recognition.onresult = function (event) {
+      var transcript = event.results[0] && event.results[0][0] && event.results[0][0].transcript;
+      if (transcript) onResult(transcript);
+    };
+    recognition.onerror = function () {
+      listening = false;
+    };
+
+    micBtn.addEventListener("click", function () {
+      if (listening) {
+        recognition.stop();
+        return;
+      }
+      try {
+        recognition.start();
+      } catch (e) {
+        // Already-started/permission errors — nothing useful to recover to.
+      }
+    });
+
+    return micBtn;
+  }
+
   function buildUI(config) {
     var positionStyles = {
       "bottom-right": "bottom:20px;right:20px;",
@@ -159,6 +218,12 @@
       ["Send"]
     );
 
+    var speechLang = config.language === "en" ? "en-US" : "da-DK";
+    var micBtn = buildMicButton(config, speechLang, function (transcript) {
+      input.value = transcript;
+      send();
+    });
+
     var panel = el(
       "div",
       {
@@ -174,7 +239,11 @@
       [
         buildHeader(config),
         messagesEl,
-        el("div", { style: "display:flex;gap:8px;padding:10px;border-top:1px solid #eee;" }, [input, sendBtn]),
+        el(
+          "div",
+          { style: "display:flex;gap:8px;padding:10px;border-top:1px solid #eee;" },
+          micBtn ? [micBtn, input, sendBtn] : [input, sendBtn]
+        ),
         config.showBranding
           ? el(
               "div",

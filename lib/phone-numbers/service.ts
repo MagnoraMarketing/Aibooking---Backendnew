@@ -1,8 +1,9 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
-import { getOrCreateSubaccount, purchaseTwilioNumber, releaseTwilioNumber } from "@/lib/twilio";
+import { getOrCreateSubaccount, purchaseTwilioNumber, releaseTwilioNumber, configureDirectVoiceWebhook } from "@/lib/twilio";
 import { importTwilioPhoneNumber } from "@/lib/vapi";
 import { writeAuditLog } from "@/lib/security/audit";
+import { twilioWebhookUrls } from "@/lib/telephony/urls";
 
 // Shared provisioning logic for a platform-bought number, called from two
 // places: the Stripe webhook once payment is confirmed
@@ -33,31 +34,57 @@ export async function provisionPurchasedNumber(phoneNumberRowId: string): Promis
   await supabase.from("phone_numbers").update({ purchase_status: "provisioning" }).eq("id", phoneNumberRowId);
 
   try {
-    const { data: settings } = await supabase
-      .from("widget_settings")
-      .select("extra")
-      .eq("widget_id", row.widget_id)
+    const { data: widget } = await supabase
+      .from("widgets")
+      .select("llm_model_id")
+      .eq("id", row.widget_id)
       .maybeSingle();
-    const assistantId = (settings?.extra as Record<string, unknown> | null)?.vapiAssistantId;
-    if (typeof assistantId !== "string") {
-      throw new Error("Agenten har ikke en Vapi-assistent endnu");
-    }
+    const { data: llmModel } = widget?.llm_model_id
+      ? await supabase.from("llm_models").select("provider").eq("id", widget.llm_model_id).maybeSingle()
+      : { data: null };
+    const isTwilioDirect = llmModel?.provider === "anthropic";
 
     const credentials = await getOrCreateSubaccount(row.customer_id);
     const purchased = await purchaseTwilioNumber(credentials, row.phone_number);
-    const imported = await importTwilioPhoneNumber({
-      twilioAccountSid: credentials.accountSid,
-      twilioAuthToken: credentials.authToken,
-      twilioPhoneNumber: purchased.phoneNumber,
-      assistantId,
-      name: row.label ?? undefined,
-    });
+
+    let vapiPhoneNumberId: string | null = null;
+    let finalNumber = purchased.phoneNumber;
+
+    if (isTwilioDirect) {
+      // No Vapi assistant involved — point the number straight at our own
+      // TwiML webhooks (see lib/telephony).
+      const urls = twilioWebhookUrls();
+      await configureDirectVoiceWebhook(credentials, purchased.sid, {
+        voiceUrl: urls.inbound,
+        statusCallbackUrl: urls.status,
+      });
+    } else {
+      const { data: settings } = await supabase
+        .from("widget_settings")
+        .select("extra")
+        .eq("widget_id", row.widget_id)
+        .maybeSingle();
+      const assistantId = (settings?.extra as Record<string, unknown> | null)?.vapiAssistantId;
+      if (typeof assistantId !== "string") {
+        throw new Error("Agenten har ikke en Vapi-assistent endnu");
+      }
+
+      const imported = await importTwilioPhoneNumber({
+        twilioAccountSid: credentials.accountSid,
+        twilioAuthToken: credentials.authToken,
+        twilioPhoneNumber: purchased.phoneNumber,
+        assistantId,
+        name: row.label ?? undefined,
+      });
+      vapiPhoneNumberId = imported.id;
+      finalNumber = imported.number;
+    }
 
     await supabase
       .from("phone_numbers")
       .update({
-        vapi_phone_number_id: imported.id,
-        phone_number: imported.number,
+        vapi_phone_number_id: vapiPhoneNumberId,
+        phone_number: finalNumber,
         twilio_sid: purchased.sid,
         purchase_status: "active",
         failure_reason: null,
@@ -69,7 +96,7 @@ export async function provisionPurchasedNumber(phoneNumberRowId: string): Promis
       action: "phone_number.provisioned",
       entityType: "phone_number",
       entityId: phoneNumberRowId,
-      metadata: { phoneNumber: imported.number },
+      metadata: { phoneNumber: finalNumber },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Ukendt fejl";

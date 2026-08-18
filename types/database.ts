@@ -145,11 +145,15 @@ export interface WidgetSettings {
   updated_at: string;
 }
 
+export type ConversationChannel = "widget" | "phone";
+
 export interface Conversation {
   id: string;
   widget_id: string;
   customer_id: string;
   status: ConversationStatus;
+  channel: ConversationChannel;
+  twilio_call_sid: string | null;
   started_at: string;
   ended_at: string | null;
   created_at: string;
@@ -162,6 +166,7 @@ export interface ConversationMessage {
   role: MessageRole;
   content: string;
   token_count: number | null;
+  audio_base64: string | null;
   created_at: string;
 }
 

@@ -35,11 +35,25 @@ export const POST = withErrorHandling(async (request) => {
 
   const { data: widget, error: widgetError } = await supabase
     .from("widgets")
-    .select("id, name, customer_id")
+    .select("id, name, customer_id, llm_model_id")
     .eq("id", body.widgetId)
     .maybeSingle();
   if (widgetError) throw widgetError;
   if (!widget || widget.customer_id !== customerId) throw ApiError.notFound("Widget not found");
+
+  const { data: llmModel } = widget.llm_model_id
+    ? await supabase.from("llm_models").select("provider").eq("id", widget.llm_model_id).maybeSingle()
+    : { data: null };
+  if (llmModel?.provider === "anthropic") {
+    // Twilio-direct calling (see lib/telephony) only supports numbers
+    // bought through us (lib/twilio/subaccounts.ts) — we need to durably
+    // hold the Twilio credentials to validate each call's webhook
+    // signature, which a BYO import never persists (see this route's own
+    // comment above). Buy a number under "Køb nummer gennem os" instead.
+    throw ApiError.badRequest(
+      "Denne agent bruger Twilio direkte, som endnu ikke understøtter eget Twilio-nummer — køb et nummer gennem os i stedet."
+    );
+  }
 
   const { data: settings } = await supabase
     .from("widget_settings")

@@ -75,3 +75,25 @@ export async function purchaseTwilioNumber(
 export async function releaseTwilioNumber(credentials: TwilioCredentials, twilioSid: string): Promise<void> {
   await twilioFetch(`/IncomingPhoneNumbers/${twilioSid}.json`, credentials, { method: "DELETE" });
 }
+
+// Points a number's inbound voice webhook directly at our own TwiML
+// endpoints instead of importing it into Vapi — the "Twilio-direct"
+// pipeline (see lib/telephony) for widgets on the provider='anthropic'
+// model. statusCallbackUrl gets the call's completion event so we can
+// finalize billing (app/api/telephony/twilio/voice/status).
+export async function configureDirectVoiceWebhook(
+  credentials: TwilioCredentials,
+  twilioSid: string,
+  params: { voiceUrl: string; statusCallbackUrl: string }
+): Promise<void> {
+  await twilioFetch(`/IncomingPhoneNumbers/${twilioSid}.json`, credentials, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      VoiceUrl: params.voiceUrl,
+      VoiceMethod: "POST",
+      StatusCallback: params.statusCallbackUrl,
+      StatusCallbackMethod: "POST",
+    }),
+  });
+}

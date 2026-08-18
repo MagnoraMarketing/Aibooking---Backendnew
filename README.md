@@ -163,6 +163,44 @@ of the package's included minutes — the excess is expired on each renewal
 trial countdown, and is where "Administrer betaling / opsig abonnement"
 opens the Stripe billing portal.
 
+### Twilio-direct voice (Claude, no Vapi)
+
+A second voice/phone architecture alongside Vapi, for the `provider='anthropic'`
+model (create-flow label "Claude (Twilio telefon + widget)") — reuses the
+existing Claude + ElevenLabs pipeline (`lib/conversation/handle-turn.ts`,
+already what the web widget's text mode runs) for **both** channels:
+
+- **Web widget**: unchanged — already "text" mode, Claude generates the
+  reply, ElevenLabs speaks it. The one addition is a mic button
+  (`public/widget.js`'s `buildMicButton`) using the browser's own
+  `SpeechRecognition` API to dictate instead of type — no new backend, no
+  new provider dependency, and it degrades to "no mic button" wherever the
+  browser doesn't support it (Firefox, notably).
+- **Phone (inbound/outbound)**: turn-based over Twilio's built-in speech
+  recognition and TwiML, **not** real-time Media Streams — deliberately:
+  streaming would need a persistent WebSocket server, which doesn't run on
+  serverless/Vercel and is a materially bigger project (that's effectively
+  what Vapi already does as a service). The tradeoff is latency (a couple
+  of seconds per turn, Twilio transcribes → we call Claude → ElevenLabs
+  synthesizes → Twilio plays it) in exchange for staying entirely within
+  the existing serverless architecture. See `lib/telephony/` and
+  `app/api/telephony/twilio/voice/{inbound,turn,outbound-start,status}` —
+  a phone call is created as a `conversations` row
+  (`channel='phone'`, `twilio_call_sid`) and a `usage_sessions` row exactly
+  like a widget session, so it bills through the same credit ledger with no
+  separate accounting path.
+
+**Known limitations**: only numbers bought through us are supported for
+this model (`lib/twilio/subaccounts.ts` credentials are what request-
+signature validation checks against — a BYO-Twilio import never persists
+credentials, so there'd be nothing to validate against later); attempting
+to import a BYO number for a Twilio-direct agent is rejected with a clear
+error. `<Play>` audio URLs are protected only by an unguessable
+message UUID, not a Twilio-signed fetch (Twilio doesn't sign media
+fetches). No dedicated call-log row is created yet for these calls (the
+existing Conversations list already shows them; Vapi calls additionally get
+a `phone_calls` row via the Vapi webhook, this path doesn't yet).
+
 ### Phone number marketplace ("buy a number through us")
 
 A customer never touches Twilio Console. The flow:
