@@ -1,19 +1,12 @@
 import "server-only";
 import { getSummarizationModelName } from "@/lib/settings/platform";
-
-const VAPI_API_BASE = "https://api.vapi.ai";
+import { vapiFetch } from "./client";
 
 // Used whenever a widget doesn't have its own opening_message yet (e.g. a
 // freshly created agent) — same role as DEFAULT_REALTIME_INSTRUCTIONS in
 // lib/realtime/index.ts's caller, but Vapi calls it firstMessage rather
 // than instructions.
 export const DEFAULT_VAPI_FIRST_MESSAGE = "Hej, hvordan kan jeg hjælpe dig?";
-
-function getPrivateKey(): string {
-  const privateKey = process.env.VAPI_PRIVATE_KEY;
-  if (!privateKey) throw new Error("Missing required environment variable: VAPI_PRIVATE_KEY");
-  return privateKey;
-}
 
 export interface VapiAssistantParams {
   name: string;
@@ -52,24 +45,6 @@ function buildAssistantBody(params: VapiAssistantParams, modelName: string) {
       voiceId: "Elliot",
     },
   };
-}
-
-async function vapiFetch(path: string, init: RequestInit): Promise<Response> {
-  const response = await fetch(`${VAPI_API_BASE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${getPrivateKey()}`,
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => "");
-    throw new Error(`Vapi API request failed: ${response.status} ${errorBody}`);
-  }
-
-  return response;
 }
 
 export async function createVapiAssistant(params: VapiAssistantParams): Promise<{ id: string }> {

@@ -3,6 +3,7 @@ export {
   grantCredits,
   deductUsage,
   deductKnowledgeBaseCost,
+  deductPhoneCallCost,
   manualAdjustment,
   refundCredits,
   expireCredits,
