@@ -1,5 +1,5 @@
 export { getStripeClient } from "./stripe-client";
-export { createCheckoutSession, createBillingPortalSession } from "./checkout";
+export { createCheckoutSession, createBillingPortalSession, ensureStripeCustomer } from "./checkout";
 export {
   syncSubscriptionFromStripe,
   markSubscriptionCanceled,

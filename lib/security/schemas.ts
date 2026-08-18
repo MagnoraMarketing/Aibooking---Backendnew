@@ -192,6 +192,7 @@ export const importPhoneNumberInputSchema = z.object({
   twilioAuthToken: z.string().trim().min(1).max(200),
   twilioPhoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
   label: z.string().trim().max(200).optional(),
+  direction: z.enum(["inbound", "outbound", "both"]).default("both"),
 });
 
 // Capped at 100 contacts per campaign for v1 — launch fires one Vapi call
@@ -240,11 +241,19 @@ export const searchPhoneNumbersQuerySchema = z.object({
   areaCode: z.string().trim().max(10).optional(),
 });
 
+export const phoneNumberDirectionSchema = z.enum(["inbound", "outbound", "both"]).default("both");
+
 export const purchasePhoneNumberInputSchema = z.object({
   widgetId: z.string().uuid(),
   phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
   label: z.string().trim().max(200).optional(),
+  direction: phoneNumberDirectionSchema,
 });
+
+// Same shape — kept as a separate name so the checkout route (payment-gated
+// purchase) and the direct-purchase route aren't coupled to the same type
+// alias if their inputs diverge later.
+export const checkoutPhoneNumberInputSchema = purchasePhoneNumberInputSchema;
 
 // ---------------------------------------------------------------------------
 // Billing

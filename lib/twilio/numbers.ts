@@ -1,5 +1,5 @@
 import "server-only";
-import { twilioFetch, getPlatformTwilioAccountSid } from "./client";
+import { twilioFetch, type TwilioCredentials } from "./client";
 import { ApiError } from "@/types/errors";
 
 export interface AvailableTwilioNumber {
@@ -18,12 +18,18 @@ export const DK_LOCAL_NUMBER_MONTHLY_PRICE_DKK = 15;
 
 // Twilio requires a country to have local voice-capable numbers available
 // for sale; Denmark does. Voice-enabled only — we're buying these to
-// receive AI-agent calls, SMS capability isn't relevant here.
-export async function searchAvailableDkNumbers(areaCode?: string): Promise<AvailableTwilioNumber[]> {
+// receive AI-agent calls, SMS capability isn't relevant here. Runs under
+// the caller's own Twilio subaccount credentials (see
+// lib/twilio/subaccounts.ts) — every customer's search/purchase is scoped
+// to their own subaccount.
+export async function searchAvailableDkNumbers(
+  credentials: TwilioCredentials,
+  areaCode?: string
+): Promise<AvailableTwilioNumber[]> {
   const params = new URLSearchParams({ VoiceEnabled: "true", PageSize: "20" });
   if (areaCode) params.set("Contains", areaCode);
 
-  const response = await twilioFetch(`/AvailablePhoneNumbers/DK/Local.json?${params.toString()}`);
+  const response = await twilioFetch(`/AvailablePhoneNumbers/DK/Local.json?${params.toString()}`, credentials);
   const data = (await response.json()) as {
     available_phone_numbers: Array<{
       phone_number: string;
@@ -47,8 +53,11 @@ export interface PurchasedTwilioNumber {
   phoneNumber: string;
 }
 
-export async function purchaseTwilioNumber(phoneNumber: string): Promise<PurchasedTwilioNumber> {
-  const response = await twilioFetch("/IncomingPhoneNumbers.json", {
+export async function purchaseTwilioNumber(
+  credentials: TwilioCredentials,
+  phoneNumber: string
+): Promise<PurchasedTwilioNumber> {
+  const response = await twilioFetch("/IncomingPhoneNumbers.json", credentials, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ PhoneNumber: phoneNumber }),
@@ -60,4 +69,9 @@ export async function purchaseTwilioNumber(phoneNumber: string): Promise<Purchas
   return { sid: data.sid, phoneNumber: data.phone_number };
 }
 
-export { getPlatformTwilioAccountSid };
+// Releases a purchased number back to Twilio — irreversible on Twilio's
+// side, called only from the confirmed "Frigiv nummer" flow (see
+// app/api/customer/phone-numbers/[id]/route.ts).
+export async function releaseTwilioNumber(credentials: TwilioCredentials, twilioSid: string): Promise<void> {
+  await twilioFetch(`/IncomingPhoneNumbers/${twilioSid}.json`, credentials, { method: "DELETE" });
+}

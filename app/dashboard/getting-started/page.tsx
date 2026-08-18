@@ -26,7 +26,7 @@ export default async function GettingStartedPage() {
   const [{ data: widgets }, { data: phoneNumbers }, { data: connections }, { data: customer }, { data: subscription }, balanceSeconds] =
     await Promise.all([
       supabase.from("widgets").select("*").eq("customer_id", customerId).returns<Widget[]>(),
-      supabase.from("phone_numbers").select("id").eq("customer_id", customerId),
+      supabase.from("phone_numbers").select("id").eq("customer_id", customerId).eq("purchase_status", "active"),
       supabase.from("calendar_connections").select("id").eq("customer_id", customerId),
       supabase.from("customers").select("*").eq("id", customerId).single<Customer>(),
       supabase

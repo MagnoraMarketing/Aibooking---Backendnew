@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Widget } from "@/types/database";
+import { useSearchParams } from "next/navigation";
+import type { Widget, PhoneNumberDirection } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import { CallForwardingInstructions } from "./call-forwarding-instructions";
 
@@ -20,12 +21,58 @@ interface AvailableNumber {
 
 type Mode = "buy" | "byo";
 
+const STATUS_LABELS: Record<PhoneNumberRow["purchase_status"], string> = {
+  pending_payment: "Afventer betaling",
+  payment_confirmed: "Betaling bekræftet — aktiveres…",
+  provisioning: "Aktiveres…",
+  active: "Aktiv",
+  failed: "Fejlet",
+  released: "Frigivet",
+};
+
+const DIRECTION_LABELS: Record<PhoneNumberDirection, string> = {
+  inbound: "Inbound",
+  outbound: "Outbound",
+  both: "Inbound + Outbound",
+};
+
+function DirectionPicker({ value, onChange }: { value: PhoneNumberDirection; onChange: (v: PhoneNumberDirection) => void }) {
+  const options: { value: PhoneNumberDirection; label: string }[] = [
+    { value: "inbound", label: "Inbound" },
+    { value: "outbound", label: "Outbound" },
+    { value: "both", label: "Inbound + Outbound" },
+  ];
+  return (
+    <div>
+      <p className="mb-1 text-sm font-medium text-slate-700">Nummerets rolle</p>
+      <div className="flex gap-2">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+              value === option.value
+                ? "border-brand-500 bg-brand-50 text-brand-700"
+                : "border-slate-200 text-slate-600 hover:border-slate-300"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerProps) {
   const [phoneNumbers, setPhoneNumbers] = useState(initialPhoneNumbers);
   const [showForm, setShowForm] = useState(initialPhoneNumbers.length === 0);
   const [mode, setMode] = useState<Mode>("buy");
   const [widgetId, setWidgetId] = useState(widgets[0]?.id ?? "");
   const [label, setLabel] = useState("");
+  const [direction, setDirection] = useState<PhoneNumberDirection>("both");
+  const searchParams = useSearchParams();
 
   // Buy-a-number state
   const [searching, setSearching] = useState(false);
@@ -40,6 +87,9 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
   const [importing, setImporting] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const purchaseBanner = searchParams.get("purchase");
 
   function widgetName(id: string): string {
     return widgets.find((w) => w.id === id)?.name ?? "Ukendt agent";
@@ -78,22 +128,18 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
     const res = await fetch("/api/customer/phone-numbers/purchase", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ widgetId, phoneNumber: selectedNumber, label: label.trim() || undefined }),
+      body: JSON.stringify({ widgetId, phoneNumber: selectedNumber, label: label.trim() || undefined, direction }),
     });
 
-    setPurchasing(false);
-
     if (!res.ok) {
+      setPurchasing(false);
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke købe nummeret.");
+      setError(data?.error?.message ?? "Kunne ikke starte købet.");
       return;
     }
 
-    const { phoneNumber } = await res.json();
-    setPhoneNumbers((prev) => [phoneNumber, ...prev]);
-    setLabel("");
-    resetBuyState();
-    setShowForm(false);
+    const { checkoutUrl } = await res.json();
+    window.location.href = checkoutUrl;
   }
 
   async function handleImport() {
@@ -113,6 +159,7 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
         twilioAuthToken: twilioAuthToken.trim(),
         twilioPhoneNumber: twilioPhoneNumber.trim(),
         label: label.trim() || undefined,
+        direction,
       }),
     });
 
@@ -131,6 +178,26 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
     setTwilioPhoneNumber("");
     setLabel("");
     setShowForm(false);
+  }
+
+  async function handleRetry(id: string) {
+    setBusyId(id);
+    const res = await fetch(`/api/customer/phone-numbers/${id}/retry`, { method: "POST" });
+    setBusyId(null);
+    if (res.ok) {
+      const { phoneNumber } = await res.json();
+      setPhoneNumbers((prev) => prev.map((p) => (p.id === id ? phoneNumber : p)));
+    }
+  }
+
+  async function handleRelease(id: string) {
+    if (!confirm("Er du sikker? Telefonnummeret frigives fra Twilio og kan muligvis ikke gendannes.")) return;
+    setBusyId(id);
+    const res = await fetch(`/api/customer/phone-numbers/${id}`, { method: "DELETE" });
+    setBusyId(null);
+    if (res.ok) {
+      setPhoneNumbers((prev) => prev.map((p) => (p.id === id ? { ...p, purchase_status: "released" } : p)));
+    }
   }
 
   return (
@@ -152,6 +219,16 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
           </button>
         ) : null}
       </div>
+
+      {purchaseBanner === "processing" ? (
+        <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
+          Betaling modtaget — nummeret aktiveres om et øjeblik. Opdatér siden om lidt for at se det.
+        </div>
+      ) : purchaseBanner === "cancelled" ? (
+        <div className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600">
+          Købet blev annulleret — der er ikke sket noget.
+        </div>
+      ) : null}
 
       {widgets.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
@@ -204,6 +281,8 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
             </select>
           </div>
 
+          <DirectionPicker value={direction} onChange={setDirection} />
+
           <div>
             <label htmlFor="phone-label" className="mb-1 block text-sm font-medium text-slate-700">
               Label (valgfrit)
@@ -220,8 +299,8 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
           {mode === "buy" ? (
             <div className="space-y-3">
               <p className="text-sm text-slate-500">
-                Vi køber et dansk nummer til jer og forbinder det med agenten med det samme. I betaler den månedlige
-                pris for nummeret oveni jeres abonnement.
+                Vi køber et dansk nummer til jer og forbinder det med agenten, så snart betalingen er gennemført.
+                Prisen lægges oveni jeres abonnement som en separat, opsigelig linje.
               </p>
 
               {availableNumbers === null ? (
@@ -332,7 +411,7 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
                 disabled={purchasing || !selectedNumber}
                 className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {purchasing ? "Køber…" : "Køb nummer →"}
+                {purchasing ? "Åbner betaling…" : "Betal og aktivér →"}
               </button>
             ) : (
               <button
@@ -364,14 +443,45 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
                       {phoneNumber.label || phoneNumber.phone_number}
                     </p>
                     <p className="text-xs text-slate-500">
-                      {phoneNumber.phone_number} · {widgetName(phoneNumber.widget_id)}
+                      {phoneNumber.phone_number} · {widgetName(phoneNumber.widget_id)} ·{" "}
+                      {DIRECTION_LABELS[phoneNumber.direction]}
                       {phoneNumber.source === "platform_twilio" && phoneNumber.monthly_price_dkk
                         ? ` · ${phoneNumber.monthly_price_dkk} DKK/md`
                         : null}
                     </p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {STATUS_LABELS[phoneNumber.purchase_status]}
+                      {phoneNumber.failure_reason ? (
+                        <span className="ml-2 text-red-600">{phoneNumber.failure_reason}</span>
+                      ) : null}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    {phoneNumber.purchase_status === "failed" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRetry(phoneNumber.id)}
+                        disabled={busyId === phoneNumber.id}
+                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        Prøv igen
+                      </button>
+                    ) : null}
+                    {phoneNumber.purchase_status !== "released" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRelease(phoneNumber.id)}
+                        disabled={busyId === phoneNumber.id}
+                        className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+                      >
+                        Frigiv
+                      </button>
+                    ) : null}
                   </div>
                 </div>
-                <CallForwardingInstructions phoneNumber={phoneNumber.phone_number} />
+                {phoneNumber.purchase_status === "active" ? (
+                  <CallForwardingInstructions phoneNumber={phoneNumber.phone_number} />
+                ) : null}
               </div>
             ))}
           </div>

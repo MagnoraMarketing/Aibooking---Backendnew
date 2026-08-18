@@ -85,9 +85,10 @@ tests/  Vitest unit tests (credit ledger math, tenant isolation guards, Stripe w
    - `OPENAI_API_KEY` ("Expert model" — OpenAI Realtime API over WebRTC)
    - `VAPI_PUBLIC_KEY`, `VAPI_WEBHOOK_SECRET`, `VAPI_PRIVATE_KEY` ("Claude"
      agents — Vapi Web SDK, assistants auto-provisioned via the Vapi API)
-   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (optional — platform Twilio
-     account used to sell DK numbers through Inbound; the BYO-Twilio import
-     path works without these)
+   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `STRIPE_PHONE_NUMBER_PRICE_ID`
+     (optional — platform Twilio master account + Stripe price used to sell
+     DK numbers through Inbound; the BYO-Twilio import path works without
+     these)
    - `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and
      `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET` (optional — Google
      Calendar and Outlook/Microsoft 365 connect buttons under Integrations;
@@ -130,15 +131,80 @@ and a working (text-input, audio-output) embeddable widget.
 
 Also implemented: a step-by-step "Kom i gang" wizard
 (`/dashboard/getting-started`) tying the whole setup together; inbound
-calling via a Vapi phone number, either bought through the platform's own
-Twilio account (`lib/twilio`, `app/api/customer/phone-numbers/search` +
-`/purchase`) or a customer's own BYO-Twilio number (existing import route),
-plus in-app call-forwarding instructions (`components/dashboard/
-call-forwarding-instructions.tsx`) for diverting an existing DK number to
-it; and calendar connect/disconnect for Google Calendar, Outlook/Microsoft
-365 (OAuth, `lib/calendar`), and Cal.com (API key) at
-`/dashboard/integrations`, storing connections in `calendar_connections`
-(0014_calendar_integrations.sql).
+calling via a Vapi phone number, either bought through the platform (see
+"Phone number marketplace" below) or a customer's own BYO-Twilio number
+(existing import route), plus in-app call-forwarding instructions
+(`components/dashboard/call-forwarding-instructions.tsx`) for diverting an
+existing DK number to it; and calendar connect/disconnect for Google
+Calendar, Outlook/Microsoft 365 (OAuth, `lib/calendar`), and Cal.com (API
+key) at `/dashboard/integrations`, storing connections in
+`calendar_connections` (0014_calendar_integrations.sql).
+
+### Phone number marketplace ("buy a number through us")
+
+A customer never touches Twilio Console. The flow:
+
+1. **Subaccount** (`lib/twilio/subaccounts.ts`, `twilio_subaccounts` table,
+   0016_twilio_subaccounts.sql): the first time a customer searches or buys
+   a number, we lazily create a Twilio *subaccount* for them under the
+   platform's master account (`TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`).
+   Every subsequent search/purchase/release for that customer runs under
+   their own subaccount credentials — full blast-radius isolation between
+   customers, and a natural place to suspend/close one customer's telephony
+   without touching anyone else's. Idempotent and race-safe (see
+   `getOrCreateSubaccount` and its test in `tests/twilio-subaccounts.test.ts`).
+2. **Search**: `GET /api/customer/phone-numbers/search` — Danish
+   voice-enabled local numbers via Twilio's `AvailablePhoneNumbers` API,
+   rate-limited.
+3. **Checkout**: `POST /api/customer/phone-numbers/purchase` creates a
+   `phone_numbers` row with `purchase_status='pending_payment'` for the
+   selected number, then a Stripe Checkout Session (recurring monthly price,
+   `STRIPE_PHONE_NUMBER_PRICE_ID`) and returns its URL — the browser
+   redirects there. **The Twilio purchase never happens in this request**,
+   and never based on a price the frontend sent.
+4. **Webhook confirms payment**: Stripe's `checkout.session.completed`
+   event (`app/api/webhooks/stripe/route.ts`) is the only trigger that
+   flips the row to `payment_confirmed` and calls
+   `lib/phone-numbers/provisionPurchasedNumber`, which actually buys the
+   number from Twilio (under the customer's subaccount) and imports it into
+   Vapi, ending at `active` or `failed` (with `failure_reason` recorded and
+   no further Twilio charge). Idempotent against webhook redelivery.
+5. **Retry/release**: `POST /api/customer/phone-numbers/[id]/retry`
+   re-attempts a `failed` provisioning (no new charge); `DELETE
+   .../[id]` releases an active number back to Twilio and marks it
+   `released` (kept, not deleted, so history survives). Master admin has the
+   same actions at `/admin/phone-numbers` for support use, plus a
+   cross-customer view.
+6. **Direction**: every number (bought or BYO) has `direction` —
+   `inbound`, `outbound`, or `both` — enforced when launching an outbound
+   campaign against it (`app/api/customer/outbound-campaigns/*`).
+
+**Known limitations / follow-ups**, called out explicitly rather than
+silently:
+- The monthly phone-number charge is its own separate Stripe subscription
+  per number (its own Checkout Session), not a line item merged into the
+  customer's main package subscription — simpler to implement correctly
+  (clean webhook-confirmed-before-purchase flow) at the cost of a second
+  entry on the customer's Stripe invoice.
+- A failed retry re-attempts buying the *same* number the customer
+  originally picked; if it's gone (sniped by another buyer in the
+  meantime), retry fails again with a clear reason and the customer needs
+  to start a fresh purchase for a different number — there's no
+  automatic "pick another available number" fallback yet.
+- Danish numbers bought through Twilio are subject to Twilio's regulatory
+  requirements for the destination country (which can include address/
+  identity or a Regulatory Bundle depending on number type). This isn't
+  currently surfaced in the UI or enforced before purchase — a purchase
+  that fails for a compliance reason on Twilio's side lands in
+  `purchase_status='failed'` with Twilio's error as `failure_reason`, same
+  as any other provisioning failure. Building a proper "this number needs
+  extra documentation" flow (regulatory bundle collection tied to the
+  customer/subaccount) is a deliberate follow-up, not attempted here.
+- Reassigning a purchased number to a different agent, and inbound call
+  routing based on `direction`/`assigned` agent, both already exist
+  structurally (`widget_id` on `phone_numbers`, Vapi assistant per widget)
+  but there's no dedicated "reassign" UI yet — editing requires releasing
+  and re-buying.
 
 **Deliberately deferred** (per spec section 33 — MVP scope, and because this
 task is backend-only): the admin dashboard UI beyond what's listed above,

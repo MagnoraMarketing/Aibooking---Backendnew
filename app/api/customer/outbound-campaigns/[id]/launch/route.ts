@@ -47,11 +47,17 @@ export const POST = withErrorHandling(async (_request, { params }) => {
 
   const { data: phoneNumber, error: phoneNumberError } = await supabase
     .from("phone_numbers")
-    .select("vapi_phone_number_id")
+    .select("vapi_phone_number_id, direction, purchase_status")
     .eq("id", campaign.phone_number_id)
     .maybeSingle();
   if (phoneNumberError) throw phoneNumberError;
   if (!phoneNumber) throw ApiError.badRequest("Phone number no longer exists");
+  if (phoneNumber.purchase_status !== "active") {
+    throw ApiError.badRequest("Dette telefonnummer er ikke aktivt endnu");
+  }
+  if (phoneNumber.direction === "inbound") {
+    throw ApiError.badRequest("Dette telefonnummer er kun sat op til inbound og kan ikke bruges til outbound-opkald");
+  }
 
   const { data: contacts, error: contactsError } = await supabase
     .from("outbound_campaign_contacts")

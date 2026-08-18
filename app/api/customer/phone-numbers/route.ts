@@ -67,6 +67,8 @@ export const POST = withErrorHandling(async (request) => {
       vapi_phone_number_id: imported.id,
       phone_number: imported.number,
       label: body.label ?? null,
+      direction: body.direction,
+      purchase_status: "active",
     })
     .select("*")
     .single();

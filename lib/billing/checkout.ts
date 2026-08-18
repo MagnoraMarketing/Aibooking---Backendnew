@@ -7,7 +7,10 @@ function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
-async function ensureStripeCustomer(customer: Customer): Promise<string> {
+// Exported for other one-off/add-on Stripe purchases (e.g. buying a phone
+// number, see lib/phone-numbers) that need a Stripe customer to exist but
+// aren't the main package checkout below.
+export async function ensureStripeCustomer(customer: Customer): Promise<string> {
   if (customer.stripe_customer_id) return customer.stripe_customer_id;
 
   const stripe = getStripeClient();

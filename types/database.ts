@@ -232,6 +232,14 @@ export interface AuditLog {
 }
 
 export type PhoneNumberSource = "byo_twilio" | "platform_twilio";
+export type PhoneNumberPurchaseStatus =
+  | "pending_payment"
+  | "payment_confirmed"
+  | "provisioning"
+  | "active"
+  | "failed"
+  | "released";
+export type PhoneNumberDirection = "inbound" | "outbound" | "both";
 
 export interface PhoneNumber {
   id: string;
@@ -243,7 +251,25 @@ export interface PhoneNumber {
   source: PhoneNumberSource;
   twilio_sid: string | null;
   monthly_price_dkk: number | null;
+  purchase_status: PhoneNumberPurchaseStatus;
+  direction: PhoneNumberDirection;
+  stripe_checkout_session_id: string | null;
+  stripe_subscription_id: string | null;
+  failure_reason: string | null;
+  released_at: string | null;
   created_at: string;
+}
+
+export type TwilioSubaccountStatus = "active" | "suspended" | "closed";
+
+export interface TwilioSubaccount {
+  id: string;
+  customer_id: string;
+  twilio_subaccount_sid: string;
+  twilio_subaccount_auth_token: string;
+  status: TwilioSubaccountStatus;
+  created_at: string;
+  updated_at: string;
 }
 
 export type CalendarProvider = "google" | "outlook" | "calcom";

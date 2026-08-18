@@ -2,11 +2,17 @@ import "server-only";
 
 const TWILIO_API_BASE = "https://api.twilio.com/2010-04-01";
 
-// The platform's own Twilio master account — used to search for and buy
-// Danish numbers on a customer's behalf ("buy a number through us"), as
-// opposed to lib/vapi/phone-numbers.ts's BYO-Twilio import path, which uses
-// credentials the customer pastes in for their own Twilio account.
-function getCredentials(): { accountSid: string; authToken: string } {
+export interface TwilioCredentials {
+  accountSid: string;
+  authToken: string;
+}
+
+// The platform's own Twilio master account — used only to create/manage
+// per-customer subaccounts (see lib/twilio/subaccounts.ts). Actual number
+// search/purchase/release runs under a customer's subaccount credentials,
+// not these, so a given customer's Twilio activity is fully isolated from
+// every other customer's.
+export function getPlatformTwilioCredentials(): TwilioCredentials {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   if (!accountSid || !authToken) {
@@ -15,23 +21,13 @@ function getCredentials(): { accountSid: string; authToken: string } {
   return { accountSid, authToken };
 }
 
-export function getPlatformTwilioAccountSid(): string {
-  return getCredentials().accountSid;
-}
+// `path` is everything after /Accounts/{accountSid} — e.g.
+// "/IncomingPhoneNumbers.json". Always authenticates and scopes the request
+// to the given credentials' own account (subaccount or master).
+export async function twilioFetch(path: string, credentials: TwilioCredentials, init: RequestInit = {}): Promise<Response> {
+  const basicAuth = Buffer.from(`${credentials.accountSid}:${credentials.authToken}`).toString("base64");
 
-// Used by the "buy a number through us" flow to hand the platform's own
-// Twilio credentials to lib/vapi's importTwilioPhoneNumber — same import
-// call the BYO-Twilio path uses, just with our credentials instead of a
-// customer-pasted SID/token.
-export function getPlatformTwilioCredentials(): { accountSid: string; authToken: string } {
-  return getCredentials();
-}
-
-export async function twilioFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const { accountSid, authToken } = getCredentials();
-  const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-
-  const response = await fetch(`${TWILIO_API_BASE}/Accounts/${accountSid}${path}`, {
+  const response = await fetch(`${TWILIO_API_BASE}/Accounts/${credentials.accountSid}${path}`, {
     ...init,
     headers: {
       Authorization: `Basic ${basicAuth}`,
