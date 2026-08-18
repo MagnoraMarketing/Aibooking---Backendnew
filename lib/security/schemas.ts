@@ -182,6 +182,36 @@ export const knowledgeBaseInputSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
+// Phone calling (inbound + outbound) — see 0013_phone_calling.sql and
+// lib/vapi/phone-numbers.ts, lib/vapi/calls.ts.
+const E164_REGEX = /^\+[1-9]\d{6,14}$/;
+
+export const importPhoneNumberInputSchema = z.object({
+  widgetId: z.string().uuid(),
+  twilioAccountSid: z.string().trim().min(1).max(200),
+  twilioAuthToken: z.string().trim().min(1).max(200),
+  twilioPhoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
+  label: z.string().trim().max(200).optional(),
+});
+
+// Capped at 100 contacts per campaign for v1 — launch fires one Vapi call
+// per contact concurrently within a single request, and this keeps that
+// bounded well under typical serverless function time limits.
+export const outboundCampaignInputSchema = z.object({
+  widgetId: z.string().uuid(),
+  phoneNumberId: z.string().uuid(),
+  name: z.string().trim().min(1).max(200),
+  contacts: z
+    .array(
+      z.object({
+        phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
+        name: z.string().trim().max(200).optional(),
+      })
+    )
+    .min(1)
+    .max(100),
+});
+
 export const widgetMessageSchema = z.object({
   sessionId: z.string().uuid(),
   conversationId: z.string().uuid(),

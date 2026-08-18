@@ -91,6 +91,20 @@ export async function deductKnowledgeBaseCost(params: {
   });
 }
 
+export async function deductPhoneCallCost(params: {
+  customerId: string;
+  seconds: number;
+  description: string;
+}): Promise<CreditTransaction> {
+  if (params.seconds <= 0) throw new Error("deductPhoneCallCost requires a positive amount");
+  return recordTransaction({
+    customerId: params.customerId,
+    amountSeconds: -params.seconds,
+    type: "usage",
+    description: params.description,
+  });
+}
+
 export async function manualAdjustment(params: {
   customerId: string;
   seconds: number; // positive to add, negative to remove

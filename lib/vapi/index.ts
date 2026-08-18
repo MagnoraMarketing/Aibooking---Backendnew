@@ -7,6 +7,8 @@ export {
   type VapiAssistantParams,
 } from "./assistants";
 export { syncWidgetToVapiAssistant } from "./sync";
+export { importTwilioPhoneNumber, type ImportTwilioNumberParams, type VapiPhoneNumber } from "./phone-numbers";
+export { createOutboundCall, type CreateOutboundCallParams } from "./calls";
 
 function getPublicKey(): string {
   const publicKey = process.env.VAPI_PUBLIC_KEY;
