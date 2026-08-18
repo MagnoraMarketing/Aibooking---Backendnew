@@ -1,5 +1,6 @@
 import "server-only";
 import { ApiError } from "@/types/errors";
+import { requireCredentialEnv } from "@/lib/security/env";
 
 const TWILIO_API_BASE = "https://api.twilio.com/2010-04-01";
 
@@ -14,14 +15,12 @@ export interface TwilioCredentials {
 // not these, so a given customer's Twilio activity is fully isolated from
 // every other customer's.
 export function getPlatformTwilioCredentials(): TwilioCredentials {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  if (!accountSid || !authToken) {
-    throw ApiError.internal(
-      "Twilio er ikke konfigureret på platformen endnu (mangler TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN i miljøvariablerne)."
-    );
-  }
-  return { accountSid, authToken };
+  const missingHint =
+    "Twilio er ikke konfigureret på platformen endnu (mangler TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN i miljøvariablerne).";
+  return {
+    accountSid: requireCredentialEnv("TWILIO_ACCOUNT_SID", missingHint),
+    authToken: requireCredentialEnv("TWILIO_AUTH_TOKEN", missingHint),
+  };
 }
 
 // `path` is everything after /Accounts/{accountSid} — e.g.

@@ -4,4 +4,5 @@ export { readJsonBody, errorResponse, withErrorHandling, MAX_REQUEST_BODY_BYTES 
 export { writeAuditLog } from "./audit";
 export { requireParam } from "./params";
 export { requireInternalSecret } from "./internal-auth";
+export { requireCredentialEnv } from "./env";
 export * from "./schemas";

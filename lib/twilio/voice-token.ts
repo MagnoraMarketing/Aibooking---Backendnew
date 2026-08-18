@@ -1,6 +1,6 @@
 import "server-only";
 import { jwt } from "twilio";
-import { ApiError } from "@/types/errors";
+import { requireCredentialEnv } from "@/lib/security/env";
 
 const { AccessToken } = jwt;
 const { VoiceGrant } = AccessToken;
@@ -22,16 +22,12 @@ const TOKEN_TTL_SECONDS = 3600;
 // widget/session binding travels as <Parameter> values, see
 // buildConversationRelayResponse in lib/telephony/twiml.ts).
 export function createVoiceAccessToken(identity: string): string {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const apiKeySid = process.env.TWILIO_API_KEY_SID;
-  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
-  const twimlAppSid = process.env.TWILIO_TWIML_APP_SID;
-
-  if (!accountSid || !apiKeySid || !apiKeySecret || !twimlAppSid) {
-    throw ApiError.internal(
-      "Twilio Voice Relay er ikke konfigureret på platformen endnu (mangler TWILIO_API_KEY_SID/TWILIO_API_KEY_SECRET/TWILIO_TWIML_APP_SID i miljøvariablerne)."
-    );
-  }
+  const missingHint =
+    "Twilio Voice Relay er ikke konfigureret på platformen endnu (mangler TWILIO_ACCOUNT_SID/TWILIO_API_KEY_SID/TWILIO_API_KEY_SECRET/TWILIO_TWIML_APP_SID i miljøvariablerne).";
+  const accountSid = requireCredentialEnv("TWILIO_ACCOUNT_SID", missingHint);
+  const apiKeySid = requireCredentialEnv("TWILIO_API_KEY_SID", missingHint);
+  const apiKeySecret = requireCredentialEnv("TWILIO_API_KEY_SECRET", missingHint);
+  const twimlAppSid = requireCredentialEnv("TWILIO_TWIML_APP_SID", missingHint);
 
   const token = new AccessToken(accountSid, apiKeySid, apiKeySecret, {
     identity,
