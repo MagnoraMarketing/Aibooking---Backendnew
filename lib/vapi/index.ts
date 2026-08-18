@@ -1,5 +1,6 @@
 import "server-only";
 import { ApiError } from "@/types/errors";
+import { requireCredentialEnv } from "@/lib/security/env";
 
 export {
   createVapiAssistant,
@@ -12,13 +13,10 @@ export { importTwilioPhoneNumber, type ImportTwilioNumberParams, type VapiPhoneN
 export { createOutboundCall, type CreateOutboundCallParams } from "./calls";
 
 function getPublicKey(): string {
-  const publicKey = process.env.VAPI_PUBLIC_KEY;
-  if (!publicKey) {
-    throw ApiError.internal(
-      "Vapi er ikke konfigureret på platformen endnu (mangler VAPI_PUBLIC_KEY i miljøvariablerne)."
-    );
-  }
-  return publicKey;
+  return requireCredentialEnv(
+    "VAPI_PUBLIC_KEY",
+    "Vapi er ikke konfigureret på platformen endnu (mangler VAPI_PUBLIC_KEY i miljøvariablerne)."
+  );
 }
 
 export interface VapiCallConfig {

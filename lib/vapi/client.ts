@@ -1,16 +1,14 @@
 import "server-only";
 import { ApiError } from "@/types/errors";
+import { requireCredentialEnv } from "@/lib/security/env";
 
 const VAPI_API_BASE = "https://api.vapi.ai";
 
 function getPrivateKey(): string {
-  const privateKey = process.env.VAPI_PRIVATE_KEY;
-  if (!privateKey) {
-    throw ApiError.internal(
-      "Vapi er ikke konfigureret på platformen endnu (mangler VAPI_PRIVATE_KEY i miljøvariablerne)."
-    );
-  }
-  return privateKey;
+  return requireCredentialEnv(
+    "VAPI_PRIVATE_KEY",
+    "Vapi er ikke konfigureret på platformen endnu (mangler VAPI_PRIVATE_KEY i miljøvariablerne)."
+  );
 }
 
 export async function vapiFetch(path: string, init: RequestInit): Promise<Response> {
