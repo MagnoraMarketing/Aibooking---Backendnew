@@ -1,6 +1,7 @@
 import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { CalendarIntegrationsManager } from "@/components/dashboard/calendar-integrations-manager";
+import { IntegrationsHero, IntegrationCategories } from "@/components/dashboard/integrations-showcase";
 import type { Widget } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,10 @@ export default async function IntegrationsPage() {
   ]);
 
   return (
-    <CalendarIntegrationsManager widgets={widgets ?? []} initialConnections={connections ?? []} />
+    <div className="space-y-16">
+      <IntegrationsHero />
+      <IntegrationCategories />
+      <CalendarIntegrationsManager widgets={widgets ?? []} initialConnections={connections ?? []} />
+    </div>
   );
 }
