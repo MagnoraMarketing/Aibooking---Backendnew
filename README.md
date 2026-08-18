@@ -290,6 +290,32 @@ before relying on this in production; `/me` and `/event-types` (used by
 the connect/test flow) are more likely correct since they're simpler and
 more stable endpoints.
 
+### Widget Agents vs Telefon agents — separate nav, lists, and dashboard stats
+
+The header nav's "Agent" item is now "Widget Agents" — `/dashboard/agent`
+(and `AgentsManager`) only ever shows/creates `provider='vapi'` widgets,
+filtered server-side by joining each widget's `llm_model_id` against
+`llm_models.provider`. Telefon (Inbound/Outbound) agents get the same
+`AgentsManager` component reused with `agentType="phone"`, embedded
+directly on `/dashboard/inbound` above the phone-number management UI —
+`AgentCreationWizard`'s new `fixedType` prop skips the type-picker step
+there and locks the wizard to Telefon, since the page context already
+answered that question. The Outbound page's own agent picker is filtered
+the same way. This keeps every "create/manage an agent" entry point
+type-specific rather than adding a second global nav item, and means an
+agent never appears somewhere it can't actually be used from (a Widget
+agent can't be assigned a phone number, a Telefon agent has no
+embed-code step to reach).
+
+The main dashboard (`app/dashboard/page.tsx`) adds a Widget vs Telefon
+split under the existing total stats — `getUsageByAgentType`
+(`lib/analytics/usage-by-agent-type.ts`) groups every widget by that same
+provider check rather than `conversations.channel` (which only the
+Twilio-direct pipeline ever sets — grouping by provider instead covers
+Vapi-routed phone calls and Vapi widget sessions too, since it's a
+property of the agent, not of which pipeline a given session happened to
+run through).
+
 ### Phone number marketplace ("buy a number through us")
 
 A customer never touches Twilio Console. The flow:

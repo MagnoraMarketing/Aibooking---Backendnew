@@ -45,6 +45,11 @@ interface AgentCreationWizardProps {
   pkg: Package | null;
   onCancel: () => void;
   onComplete: (widget: WidgetWithExtras) => void;
+  // Set when the wizard is launched from a type-specific entry point (the
+  // Widget Agents page, or the Inbound/Outbound page's phone-agent panel) —
+  // skips the type picker in step 0 and shows a fixed label instead, since
+  // the context already answered that question.
+  fixedType?: AgentType;
 }
 
 function StepProgress({ step, steps }: { step: number; steps: readonly string[] }) {
@@ -89,13 +94,14 @@ export function AgentCreationWizard({
   pkg,
   onCancel,
   onComplete,
+  fixedType,
 }: AgentCreationWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [widget, setWidget] = useState<WidgetWithExtras | null>(null);
 
   const [name, setName] = useState("");
-  const [agentType, setAgentType] = useState<AgentType | null>(null);
+  const [agentType, setAgentType] = useState<AgentType | null>(fixedType ?? null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -177,29 +183,40 @@ export function AgentCreationWizard({
             />
           </div>
 
-          <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Hvad skal agenten bruges til?</p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {TYPE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setAgentType(option.value)}
-                  className={`rounded-xl border p-4 text-left transition ${
-                    agentType === option.value
-                      ? "border-brand-500 ring-1 ring-brand-500"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <p className="text-sm font-semibold text-slate-800">{option.title}</p>
-                  <p className="mt-1 text-xs text-slate-500">{option.description}</p>
-                </button>
-              ))}
+          {fixedType ? (
+            <div className="rounded-xl border border-brand-200 bg-brand-50 p-4">
+              <p className="text-sm font-semibold text-brand-700">
+                {TYPE_OPTIONS.find((t) => t.value === fixedType)?.title}
+              </p>
+              <p className="mt-1 text-xs text-brand-600">
+                {TYPE_OPTIONS.find((t) => t.value === fixedType)?.description}
+              </p>
             </div>
-            <p className="mt-2 text-xs text-slate-500">
-              Resten af opsætningen tilpasses automatisk efter jeres valg — I skal ikke selv vælge teknisk model.
-            </p>
-          </div>
+          ) : (
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-700">Hvad skal agenten bruges til?</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {TYPE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setAgentType(option.value)}
+                    className={`rounded-xl border p-4 text-left transition ${
+                      agentType === option.value
+                        ? "border-brand-500 ring-1 ring-brand-500"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-slate-800">{option.title}</p>
+                    <p className="mt-1 text-xs text-slate-500">{option.description}</p>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Resten af opsætningen tilpasses automatisk efter jeres valg — I skal ikke selv vælge teknisk model.
+              </p>
+            </div>
+          )}
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
-import { getCustomerEconomics } from "@/lib/analytics";
+import { getCustomerEconomics, getUsageByAgentType } from "@/lib/analytics";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { SessionsTable, type SessionRow } from "@/components/dashboard/sessions-table";
 import { AppointmentsList } from "@/components/dashboard/appointments-list";
@@ -55,9 +55,10 @@ export default async function DashboardPage() {
   const customerId = ctx.profile.customer_id!;
   const supabase = getAdminClient();
 
-  const [economics, { data: widgetsData }, { data: conversationsData }, { data: appointmentsData }] =
+  const [economics, usageByType, { data: widgetsData }, { data: conversationsData }, { data: appointmentsData }] =
     await Promise.all([
       getCustomerEconomics(customerId),
+      getUsageByAgentType(customerId),
       supabase.from("widgets").select("*").eq("customer_id", customerId).returns<Widget[]>(),
       supabase
         .from("conversations")
@@ -133,6 +134,54 @@ export default async function DashboardPage() {
           value={economics.minutesRemaining.toFixed(2)}
           icon={ICONS.minutesRemaining}
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">Voice Widget</h2>
+            <Link href="/dashboard/agent" className="text-xs font-medium text-brand-600 hover:text-brand-700">
+              Se agenter →
+            </Link>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-lg font-semibold text-slate-900">{usageByType.widget.activeAgents}</p>
+              <p className="text-[11px] text-slate-500">Aktive agenter</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-slate-900">{usageByType.widget.totalConversations}</p>
+              <p className="text-[11px] text-slate-500">Samtaler</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-slate-900">{usageByType.widget.minutesUsed.toFixed(1)}</p>
+              <p className="text-[11px] text-slate-500">Minutter</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">Telefon (Inbound/Outbound)</h2>
+            <Link href="/dashboard/inbound" className="text-xs font-medium text-brand-600 hover:text-brand-700">
+              Se agenter →
+            </Link>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-lg font-semibold text-slate-900">{usageByType.phone.activeAgents}</p>
+              <p className="text-[11px] text-slate-500">Aktive agenter</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-slate-900">{usageByType.phone.totalConversations}</p>
+              <p className="text-[11px] text-slate-500">Opkald</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-slate-900">{usageByType.phone.minutesUsed.toFixed(1)}</p>
+              <p className="text-[11px] text-slate-500">Minutter</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">

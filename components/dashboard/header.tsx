@@ -8,7 +8,7 @@ import { LogoutButton } from "./logout-button";
 const NAV_ITEMS = [
   { label: "Getting Started", href: "/dashboard/getting-started" },
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Agent", href: "/dashboard/agent" },
+  { label: "Widget Agents", href: "/dashboard/agent" },
   { label: "Inbound", href: "/dashboard/inbound" },
   { label: "Outbound", href: "/dashboard/outbound" },
   { label: "Knowledge Base", href: "/dashboard/knowledge-base" },
