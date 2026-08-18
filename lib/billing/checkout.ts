@@ -3,6 +3,21 @@ import type Stripe from "stripe";
 import { getStripeClient } from "./stripe-client";
 import { getAdminClient } from "@/lib/database/admin";
 import type { Customer, Package } from "@/types/database";
+import { ApiError } from "@/types/errors";
+
+// Stripe's SDK throws its own Stripe.errors.StripeError, which — like a
+// plain Error — isn't an ApiError, so lib/security/http.ts's errorResponse
+// would otherwise mask it as an opaque "Something went wrong" instead of
+// showing the customer why their payment/checkout attempt actually failed.
+async function callStripe<T>(action: () => Promise<T>): Promise<T> {
+  try {
+    return await action();
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    const message = err instanceof Error ? err.message : "Ukendt fejl fra Stripe.";
+    throw ApiError.internal(`Stripe-fejl: ${message}`);
+  }
+}
 
 function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -15,11 +30,13 @@ export async function ensureStripeCustomer(customer: Customer): Promise<string> 
   if (customer.stripe_customer_id) return customer.stripe_customer_id;
 
   const stripe = getStripeClient();
-  const stripeCustomer = await stripe.customers.create({
-    email: customer.email,
-    name: customer.name,
-    metadata: { aibooking_customer_id: customer.id },
-  });
+  const stripeCustomer = await callStripe(() =>
+    stripe.customers.create({
+      email: customer.email,
+      name: customer.name,
+      metadata: { aibooking_customer_id: customer.id },
+    })
+  );
 
   const supabase = getAdminClient();
   await supabase
@@ -53,7 +70,9 @@ export async function createCheckoutSession(params: {
   subscriptionMetadata?: Record<string, string>;
 }): Promise<{ url: string }> {
   if (!params.pkg.stripe_price_id) {
-    throw new Error(`Package "${params.pkg.package_name}" has no stripe_price_id configured`);
+    throw ApiError.internal(
+      `Pakken "${params.pkg.package_name}" er ikke sat op til betaling endnu (mangler Stripe-pris). Kontakt support.`
+    );
   }
 
   const stripe = getStripeClient();
@@ -79,29 +98,31 @@ export async function createCheckoutSession(params: {
     });
   }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: stripeCustomerId,
-    line_items: lineItems,
-    success_url: params.successUrl ?? `${appUrl}/dashboard/billing?checkout=success`,
-    cancel_url: params.cancelUrl ?? `${appUrl}/dashboard/billing?checkout=cancelled`,
-    discounts: params.discountCouponId ? [{ coupon: params.discountCouponId }] : undefined,
-    metadata: {
-      aibooking_customer_id: params.customer.id,
-      aibooking_package_id: params.pkg.id,
-    },
-    subscription_data: {
-      billing_cycle_anchor: nextBillingCycleAnchor(),
-      proration_behavior: "create_prorations",
+  const session = await callStripe(() =>
+    stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: stripeCustomerId,
+      line_items: lineItems,
+      success_url: params.successUrl ?? `${appUrl}/dashboard/billing?checkout=success`,
+      cancel_url: params.cancelUrl ?? `${appUrl}/dashboard/billing?checkout=cancelled`,
+      discounts: params.discountCouponId ? [{ coupon: params.discountCouponId }] : undefined,
       metadata: {
         aibooking_customer_id: params.customer.id,
         aibooking_package_id: params.pkg.id,
-        ...params.subscriptionMetadata,
       },
-    },
-  });
+      subscription_data: {
+        billing_cycle_anchor: nextBillingCycleAnchor(),
+        proration_behavior: "create_prorations",
+        metadata: {
+          aibooking_customer_id: params.customer.id,
+          aibooking_package_id: params.pkg.id,
+          ...params.subscriptionMetadata,
+        },
+      },
+    })
+  );
 
-  if (!session.url) throw new Error("Stripe did not return a checkout URL");
+  if (!session.url) throw ApiError.internal("Stripe returnerede ingen betalings-URL. Prøv igen.");
   return { url: session.url };
 }
 
@@ -119,28 +140,32 @@ export async function getOrCreateIntroOfferCoupon(): Promise<string> {
     const existing = await stripe.coupons.retrieve(INTRO_OFFER_COUPON_ID);
     return existing.id;
   } catch {
-    const created = await stripe.coupons.create({
-      id: INTRO_OFFER_COUPON_ID,
-      percent_off: 50,
-      duration: "once",
-      name: "AIbooking.dk — 30 dages introtilbud",
+    return callStripe(async () => {
+      const created = await stripe.coupons.create({
+        id: INTRO_OFFER_COUPON_ID,
+        percent_off: 50,
+        duration: "once",
+        name: "AIbooking.dk — 30 dages introtilbud",
+      });
+      return created.id;
     });
-    return created.id;
   }
 }
 
 export async function createBillingPortalSession(customer: Customer): Promise<{ url: string }> {
   if (!customer.stripe_customer_id) {
-    throw new Error("Customer has no Stripe customer yet — complete checkout first");
+    throw ApiError.badRequest("I har ikke et Stripe-kundeforhold endnu — gennemfør et køb først.");
   }
 
   const stripe = getStripeClient();
   const appUrl = getAppUrl();
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: customer.stripe_customer_id,
-    return_url: `${appUrl}/dashboard/billing`,
-  });
+  const session = await callStripe(() =>
+    stripe.billingPortal.sessions.create({
+      customer: customer.stripe_customer_id!,
+      return_url: `${appUrl}/dashboard/billing`,
+    })
+  );
 
   return { url: session.url };
 }

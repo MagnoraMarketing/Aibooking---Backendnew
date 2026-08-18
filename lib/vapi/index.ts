@@ -1,4 +1,5 @@
 import "server-only";
+import { ApiError } from "@/types/errors";
 
 export {
   createVapiAssistant,
@@ -12,7 +13,11 @@ export { createOutboundCall, type CreateOutboundCallParams } from "./calls";
 
 function getPublicKey(): string {
   const publicKey = process.env.VAPI_PUBLIC_KEY;
-  if (!publicKey) throw new Error("Missing required environment variable: VAPI_PUBLIC_KEY");
+  if (!publicKey) {
+    throw ApiError.internal(
+      "Vapi er ikke konfigureret på platformen endnu (mangler VAPI_PUBLIC_KEY i miljøvariablerne)."
+    );
+  }
   return publicKey;
 }
 
@@ -28,9 +33,7 @@ export interface VapiCallConfig {
 // createRealtimeClientSecret's error behavior in lib/realtime.
 export function getVapiCallConfig(assistantId: string | null | undefined): VapiCallConfig {
   if (!assistantId) {
-    throw new Error(
-      "Widget is missing a Vapi assistant id (set widget_settings.extra.vapiAssistantId)"
-    );
+    throw ApiError.internal("Agenten mangler en Vapi-assistent endnu — gem agenten igen under Settings for at oprette den.");
   }
   return { publicKey: getPublicKey(), assistantId };
 }
