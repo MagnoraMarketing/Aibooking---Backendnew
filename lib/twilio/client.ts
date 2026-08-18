@@ -1,4 +1,5 @@
 import "server-only";
+import { ApiError } from "@/types/errors";
 
 const TWILIO_API_BASE = "https://api.twilio.com/2010-04-01";
 
@@ -16,7 +17,9 @@ export function getPlatformTwilioCredentials(): TwilioCredentials {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   if (!accountSid || !authToken) {
-    throw new Error("Missing required environment variables: TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN");
+    throw ApiError.internal(
+      "Twilio er ikke konfigureret på platformen endnu (mangler TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN i miljøvariablerne)."
+    );
   }
   return { accountSid, authToken };
 }

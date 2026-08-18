@@ -114,7 +114,8 @@ export function InboundManager({ widgets, initialPhoneNumbers }: InboundManagerP
     setSearching(false);
 
     if (!res.ok) {
-      setError("Kunne ikke hente ledige numre. Prøv igen.");
+      const data = await res.json().catch(() => null);
+      setError(data?.error?.message ?? "Kunne ikke hente ledige numre. Prøv igen.");
       return;
     }
 
