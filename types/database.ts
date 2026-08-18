@@ -30,6 +30,7 @@ export interface Customer {
   email: string;
   status: CustomerStatus;
   stripe_customer_id: string | null;
+  byo_trial_expires_at: string | null;
   created_at: string;
   updated_at: string;
 }

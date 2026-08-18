@@ -162,6 +162,20 @@ of the package's included minutes — the excess is expired on each renewal
 trial countdown, and is where "Administrer betaling / opsig abonnement"
 opens the Stripe billing portal.
 
+**BYO-Twilio 30-day trial**: connecting your own Twilio number through the
+Inbound page's "Prøv gratis i 30 dage" banner/modal
+(`components/dashboard/inbound-manager.tsx`) grants a separate, longer trial
+— `customers.byo_trial_expires_at`, set once on first successful BYO import
+(`app/api/customer/phone-numbers/route.ts`), never re-extended by later
+imports. Unlike the signup trial it has no minute cap
+(`isWithinByoTrial`/`hasEmbedCodeAccess` in `lib/billing/trial.ts`), since
+the customer is drawing on their own Twilio account rather than our
+credits. The pitch is deliberately risk-free: it's just a call-forward from
+their existing number to the new Twilio number, so nothing about their real
+phone setup changes. The modal's SMS/Voice/Email/WhatsApp overview card is
+informational only (what a fresh Twilio trial account typically includes,
+for the number they're connecting) — this app only implements Voice.
+
 ### Twilio-direct voice (Claude, no Vapi)
 
 A second voice/phone architecture alongside Vapi, for the `provider='anthropic'`
