@@ -291,10 +291,8 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Inbound</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Få et telefonnummer, og viderestil jeres eksisterende nummer til det, så AI-agenten svarer kunderne.
-          </p>
+          <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.inbound.title")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.inbound.subtitle")}</p>
         </div>
         {!showForm ? (
           <button
@@ -302,7 +300,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
             onClick={() => setShowForm(true)}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
-            + Nyt nummer
+            {t("dashboardPages.inbound.newNumber")}
           </button>
         ) : null}
       </div>
@@ -311,27 +309,25 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-brand-200 bg-brand-50 p-5">
           <div>
             <span className="inline-block rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
-              Introtilbud
+              {t("dashboardPages.shared.introOfferBadge")}
             </span>
             <h2 className="mt-1.5 text-base font-semibold text-slate-900">
-              Prøv AIbooking.dk Reception i 30 dage for 499 kr
+              {t("dashboardPages.inbound.introBannerTitle")}
             </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Testnummer, ~75 min taletid og fuld PRO-adgang — derefter 999 kr/md.
-            </p>
+            <p className="mt-1 text-sm text-slate-600">{t("dashboardPages.inbound.introBannerSubtitle")}</p>
           </div>
           <Link
             href="/dashboard/inbound/free-trial"
             className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
-            Se tilbuddet →
+            {t("dashboardPages.inbound.introBannerCta")}
           </Link>
         </div>
       ) : null}
 
       {widgets.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-          Opret en agent under &quot;Agent&quot; f&oslash;rst &mdash; et telefonnummer skal knyttes til en agent.
+          {t("dashboardPages.inbound.noAgentsYet")}
         </div>
       ) : showForm && !showTrialModal ? (
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -346,7 +342,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 mode === "buy" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              Køb nummer gennem os
+              {t("dashboardPages.inbound.tabBuy")}
             </button>
             <button
               type="button"
@@ -358,13 +354,13 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 mode === "byo" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              Brug eget Twilio-nummer
+              {t("dashboardPages.inbound.tabByo")}
             </button>
           </div>
 
           <div>
             <label htmlFor="inbound-widget" className="mb-1 block text-sm font-medium text-slate-700">
-              Agent
+              {t("dashboardPages.shared.agentLabel")}
             </label>
             <select
               id="inbound-widget"
@@ -384,23 +380,20 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
           <div>
             <label htmlFor="phone-label" className="mb-1 block text-sm font-medium text-slate-700">
-              Label (valgfrit)
+              {t("dashboardPages.inbound.labelOptional")}
             </label>
             <input
               id="phone-label"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="Fx Hovednummer"
+              placeholder={t("dashboardPages.inbound.labelPlaceholder")}
               className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
           </div>
 
           {mode === "buy" ? (
             <div className="space-y-3">
-              <p className="text-sm text-slate-500">
-                Vi køber et dansk nummer til jer og forbinder det med agenten med det samme. Nummeret er inkluderet i
-                jeres pakke — ingen ekstra betaling.
-              </p>
+              <p className="text-sm text-slate-500">{t("dashboardPages.inbound.buyDescription")}</p>
 
               {availableNumbers === null ? (
                 <button
@@ -409,10 +402,10 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                   disabled={searching}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                 >
-                  {searching ? "Søger…" : "Søg ledige numre →"}
+                  {searching ? t("dashboardPages.inbound.searching") : t("dashboardPages.inbound.searchNumbers")}
                 </button>
               ) : availableNumbers.length === 0 ? (
-                <p className="text-sm text-slate-500">Ingen ledige numre lige nu. Prøv igen om lidt.</p>
+                <p className="text-sm text-slate-500">{t("dashboardPages.inbound.noNumbersAvailable")}</p>
               ) : (
                 <ul className="space-y-2">
                   {availableNumbers.map((n) => (
@@ -436,7 +429,9 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                             {n.locality ? <span className="ml-2 text-xs text-slate-500">{n.locality}</span> : null}
                           </span>
                         </span>
-                        <span className="text-xs font-medium text-emerald-600">Inkluderet i pakke</span>
+                        <span className="text-xs font-medium text-emerald-600">
+                          {t("dashboardPages.shared.includedInPackage")}
+                        </span>
                       </label>
                     </li>
                   ))}
@@ -445,14 +440,12 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-slate-500">
-                I bringer jeres eget Twilio-nummer med. Find Account SID og Auth Token i jeres Twilio-konsol.
-              </p>
+              <p className="text-sm text-slate-500">{t("dashboardPages.inbound.byoDescription")}</p>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="twilio-sid" className="mb-1 block text-sm font-medium text-slate-700">
-                    Twilio Account SID
+                    {t("dashboardPages.inbound.twilioSidLabel")}
                   </label>
                   <input
                     id="twilio-sid"
@@ -467,7 +460,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 </div>
                 <div>
                   <label htmlFor="twilio-token" className="mb-1 block text-sm font-medium text-slate-700">
-                    Twilio Auth Token
+                    {t("dashboardPages.inbound.twilioTokenLabel")}
                   </label>
                   <input
                     id="twilio-token"
@@ -488,19 +481,17 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 disabled={fetchingByoNumbers || !twilioAccountSid.trim() || !twilioAuthToken.trim()}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
               >
-                {fetchingByoNumbers ? "Henter…" : "Hent numre fra Twilio →"}
+                {fetchingByoNumbers ? t("dashboardPages.inbound.fetching") : t("dashboardPages.inbound.fetchTwilioNumbers")}
               </button>
 
               {byoNumbers && byoNumbers.length === 0 ? (
-                <p className="text-sm text-amber-600">
-                  Ingen numre fundet på denne Twilio-konto. Indtast nummeret manuelt herunder.
-                </p>
+                <p className="text-sm text-amber-600">{t("dashboardPages.inbound.noByoNumbersFound")}</p>
               ) : null}
 
               {byoNumbers && byoNumbers.length > 0 && !byoManualEntry ? (
                 <div>
                   <label htmlFor="twilio-number-select" className="mb-1 block text-sm font-medium text-slate-700">
-                    Telefonnummer
+                    {t("dashboardPages.inbound.phoneNumberLabel")}
                   </label>
                   <select
                     id="twilio-number-select"
@@ -519,13 +510,13 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                     onClick={() => setByoManualEntry(true)}
                     className="mt-1 text-xs font-medium text-brand-600 hover:text-brand-700"
                   >
-                    Indtast nummer manuelt i stedet
+                    {t("dashboardPages.inbound.enterManually")}
                   </button>
                 </div>
               ) : (
                 <div>
                   <label htmlFor="twilio-number" className="mb-1 block text-sm font-medium text-slate-700">
-                    Telefonnummer
+                    {t("dashboardPages.inbound.phoneNumberLabel")}
                   </label>
                   <input
                     id="twilio-number"
@@ -540,7 +531,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                       onClick={() => setByoManualEntry(false)}
                       className="mt-1 text-xs font-medium text-brand-600 hover:text-brand-700"
                     >
-                      Vælg fra listen i stedet
+                      {t("dashboardPages.inbound.chooseFromList")}
                     </button>
                   ) : null}
                 </div>
@@ -557,7 +548,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 onClick={() => setShowForm(false)}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                Annuller
+                {t("common.cancel")}
               </button>
             ) : null}
             {mode === "buy" ? (
@@ -567,7 +558,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 disabled={purchasing || !selectedNumber}
                 className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {purchasing ? "Køber…" : "Køb nummer →"}
+                {purchasing ? t("dashboardPages.inbound.buying") : t("dashboardPages.inbound.buyNumber")}
               </button>
             ) : (
               <button
@@ -576,7 +567,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 disabled={importing}
                 className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {importing ? "Importerer…" : "Importér nummer →"}
+                {importing ? t("dashboardPages.inbound.importing") : t("dashboardPages.inbound.importNumber")}
               </button>
             )}
           </div>
