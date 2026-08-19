@@ -594,22 +594,41 @@
   // driven by the Vapi Web SDK (loaded from its CDN below) instead of us
   // negotiating WebRTC by hand like buildRealtimeUI does — see
   // lib/vapi/index.ts and app/api/webhooks/vapi/route.ts on the server side.
-  var VAPI_SDK_URL = "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/vapi.js";
+  //
+  // Deliberately NOT @vapi-ai/web's own dist/vapi.js: that package's dist is
+  // built with plain `tsc` (CommonJS, no bundler — verified against its
+  // package.json), so loading it via a plain <script> tag never defines any
+  // browser global — every call silently failed at loadVapiSdk() before this
+  // ever reached Vapi. This is Vapi's own officially documented script-tag
+  // bundle instead, a real IIFE build that exposes window.vapiSDK.run(),
+  // which both sets up their own default floating button AND returns the
+  // underlying call client (same start/stop/on API as @vapi-ai/web's Vapi
+  // class) for programmatic use — we hide their button via its documented
+  // .vapi-btn class since this widget already renders its own call UI.
+  var VAPI_SDK_URL = "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
   var vapiSdkPromise = null;
+
+  function hideDefaultVapiButton() {
+    if (document.getElementById("aibooking-vapi-hide-default-btn")) return;
+    var style = document.createElement("style");
+    style.id = "aibooking-vapi-hide-default-btn";
+    style.textContent = ".vapi-btn{display:none!important;}";
+    document.head.appendChild(style);
+  }
 
   function loadVapiSdk() {
     if (vapiSdkPromise) return vapiSdkPromise;
     vapiSdkPromise = new Promise(function (resolve, reject) {
-      if (window.Vapi) {
-        resolve(window.Vapi);
+      if (window.vapiSDK) {
+        resolve(window.vapiSDK);
         return;
       }
       var script = document.createElement("script");
       script.src = VAPI_SDK_URL;
       script.async = true;
       script.onload = function () {
-        if (window.Vapi) resolve(window.Vapi);
-        else reject(new Error("Vapi SDK loaded but window.Vapi is missing"));
+        if (window.vapiSDK) resolve(window.vapiSDK);
+        else reject(new Error("Vapi SDK loaded but window.vapiSDK is missing"));
       };
       script.onerror = function () {
         reject(new Error("Failed to load Vapi SDK"));
@@ -741,9 +760,10 @@
           if (!data.vapi || !data.vapi.publicKey || !data.vapi.assistantId) {
             throw new Error("Vapi session unavailable");
           }
-          return loadVapiSdk().then(function (Vapi) {
+          return loadVapiSdk().then(function (vapiSDK) {
             if (!call.client) {
-              call.client = new Vapi(data.vapi.publicKey);
+              hideDefaultVapiButton();
+              call.client = vapiSDK.run({ apiKey: data.vapi.publicKey, assistant: data.vapi.assistantId, config: {} });
               call.client.on("call-start", function () {
                 call.active = true;
                 call.startedAt = Date.now();
