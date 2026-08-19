@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { getRequestLocale } from "@/lib/i18n/get-locale";
+import { translate } from "@/lib/i18n/dictionaries";
 
 export default function HomePage() {
+  const locale = getRequestLocale();
+
   return (
     <main style={{ fontFamily: "system-ui, sans-serif", padding: "4rem 2rem", maxWidth: 720, margin: "0 auto" }}>
       <h1>AIbooking.dk</h1>
@@ -11,11 +15,11 @@ export default function HomePage() {
       </p>
       <p>
         <Link href="/login" style={{ color: "#3866f5", fontWeight: 600 }}>
-          Log ind på dashboardet →
+          {translate(locale, "dashboardPages.home.loginLink")}
         </Link>
         {" · "}
         <Link href="/signup" style={{ color: "#3866f5", fontWeight: 600 }}>
-          Opret konto →
+          {translate(locale, "dashboardPages.home.signupLink")}
         </Link>
       </p>
     </main>

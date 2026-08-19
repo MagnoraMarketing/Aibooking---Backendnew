@@ -252,9 +252,7 @@ export function AgentCreationWizard({
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Resten af opsætningen tilpasses automatisk efter jeres valg — I skal ikke selv vælge teknisk model.
-              </p>
+              <p className="mt-2 text-xs text-slate-500">{t("agent.wizard.typeHelp")}</p>
             </div>
           )}
 
@@ -297,7 +295,7 @@ export function AgentCreationWizard({
               disabled={creating || !agentType}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {creating ? "Opretter…" : "Næste →"}
+              {creating ? t("agent.wizard.creating") : t("agent.wizard.nextArrow")}
             </button>
           </div>
         </div>
@@ -312,14 +310,14 @@ export function AgentCreationWizard({
               onClick={() => setStep(2)}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Spring over
+              {t("common.skip")}
             </button>
             <button
               type="button"
               onClick={() => setStep(2)}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
             >
-              Næste →
+              {t("agent.wizard.nextArrow")}
             </button>
           </div>
         </div>
@@ -339,7 +337,7 @@ export function AgentCreationWizard({
             onClick={() => setStep(3)}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            Spring over
+            {t("common.skip")}
           </button>
         </div>
       ) : null}
@@ -358,7 +356,7 @@ export function AgentCreationWizard({
             onClick={handleFinish}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
-            Fuldfør — gå til agenten →
+            {t("agent.wizard.finish")}
           </button>
         </div>
       ) : null}

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import type { Conversation, ConversationMessage, ConversationSummary, Widget } from "@/types/database";
+import { translate } from "@/lib/i18n/dictionaries";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 
 export const dynamic = "force-dynamic";
 
@@ -16,14 +18,15 @@ function formatDate(iso: string): string {
   });
 }
 
-const ROLE_LABEL: Record<string, string> = {
-  user: "Kunde",
-  assistant: "AI-assistent",
-  system: "System",
-};
-
 export default async function ConversationDetailPage({ params }: { params: { id: string } }) {
   const ctx = await requireCustomerAdminForPage();
+  const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
+  const t = (key: string) => translate(locale, key);
+  const ROLE_LABEL: Record<string, string> = {
+    user: t("dashboardPages.shared.roleCustomer"),
+    assistant: t("dashboardPages.shared.roleAssistant"),
+    system: t("dashboardPages.shared.roleSystem"),
+  };
   const supabase = getAdminClient();
 
   const { data: conversation } = await supabase
@@ -59,26 +62,30 @@ export default async function ConversationDetailPage({ params }: { params: { id:
     <div className="space-y-6">
       <div>
         <Link href="/dashboard" className="text-sm font-medium text-brand-600 hover:text-brand-700">
-          ← Tilbage til dashboard
+          {t("dashboardPages.conversation-detail.backToDashboard")}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{widget?.name ?? "Samtale"}</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-900">
+          {widget?.name ?? t("dashboardPages.conversation-detail.fallbackTitle")}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">{formatDate(conversation.started_at)}</p>
       </div>
 
       {latestSummary ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Opsummering</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            {t("dashboardPages.conversation-detail.summaryHeading")}
+          </h2>
           <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{latestSummary.summary}</p>
         </div>
       ) : null}
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <h2 className="border-b border-slate-200 px-5 py-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Transskription
+          {t("dashboardPages.conversation-detail.transcriptHeading")}
         </h2>
         <div className="space-y-4 p-5">
           {(messages ?? []).length === 0 ? (
-            <p className="text-sm text-slate-500">Ingen beskeder registreret for denne samtale.</p>
+            <p className="text-sm text-slate-500">{t("dashboardPages.shared.noMessagesForConversation")}</p>
           ) : (
             (messages ?? [])
               .filter((message) => message.role !== "system")
