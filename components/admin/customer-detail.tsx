@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import type { Widget } from "@/types/database";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 export function CustomerWidgetList({ initialWidgets }: { initialWidgets: Widget[] }) {
+  const { t } = useTranslation();
   const [widgets, setWidgets] = useState(initialWidgets);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -24,7 +26,7 @@ export function CustomerWidgetList({ initialWidgets }: { initialWidgets: Widget[
   }
 
   if (widgets.length === 0) {
-    return <p className="text-sm text-slate-500">Ingen agenter oprettet endnu.</p>;
+    return <p className="text-sm text-slate-500">{t("adminPages.customerDetail.noAgentsYet")}</p>;
   }
 
   return (
@@ -44,7 +46,7 @@ export function CustomerWidgetList({ initialWidgets }: { initialWidgets: Widget[
                 widget.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
               }`}
             >
-              {widget.status === "active" ? "Aktiv" : "Pause"}
+              {widget.status === "active" ? t("adminPages.shared.active") : t("adminPages.shared.paused")}
             </span>
             <button
               type="button"
@@ -52,7 +54,9 @@ export function CustomerWidgetList({ initialWidgets }: { initialWidgets: Widget[
               disabled={busyId === widget.id}
               className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
             >
-              {widget.status === "active" ? "Sæt på pause" : "Aktivér"}
+              {widget.status === "active"
+                ? t("adminPages.customerDetail.pauseAction")
+                : t("adminPages.customerDetail.activateAction")}
             </button>
           </div>
         </li>

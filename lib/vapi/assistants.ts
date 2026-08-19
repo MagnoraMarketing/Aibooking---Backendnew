@@ -4,12 +4,6 @@ import { vapiFetch } from "./client";
 
 export type { VapiVoiceGender };
 
-// Used whenever a widget doesn't have its own opening_message yet (e.g. a
-// freshly created agent) — same role as DEFAULT_REALTIME_INSTRUCTIONS in
-// lib/realtime/index.ts's caller, but Vapi calls it firstMessage rather
-// than instructions.
-export const DEFAULT_VAPI_FIRST_MESSAGE = "Hej, hvordan kan jeg hjælpe dig?";
-
 export interface VapiAssistantParams {
   name: string;
   systemPrompt: string;

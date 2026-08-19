@@ -4,11 +4,14 @@ import { requireMasterAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { CustomerWidgetList } from "@/components/admin/customer-detail";
 import type { Customer, Package, Subscription, Widget } from "@/types/database";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
+import { translate } from "@/lib/i18n/dictionaries";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCustomerDetailPage({ params }: { params: { id: string } }) {
-  await requireMasterAdminForPage();
+  const ctx = await requireMasterAdminForPage();
+  const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
   const supabase = getAdminClient();
 
   const { data: customer } = await supabase
@@ -46,7 +49,7 @@ export default async function AdminCustomerDetailPage({ params }: { params: { id
     <div className="space-y-6">
       <div>
         <Link href="/admin" className="text-sm font-medium text-brand-600 hover:text-brand-700">
-          ← Tilbage til Client Portal
+          {translate(locale, "adminPages.customerDetail.backToPortal")}
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">{customer.name}</h1>
         <p className="mt-1 text-sm text-slate-500">{customer.email}</p>
@@ -54,25 +57,31 @@ export default async function AdminCustomerDetailPage({ params }: { params: { id
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Status</p>
+          <p className="text-sm text-slate-500">{translate(locale, "adminPages.shared.statusLabel")}</p>
           <p className="mt-1 text-lg font-semibold text-slate-900">
-            {customer.status === "active" ? "Aktiv" : "Inaktiv"}
+            {customer.status === "active"
+              ? translate(locale, "adminPages.shared.active")
+              : translate(locale, "adminPages.shared.inactive")}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Pakke</p>
+          <p className="text-sm text-slate-500">{translate(locale, "adminPages.customerDetail.package")}</p>
           <p className="mt-1 text-lg font-semibold text-slate-900">
-            {subscription?.packages?.package_name ?? "Ingen"}
+            {subscription?.packages?.package_name ?? translate(locale, "common.none")}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Credits tilbage</p>
-          <p className="mt-1 text-lg font-semibold text-slate-900">{minutesRemaining.toFixed(0)} min</p>
+          <p className="text-sm text-slate-500">{translate(locale, "adminPages.shared.creditsRemaining")}</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">
+            {minutesRemaining.toFixed(0)} {translate(locale, "adminPages.shared.minutesUnit")}
+          </p>
         </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Agenter</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          {translate(locale, "adminPages.customerDetail.agentsHeading")}
+        </h2>
         <CustomerWidgetList initialWidgets={widgets ?? []} />
       </div>
     </div>

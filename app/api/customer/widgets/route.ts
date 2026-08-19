@@ -4,7 +4,9 @@ import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, createWidgetSchema } from "@/lib/security";
 import { generatePublicWidgetId, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
-import { createVapiAssistant, DEFAULT_VAPI_FIRST_MESSAGE } from "@/lib/vapi";
+import { createVapiAssistant } from "@/lib/vapi";
+import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -38,6 +40,10 @@ export const POST = withErrorHandling(async (request) => {
   const customerId = ctx.profile.customer_id!;
 
   const systemPrompt = body.systemPrompt ?? (await getDefaultSystemPrompt());
+  // New widgets default to their creator's own Dashboard language rather
+  // than a hardcoded "da" — a Spanish-speaking customer's first agent
+  // should speak Spanish out of the box, not require an extra step.
+  const language = body.language ?? (isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE);
 
   const { data: widget, error } = await supabase
     .from("widgets")
@@ -48,7 +54,7 @@ export const POST = withErrorHandling(async (request) => {
       business_name: body.businessName,
       llm_model_id: body.llmModelId,
       voice_model_id: body.voiceModelId,
-      language: body.language ?? "da",
+      language,
       system_prompt: systemPrompt,
       welcome_message: body.welcomeMessage,
       opening_message: body.openingMessage,
@@ -76,8 +82,8 @@ export const POST = withErrorHandling(async (request) => {
     try {
       const assistant = await createVapiAssistant({
         name: widget.name,
-        systemPrompt,
-        firstMessage: widget.opening_message ?? DEFAULT_VAPI_FIRST_MESSAGE,
+        systemPrompt: withLanguageDirective(systemPrompt, widget.language),
+        firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
         voiceGender: DEFAULT_VOICE_GENDER,
       });
       await supabase

@@ -3,19 +3,20 @@
 import { useState } from "react";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import type { WidgetWithExtras } from "../agent-configurator";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface KnowledgeBaseTabProps {
   widget: WidgetWithExtras;
   onSourcesChange: (sources: KnowledgeBaseSource[]) => void;
 }
 
-const TYPE_LABELS: Record<KnowledgeBaseSource["type"], string> = {
-  text: "Tekst",
-  url: "Link",
-  pdf: "PDF",
-};
-
 export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabProps) {
+  const { t } = useTranslation();
+  const TYPE_LABELS: Record<KnowledgeBaseSource["type"], string> = {
+    text: t("agent.knowledgeBase.typeText"),
+    url: t("agent.knowledgeBase.typeUrl"),
+    pdf: t("agent.knowledgeBase.typePdf"),
+  };
   const sources = (widget.extra.knowledgeBase as KnowledgeBaseSource[] | undefined) ?? [];
 
   const [text, setText] = useState("");
@@ -37,7 +38,7 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke tilføje indholdet.");
+      setError(data?.error?.message ?? t("agent.knowledgeBase.addContentError"));
       return false;
     }
 

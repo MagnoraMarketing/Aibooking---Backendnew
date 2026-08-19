@@ -6,6 +6,8 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { SessionsTable, type SessionRow } from "@/components/dashboard/sessions-table";
 import { AppointmentsList } from "@/components/dashboard/appointments-list";
 import type { Appointment, Conversation, Widget } from "@/types/database";
+import { translate } from "@/lib/i18n/dictionaries";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +54,8 @@ const ICONS = {
 
 export default async function DashboardPage() {
   const ctx = await requireCustomerAdminForPage();
+  const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
+  const t = (key: string) => translate(locale, key);
   const customerId = ctx.profile.customer_id!;
   const supabase = getAdminClient();
 
@@ -99,7 +103,7 @@ export default async function DashboardPage() {
 
   const sessions: SessionRow[] = conversations.map((conversation) => ({
     id: conversation.id,
-    widgetName: widgetsById.get(conversation.widget_id)?.name ?? "Ukendt widget",
+    widgetName: widgetsById.get(conversation.widget_id)?.name ?? t("dashboardPages.shared.unknownWidget"),
     startedAt: conversation.started_at,
     status: conversation.status,
     minutesUsed: minutesByConversation.get(conversation.id) ?? 0,

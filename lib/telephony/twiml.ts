@@ -24,15 +24,20 @@ export function buildGatherResponse(params: {
   playUrl?: string | null;
   gatherActionUrl: string;
   language?: string;
+  // Spoken if the caller says nothing at all — defaults to Danish (see
+  // lib/i18n/agent-content.ts's noSpeechHeardText) since most callers pass
+  // this explicitly once they know the widget's language.
+  noInputText?: string;
 }): string {
   const language = params.language ?? "da-DK";
+  const noInputText = params.noInputText ?? "Vi kunne ikke høre noget. Farvel for nu.";
   const speech = params.playUrl
     ? `<Play>${escapeXml(params.playUrl)}</Play>`
     : `<Say language="${language}">${escapeXml(params.sayText)}</Say>`;
 
   return `${XML_HEADER}<Response><Gather input="speech" language="${language}" speechTimeout="auto" action="${escapeXml(
     params.gatherActionUrl
-  )}" method="POST">${speech}</Gather><Say language="${language}">Vi kunne ikke høre noget. Farvel for nu.</Say><Hangup/></Response>`;
+  )}" method="POST">${speech}</Gather><Say language="${language}">${escapeXml(noInputText)}</Say><Hangup/></Response>`;
 }
 
 // Terminal response — no further <Gather>, the call ends after this line.

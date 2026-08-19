@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
+import { useTranslation } from "@/components/i18n/language-provider";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { SettingsTab } from "./agent-tabs/settings-tab";
 import { TestAgentTab } from "./agent-tabs/test-agent";
@@ -45,15 +46,22 @@ type TabKey = "prompt" | "settings" | "knowledge" | "customize" | "test" | "embe
 // (there's no website embed); Telefonnummer replaces Embed Code for one
 // instead, handing off to the Inbound page the same way the wizard's final
 // step does.
-function tabsFor(isPhoneType: boolean): { key: TabKey; label: string }[] {
+function tabsFor(
+  isPhoneType: boolean,
+  t: (key: string, vars?: Record<string, string | number>) => string
+): { key: TabKey; label: string }[] {
   const tabs: { key: TabKey; label: string }[] = [
-    { key: "prompt", label: "Prompt Lab" },
-    { key: "settings", label: "Settings" },
-    { key: "knowledge", label: "Knowledge Base" },
+    { key: "prompt", label: t("agent.configurator.tab.promptLab") },
+    { key: "settings", label: t("agent.configurator.tab.settings") },
+    { key: "knowledge", label: t("agent.configurator.tab.knowledgeBase") },
   ];
-  if (!isPhoneType) tabs.push({ key: "customize", label: "Customise Widget" });
-  tabs.push({ key: "test", label: "Test Agent" });
-  tabs.push(isPhoneType ? { key: "phone", label: "Telefonnummer" } : { key: "embed", label: "Embed Code" });
+  if (!isPhoneType) tabs.push({ key: "customize", label: t("agent.configurator.tab.customizeWidget") });
+  tabs.push({ key: "test", label: t("agent.configurator.tab.testAgent") });
+  tabs.push(
+    isPhoneType
+      ? { key: "phone", label: t("agent.configurator.tab.phone") }
+      : { key: "embed", label: t("agent.configurator.tab.embedCode") }
+  );
   return tabs;
 }
 
@@ -78,9 +86,10 @@ export function AgentConfigurator({
   trialDaysRemaining,
   pkg,
 }: AgentConfiguratorProps) {
+  const { t } = useTranslation();
   const [widget, setWidget] = useState(initialWidget);
   const isPhoneType = llmModels.find((m) => m.id === widget.llm_model_id)?.provider === "anthropic";
-  const tabs = tabsFor(isPhoneType);
+  const tabs = tabsFor(isPhoneType, t);
   const requestedTab = useSearchParams().get("tab");
   const [activeTab, setActiveTab] = useState<TabKey>(isTabKey(requestedTab, tabs) ? requestedTab : "prompt");
 
@@ -101,7 +110,7 @@ export function AgentConfigurator({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Configure Agent</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">{t("agent.configurator.title")}</h1>
         <p className="mt-1 text-sm text-slate-500">{widget.name}</p>
       </div>
 

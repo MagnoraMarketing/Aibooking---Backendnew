@@ -2,13 +2,7 @@ import "server-only";
 import { ApiError } from "@/types/errors";
 import { requireCredentialEnv } from "@/lib/security/env";
 
-export {
-  createVapiAssistant,
-  updateVapiAssistant,
-  DEFAULT_VAPI_FIRST_MESSAGE,
-  type VapiAssistantParams,
-  type VapiVoiceGender,
-} from "./assistants";
+export { createVapiAssistant, updateVapiAssistant, type VapiAssistantParams, type VapiVoiceGender } from "./assistants";
 export { syncWidgetToVapiAssistant } from "./sync";
 export { importTwilioPhoneNumber, type ImportTwilioNumberParams, type VapiPhoneNumber } from "./phone-numbers";
 export { createOutboundCall, type CreateOutboundCallParams } from "./calls";

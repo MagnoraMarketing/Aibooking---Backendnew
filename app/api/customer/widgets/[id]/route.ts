@@ -11,13 +11,9 @@ import {
   requireParam,
 } from "@/lib/security";
 import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
-import {
-  syncWidgetToVapiAssistant,
-  createVapiAssistant,
-  DEFAULT_VAPI_FIRST_MESSAGE,
-  type VapiVoiceGender,
-} from "@/lib/vapi";
+import { syncWidgetToVapiAssistant, createVapiAssistant, type VapiVoiceGender } from "@/lib/vapi";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
+import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -114,10 +110,11 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     const { data: model } = await supabase.from("llm_models").select("provider").eq("id", data.llm_model_id).maybeSingle();
     if (model?.provider === "vapi") {
       const voiceGender = (extra.voiceGender as VapiVoiceGender | null | undefined) ?? "female";
+      const basePrompt = data.system_prompt ?? (await getDefaultSystemPrompt());
       const assistant = await createVapiAssistant({
         name: data.name,
-        systemPrompt: data.system_prompt ?? (await getDefaultSystemPrompt()),
-        firstMessage: data.opening_message ?? DEFAULT_VAPI_FIRST_MESSAGE,
+        systemPrompt: withLanguageDirective(basePrompt, data.language),
+        firstMessage: data.opening_message ?? defaultGreeting(data.language),
         voiceGender,
       });
       extra = { ...extra, voiceGender, vapiAssistantId: assistant.id };
@@ -133,7 +130,10 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   // (app/api/customer/widgets/route.ts), where an unprovisioned assistant
   // means the agent can never take a call.
   const relevantFieldsChanged =
-    widgetFields.name !== undefined || widgetFields.systemPrompt !== undefined || widgetFields.openingMessage !== undefined;
+    widgetFields.name !== undefined ||
+    widgetFields.systemPrompt !== undefined ||
+    widgetFields.openingMessage !== undefined ||
+    widgetFields.language !== undefined;
 
   if (relevantFieldsChanged || extraUpdate?.vapiAssistantId !== undefined || extraUpdate?.voiceGender !== undefined) {
     await syncWidgetToVapiAssistant(data, extra);

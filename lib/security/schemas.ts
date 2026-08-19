@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LOCALES } from "@/lib/i18n/locales";
 
 // ---------------------------------------------------------------------------
 // Admin: customers
@@ -20,7 +21,15 @@ export const signupSchema = z.object({
   companyName: z.string().trim().min(1).max(200),
   email: z.string().trim().email().max(320),
   password: z.string().min(8).max(200),
-  language: z.enum(["da", "en"]).default("da"),
+  language: z.enum(LOCALES).default("da"),
+});
+
+// ---------------------------------------------------------------------------
+// Profile: Dashboard/Admin UI language (see lib/i18n) — every signed-in
+// user, either role, can change their own.
+// ---------------------------------------------------------------------------
+export const profileLanguageInputSchema = z.object({
+  language: z.enum(LOCALES),
 });
 
 export const updateCustomerSchema = z.object({

@@ -137,6 +137,7 @@ export async function generateConversationReplyText(params: GenerateReplyTextPar
     summary,
     maxResponseChars: params.widget.max_response_chars,
     knowledgeBase: formatKnowledgeBaseForPrompt(params.knowledgeBase ?? []),
+    language: params.widget.language,
   });
 
   const messagesForLLM: LLMMessage[] = [
