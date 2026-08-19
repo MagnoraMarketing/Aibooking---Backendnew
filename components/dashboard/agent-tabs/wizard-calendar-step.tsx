@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { WidgetWithExtras } from "../agent-configurator";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 // Lets Cal.com be set up during agent creation itself, not just from the
 // separate Integrations page — same POST /api/customer/calendar/calcom
@@ -11,6 +12,7 @@ import type { WidgetWithExtras } from "../agent-configurator";
 // "Spring over" leaves the agent bookable via the widget/phone only, no
 // calendar wired up yet.
 export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtras; onNext: () => void }) {
+  const { t } = useTranslation();
   const [apiKey, setApiKey] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
 
   async function handleConnect() {
     if (!apiKey.trim()) {
-      setError("Indsæt jeres Cal.com API-nøgle.");
+      setError(t("agent.wizardCalendar.errorApiKeyRequired"));
       return;
     }
     setConnecting(true);
@@ -34,7 +36,7 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke forbinde Cal.com.");
+      setError(data?.error?.message ?? t("agent.wizardCalendar.errorConnectFailed"));
       return;
     }
 

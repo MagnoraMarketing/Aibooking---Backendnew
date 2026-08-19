@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { translate } from "@/lib/i18n/dictionaries";
+import type { Locale } from "@/lib/i18n/locales";
 
 // Static, server-renderable marketing content for /dashboard/integrations —
 // mirrors the sales pitch on aibooking.dk/integrationer (hero, category

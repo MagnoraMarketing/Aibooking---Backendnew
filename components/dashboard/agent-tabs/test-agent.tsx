@@ -21,9 +21,9 @@ function escapeHtml(value: string): string {
 // A stand-in "customer homepage" carrying the widget's *actual* embed
 // snippet, so Test Agent shows exactly what a visitor would see once this
 // is pasted onto their real site — not just the bare widget on a blank page.
-function buildPreviewHtml(widget: WidgetWithExtras): string {
+function buildPreviewHtml(widget: WidgetWithExtras, t: Translate): string {
   const businessName = escapeHtml(widget.business_name ?? widget.name);
-  const welcomeMessage = escapeHtml(widget.welcome_message ?? "Velkommen til vores hjemmeside.");
+  const welcomeMessage = escapeHtml(widget.welcome_message ?? t("agent.testAgent.defaultWelcomeMessage"));
 
   return `<!doctype html>
 <html lang="da">
@@ -45,16 +45,13 @@ function buildPreviewHtml(widget: WidgetWithExtras): string {
     <p>${welcomeMessage}</p>
   </header>
   <main>
-    <h2>Sådan ser jeres side ud</h2>
+    <h2>${escapeHtml(t("agent.testAgent.previewHeading"))}</h2>
     <p>
-      Dette er en simuleret side, så I kan se hvordan agenten opfører sig,
-      når den er sat ind på jeres rigtige hjemmeside — med præcis den
-      samme kode som under "Embed Code".
+      ${escapeHtml(t("agent.testAgent.previewParagraph"))}
     </p>
     <div class="placeholder-block"></div>
     <p>
-      Klik på ikonet i hjørnet for at teste agenten. Samtaler her tæller
-      med i forbrug og statistik, ligesom på jeres rigtige side.
+      ${escapeHtml(t("agent.testAgent.previewFooterParagraph"))}
     </p>
   </main>
   ${widget.embedSnippet}
@@ -69,6 +66,7 @@ function buildPreviewHtml(widget: WidgetWithExtras): string {
 // dashboard page itself, so a failure here surfaces as a real banner
 // instead of an empty box with no explanation.
 function useWidgetConfigCheck(publicId: string) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<"checking" | "ok" | "error">("checking");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -90,7 +88,7 @@ function useWidgetConfigCheck(publicId: string) {
       })
       .catch((err) => {
         if (cancelled) return;
-        setErrorMessage(err instanceof Error ? err.message : "Ukendt fejl");
+        setErrorMessage(err instanceof Error ? err.message : t("common.unknownError"));
         setStatus("error");
       });
 
@@ -103,16 +101,15 @@ function useWidgetConfigCheck(publicId: string) {
 }
 
 export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
+  const { t } = useTranslation();
   const [showCode, setShowCode] = useState(false);
-  const previewHtml = useMemo(() => buildPreviewHtml(widget), [widget]);
+  const previewHtml = useMemo(() => buildPreviewHtml(widget, t), [widget, t]);
   const configCheck = useWidgetConfigCheck(widget.public_id);
 
   if (widget.status !== "active") {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-        <p className="text-sm text-slate-500">
-          Agenten er sat på pause. Aktivér den under &quot;Dine agenter&quot; for at teste den live.
-        </p>
+        <p className="text-sm text-slate-500">{t("agent.testAgent.pausedMessage")}</p>
       </div>
     );
   }
@@ -121,10 +118,10 @@ export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
     <div className="space-y-3">
       {configCheck.status === "error" ? (
         <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          <p className="font-medium">Widget-boblen kunne ikke indlæses herunder.</p>
+          <p className="font-medium">{t("agent.testAgent.configErrorTitle")}</p>
           <p className="mt-1">
-            Fejl fra <code>/api/widget/config</code>: {configCheck.errorMessage}. Samme fejl vil ramme agenten på
-            jeres rigtige hjemmeside — ret dette før I går live.
+            {t("agent.testAgent.configErrorFromLabel")} <code>/api/widget/config</code>
+            {t("agent.testAgent.configErrorSuffix", { detail: configCheck.errorMessage ?? "" })}
           </p>
         </div>
       ) : null}
@@ -132,7 +129,7 @@ export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <iframe
           srcDoc={previewHtml}
-          title="Test agent"
+          title={t("agent.testAgent.iframeTitle")}
           className="h-[560px] w-full border-0"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           allow="microphone; autoplay"
@@ -141,10 +138,9 @@ export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-slate-500">
-          Simuleret side med jeres rigtige indlejrings-kode — samtaler her tæller med i forbrug og statistik
-          ligesom på jeres hjemmeside.{" "}
+          {t("agent.testAgent.description")}{" "}
           <a href={widget.shareUrl} target="_blank" rel="noreferrer" className="font-medium text-brand-600">
-            Åbn i nyt vindue ↗
+            {t("agent.testAgent.openInNewWindow")}
           </a>
         </p>
         <button
@@ -152,7 +148,7 @@ export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
           onClick={() => setShowCode((v) => !v)}
           className="shrink-0 text-sm font-medium text-brand-600 hover:text-brand-700"
         >
-          {showCode ? "Skjul HTML" : "Vis HTML"}
+          {showCode ? t("agent.testAgent.hideHtml") : t("agent.testAgent.showHtml")}
         </button>
       </div>
 
