@@ -1939,6 +1939,15 @@ export const dashboardPages: Namespace = {
     fr: "Impossible de lancer la campagne.",
     pt: "Não foi possível iniciar a campanha.",
   },
+  // Fallback when a campaign's phone_number_id doesn't resolve to a known
+  // number — not covered elsewhere, added while wiring up outbound-manager.tsx.
+  "outbound.unknownNumber": {
+    da: "Ukendt nummer",
+    en: "Unknown number",
+    es: "Número desconocido",
+    fr: "Numéro inconnu",
+    pt: "Número desconhecido",
+  },
 
   // ---------------------------------------------------------------------
   // app/dashboard/conversations/[id]/page.tsx

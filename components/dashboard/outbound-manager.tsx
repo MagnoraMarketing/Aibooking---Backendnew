@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { Widget } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import type { CampaignRow } from "@/app/dashboard/outbound/page";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface OutboundManagerProps {
   widgets: Widget[];
@@ -25,6 +26,7 @@ function parseContacts(raw: string): { phoneNumber: string; name?: string }[] {
 }
 
 export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: OutboundManagerProps) {
+  const { t } = useTranslation();
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [showForm, setShowForm] = useState(initialCampaigns.length === 0);
   const [widgetId, setWidgetId] = useState(widgets[0]?.id ?? "");
@@ -41,30 +43,30 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
   );
 
   function widgetName(id: string): string {
-    return widgets.find((w) => w.id === id)?.name ?? "Ukendt agent";
+    return widgets.find((w) => w.id === id)?.name ?? t("dashboardPages.shared.unknownAgent");
   }
 
   function phoneNumberLabel(id: string): string {
     const phoneNumber = phoneNumbers.find((p) => p.id === id);
-    return phoneNumber ? phoneNumber.label || phoneNumber.phone_number : "Ukendt nummer";
+    return phoneNumber ? phoneNumber.label || phoneNumber.phone_number : t("dashboardPages.outbound.unknownNumber");
   }
 
   async function handleCreate() {
     const contacts = parseContacts(contactsRaw);
     if (!name.trim()) {
-      setError("Angiv et navn til kampagnen.");
+      setError(t("dashboardPages.outbound.errorCampaignName"));
       return;
     }
     if (!phoneNumberId) {
-      setError("Vælg hvilket nummer der skal ringes fra.");
+      setError(t("dashboardPages.outbound.errorChooseNumber"));
       return;
     }
     if (contacts.length === 0) {
-      setError("Indsæt mindst ét telefonnummer.");
+      setError(t("dashboardPages.outbound.errorAtLeastOneContact"));
       return;
     }
     if (contacts.length > 100) {
-      setError("Maks. 100 numre pr. kampagne.");
+      setError(t("dashboardPages.outbound.errorMaxContacts"));
       return;
     }
 
@@ -81,7 +83,7 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke oprette kampagnen.");
+      setError(data?.error?.message ?? t("dashboardPages.outbound.errorCreate"));
       return;
     }
 
@@ -102,7 +104,7 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke starte kampagnen.");
+      setError(data?.error?.message ?? t("dashboardPages.outbound.errorLaunch"));
       return;
     }
 
