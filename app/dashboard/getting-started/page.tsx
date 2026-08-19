@@ -4,6 +4,8 @@ import { getAdminClient } from "@/lib/database/admin";
 import { hasEmbedCodeAccess } from "@/lib/billing";
 import { getBalanceSeconds } from "@/lib/credits";
 import type { Customer, Subscription, Widget } from "@/types/database";
+import { translate } from "@/lib/i18n/dictionaries";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,12 @@ interface Step {
 
 export default async function GettingStartedPage() {
   const ctx = await requireCustomerAdminForPage();
+  const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
+  const t = (key: string, vars?: Record<string, string | number>) => {
+    const text = translate(locale, key);
+    if (!vars) return text;
+    return text.replace(/\{(\w+)\}/g, (match, k: string) => (k in vars ? String(vars[k]) : match));
+  };
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 

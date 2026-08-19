@@ -25,6 +25,7 @@ function formatDate(iso: string): string {
 }
 
 export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [openConversationId, setOpenConversationId] = useState<string | null>(null);
   const pageCount = Math.max(1, Math.ceil(sessions.length / PAGE_SIZE));
@@ -34,7 +35,7 @@ export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
   if (sessions.length === 0) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-        Ingen samtaler endnu.
+        {t("dashboardPages.sessions-table.empty")}
       </div>
     );
   }
@@ -45,10 +46,10 @@ export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-5 py-3 font-medium">Widget</th>
-              <th className="px-5 py-3 font-medium">Dato</th>
-              <th className="px-5 py-3 font-medium">Status</th>
-              <th className="px-5 py-3 font-medium">Minutter</th>
+              <th className="px-5 py-3 font-medium">{t("dashboardPages.sessions-table.headerWidget")}</th>
+              <th className="px-5 py-3 font-medium">{t("dashboardPages.sessions-table.headerDate")}</th>
+              <th className="px-5 py-3 font-medium">{t("dashboardPages.sessions-table.headerStatus")}</th>
+              <th className="px-5 py-3 font-medium">{t("dashboardPages.sessions-table.headerMinutes")}</th>
               <th className="px-5 py-3 font-medium" />
             </tr>
           </thead>
@@ -63,7 +64,9 @@ export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
                       row.status === "ended" ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"
                     }`}
                   >
-                    {row.status === "ended" ? "Afsluttet" : "Aktiv"}
+                    {row.status === "ended"
+                      ? t("dashboardPages.sessions-table.statusEnded")
+                      : t("dashboardPages.shared.statusActive")}
                   </span>
                 </td>
                 <td className="px-5 py-3 text-slate-600">{row.minutesUsed.toFixed(2)}</td>
@@ -73,7 +76,7 @@ export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
                     onClick={() => setOpenConversationId(row.id)}
                     className="text-sm font-medium text-brand-600 hover:text-brand-700"
                   >
-                    Se samtale
+                    {t("dashboardPages.sessions-table.viewConversation")}
                   </button>
                 </td>
               </tr>
@@ -89,10 +92,10 @@ export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
           disabled={page === 1}
           className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Forrige
+          {t("dashboardPages.sessions-table.previous")}
         </button>
         <span className="text-sm text-slate-500">
-          Side {page} af {pageCount}
+          {t("dashboardPages.sessions-table.pageIndicator", { page, total: pageCount })}
         </span>
         <button
           type="button"
@@ -100,7 +103,7 @@ export function SessionsTable({ sessions }: { sessions: SessionRow[] }) {
           disabled={page === pageCount}
           className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Næste
+          {t("common.next")}
         </button>
       </div>
 
