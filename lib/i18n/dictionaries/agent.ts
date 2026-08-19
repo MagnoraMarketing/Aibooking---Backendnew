@@ -1206,11 +1206,11 @@ export const agent: Namespace = {
     pt: "O pacote é renovado automaticamente quando os {minutes} minutos forem utilizados.",
   },
   "embedCode.checkoutError": {
-    da: "Betaling er ikke sat op endnu. Kontakt os på hej@aibooking.dk for at komme i gang.",
-    en: "Payment isn't set up yet. Contact us at hej@aibooking.dk to get started.",
-    es: "El pago aún no está configurado. Contáctenos en hej@aibooking.dk para empezar.",
-    fr: "Le paiement n'est pas encore configuré. Contactez-nous à hej@aibooking.dk pour commencer.",
-    pt: "O pagamento ainda não está configurado. Contacte-nos em hej@aibooking.dk para começar.",
+    da: "Betaling er ikke sat op endnu. Kontakt os på mail@aibooking.dk for at komme i gang.",
+    en: "Payment isn't set up yet. Contact us at mail@aibooking.dk to get started.",
+    es: "El pago aún no está configurado. Contáctenos en mail@aibooking.dk para empezar.",
+    fr: "Le paiement n'est pas encore configuré. Contactez-nous à mail@aibooking.dk pour commencer.",
+    pt: "O pagamento ainda não está configurado. Contacte-nos em mail@aibooking.dk para começar.",
   },
   "embedCode.openingCheckout": {
     da: "Åbner betaling…",

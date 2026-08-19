@@ -16,8 +16,8 @@ export default function AccountIncompletePage() {
         </h1>
         <p className="mt-3 text-sm text-slate-500">
           {translate(locale, "dashboardPages.account-incomplete.bodyPrefix")}{" "}
-          <a href="mailto:hej@aibooking.dk" className="font-medium text-brand-600 hover:text-brand-700">
-            hej@aibooking.dk
+          <a href="mailto:mail@aibooking.dk" className="font-medium text-brand-600 hover:text-brand-700">
+            mail@aibooking.dk
           </a>{" "}
           {translate(locale, "dashboardPages.account-incomplete.bodySuffix")}
         </p>
