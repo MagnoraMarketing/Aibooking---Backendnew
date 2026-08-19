@@ -117,10 +117,8 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Outbound</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Ring automatisk ud til en liste af numre med jeres AI-agent.
-          </p>
+          <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.outbound.title")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.outbound.subtitle")}</p>
         </div>
         {!showForm ? (
           <button
@@ -128,26 +126,26 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
             onClick={() => setShowForm(true)}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
-            + Ny kampagne
+            {t("dashboardPages.outbound.newCampaign")}
           </button>
         ) : null}
       </div>
 
       {phoneNumbers.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-          Tilføj et telefonnummer under &quot;Inbound&quot; først &mdash; outbound-opkald skal ringes fra et nummer.
+          {t("dashboardPages.outbound.noNumbersYet")}
         </div>
       ) : showForm ? (
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <label htmlFor="campaign-name" className="mb-1 block text-sm font-medium text-slate-700">
-              Kampagnenavn
+              {t("dashboardPages.outbound.campaignNameLabel")}
             </label>
             <input
               id="campaign-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Fx Opfølgning på leads – uge 34"
+              placeholder={t("dashboardPages.outbound.campaignNamePlaceholder")}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
           </div>
@@ -155,7 +153,7 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="campaign-widget" className="mb-1 block text-sm font-medium text-slate-700">
-                Agent
+                {t("dashboardPages.shared.agentLabel")}
               </label>
               <select
                 id="campaign-widget"
@@ -175,7 +173,7 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
             </div>
             <div>
               <label htmlFor="campaign-phone" className="mb-1 block text-sm font-medium text-slate-700">
-                Ring fra
+                {t("dashboardPages.outbound.callFromLabel")}
               </label>
               <select
                 id="campaign-phone"
@@ -183,7 +181,7 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
                 onChange={(e) => setPhoneNumberId(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               >
-                <option value="">Vælg nummer…</option>
+                <option value="">{t("dashboardPages.outbound.chooseNumberPlaceholder")}</option>
                 {numbersForWidget.map((phoneNumber) => (
                   <option key={phoneNumber.id} value={phoneNumber.id}>
                     {phoneNumber.label || phoneNumber.phone_number}
@@ -191,14 +189,14 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
                 ))}
               </select>
               {numbersForWidget.length === 0 ? (
-                <p className="mt-1 text-xs text-amber-600">Denne agent har intet telefonnummer endnu.</p>
+                <p className="mt-1 text-xs text-amber-600">{t("dashboardPages.outbound.noNumberForAgent")}</p>
               ) : null}
             </div>
           </div>
 
           <div>
             <label htmlFor="campaign-contacts" className="mb-1 block text-sm font-medium text-slate-700">
-              Numre der skal ringes op (ét pr. linje, maks. 100)
+              {t("dashboardPages.outbound.contactsLabel")}
             </label>
             <textarea
               id="campaign-contacts"
@@ -219,7 +217,7 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
                 onClick={() => setShowForm(false)}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                Annuller
+                {t("common.cancel")}
               </button>
             ) : null}
             <button
@@ -228,7 +226,7 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
               disabled={creating}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {creating ? "Opretter…" : "Opret kampagne →"}
+              {creating ? t("dashboardPages.outbound.creating") : t("dashboardPages.outbound.createCampaign")}
             </button>
           </div>
         </div>
@@ -237,10 +235,10 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
       {error && !showForm ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">Jeres kampagner</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{t("dashboardPages.outbound.campaignsHeading")}</h2>
         {campaigns.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            Ingen kampagner endnu.
+            {t("dashboardPages.outbound.noCampaignsYet")}
           </div>
         ) : (
           <ul className="space-y-3">
@@ -253,7 +251,9 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
                   <p className="text-sm font-semibold text-slate-800">{campaign.name}</p>
                   <p className="text-xs text-slate-500">
                     {widgetName(campaign.widget_id)} · {phoneNumberLabel(campaign.phone_number_id)} ·{" "}
-                    {campaign.outbound_campaign_contacts?.[0]?.count ?? 0} numre
+                    {t("dashboardPages.outbound.contactsCount", {
+                      count: campaign.outbound_campaign_contacts?.[0]?.count ?? 0,
+                    })}
                   </p>
                 </div>
                 {campaign.status === "draft" ? (
@@ -263,11 +263,13 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
                     disabled={launchingId === campaign.id}
                     className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
                   >
-                    {launchingId === campaign.id ? "Starter…" : "Start kampagne"}
+                    {launchingId === campaign.id
+                      ? t("dashboardPages.outbound.launching")
+                      : t("dashboardPages.outbound.launchCampaign")}
                   </button>
                 ) : (
                   <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-                    Startet
+                    {t("dashboardPages.outbound.launched")}
                   </span>
                 )}
               </li>
