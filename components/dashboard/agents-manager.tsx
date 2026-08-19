@@ -114,13 +114,13 @@ export function AgentsManager({
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Søg efter agent-navn…"
+          placeholder={t("dashboardPages.agents-manager.searchPlaceholder")}
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
         />
 
         {filteredWidgets.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            Ingen agenter fundet.
+            {t("dashboardPages.agents-manager.noAgentsFound")}
           </div>
         ) : (
           <ul className="space-y-3">
@@ -132,12 +132,16 @@ export function AgentsManager({
                 <Link href={`/dashboard/agent/${widget.id}`} className="flex-1">
                   <p className="text-sm font-semibold text-slate-800">{widget.name}</p>
                   <p className="text-xs text-slate-500">
-                    Oprettet {new Date(widget.created_at).toLocaleDateString("da-DK")}
+                    {t("dashboardPages.agents-manager.createdOn", {
+                      date: new Date(widget.created_at).toLocaleDateString("da-DK"),
+                    })}
                   </p>
                 </Link>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-medium text-slate-500">
-                    {widget.status === "active" ? "Aktiv" : "Sat på pause"}
+                    {widget.status === "active"
+                      ? t("dashboardPages.shared.statusActive")
+                      : t("dashboardPages.shared.widgetStatusPaused")}
                   </span>
                   <button
                     type="button"
