@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { WidgetWithExtras } from "../agent-configurator";
+import { useTranslation } from "@/components/i18n/language-provider";
+
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
 // Widget-controlled text (business_name, welcome_message) is interpolated
 // into the preview's raw HTML below — escape it so a stray "<" or "&" can't

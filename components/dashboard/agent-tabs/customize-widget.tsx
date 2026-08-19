@@ -174,7 +174,7 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
 
         <div>
           <label htmlFor="widget-size" className="mb-1 block text-sm font-medium text-slate-700">
-            Størrelse
+            {t("agent.customize.sizeLabel")}
           </label>
           <select
             id="widget-size"
@@ -182,74 +182,73 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
             onChange={(e) => setWidgetSize(e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 sm:w-64"
           >
-            <option value="small">Lille</option>
-            <option value="medium">Mellem</option>
-            <option value="large">Stor</option>
+            <option value="small">{t("agent.customize.sizeSmall")}</option>
+            <option value="medium">{t("agent.customize.sizeMedium")}</option>
+            <option value="large">{t("agent.customize.sizeLarge")}</option>
           </select>
         </div>
       </div>
 
       <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Indstillinger</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          {t("agent.customize.settingsTitle")}
+        </h2>
         <ToggleSwitch
-          label="Vis AIbooking.dk-branding"
+          label={t("agent.customize.showBrandingLabel")}
           checked={showBranding}
           onChange={setShowBranding}
         />
         <ToggleSwitch
-          label="Transskription"
-          description="Gem tekst-transskription af samtaler."
+          label={t("agent.customize.transcriptionLabel")}
+          description={t("agent.customize.transcriptionDescription")}
           checked={extra.transcriptionEnabled ?? true}
           onChange={(v) => setExtraFlag("transcriptionEnabled", v)}
         />
         <ToggleSwitch
-          label="Tekst-chat"
-          description="Tillad kunder at skrive i stedet for at tale."
+          label={t("agent.customize.chatLabel")}
+          description={t("agent.customize.chatDescription")}
           checked={extra.chatEnabled ?? true}
           onChange={(v) => setExtraFlag("chatEnabled", v)}
         />
         <ToggleSwitch
-          label="Autostart"
-          description="Åbn widgetten automatisk når siden indlæses."
+          label={t("agent.customize.autostartLabel")}
+          description={t("agent.customize.autostartDescription")}
           checked={extra.autostart ?? false}
           onChange={(v) => setExtraFlag("autostart", v)}
         />
         <ToggleSwitch
-          label="Mute ved minimering"
+          label={t("agent.customize.muteOnMinimizeLabel")}
           checked={extra.muteOnMinimize ?? false}
           onChange={(v) => setExtraFlag("muteOnMinimize", v)}
         />
         <ToggleSwitch
-          label="Mute ved faneskift"
+          label={t("agent.customize.muteOnTabChangeLabel")}
           checked={extra.muteOnTabChange ?? false}
           onChange={(v) => setExtraFlag("muteOnTabChange", v)}
         />
         <ToggleSwitch
-          label="Vis lead-formular"
+          label={t("agent.customize.showLeadFormLabel")}
           checked={extra.showLeadForm ?? false}
           onChange={(v) => setExtraFlag("showLeadForm", v)}
         />
         <ToggleSwitch
-          label="Glødende ikon"
+          label={t("agent.customize.glowingIconLabel")}
           checked={extra.isGlowing ?? false}
           onChange={(v) => setExtraFlag("isGlowing", v)}
         />
         <ToggleSwitch
-          label="Transparent baggrund"
+          label={t("agent.customize.transparentBackgroundLabel")}
           checked={extra.isTransparent ?? false}
           onChange={(v) => setExtraFlag("isTransparent", v)}
         />
         <ToggleSwitch
-          label="Mute agent"
+          label={t("agent.customize.muteAgentLabel")}
           checked={extra.agentMute ?? false}
           onChange={(v) => setExtraFlag("agentMute", v)}
         />
       </div>
 
-      <p className="text-xs text-slate-500">
-        Farve, størrelse, placering og branding-visning slår igennem på den rigtige widget med det samme. De øvrige
-        til/fra-valg gemmes til jeres profil, men styrer endnu ikke widgettens adfærd i denne udgave.
-      </p>
+      <p className="text-xs text-slate-500">{t("agent.customize.footerNote")}</p>
 
       <div className="flex items-center gap-3">
         <button
@@ -258,10 +257,10 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
           disabled={saving}
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
-          {saving ? "Gemmer…" : "Gem"}
+          {saving ? t("common.saving") : t("common.save")}
         </button>
-        {status === "saved" ? <span className="text-sm text-emerald-600">Gemt.</span> : null}
-        {status === "error" ? <span className="text-sm text-red-600">Kunne ikke gemme.</span> : null}
+        {status === "saved" ? <span className="text-sm text-emerald-600">{t("common.saved")}</span> : null}
+        {status === "error" ? <span className="text-sm text-red-600">{t("common.saveFailed")}</span> : null}
       </div>
     </div>
   );

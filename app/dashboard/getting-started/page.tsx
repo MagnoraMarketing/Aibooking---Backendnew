@@ -64,50 +64,50 @@ export default async function GettingStartedPage() {
 
   const steps: Step[] = [
     {
-      title: "1. Opret jeres agent",
-      description: "Giv agenten et navn og vælg hvilken AI-model den skal bruge.",
+      title: t("dashboardPages.getting-started.step1Title"),
+      description: t("dashboardPages.getting-started.step1Description"),
       href: "/dashboard/agent",
-      cta: hasWidget ? "Se agenter" : "Opret agent",
+      cta: t(hasWidget ? "dashboardPages.getting-started.step1CtaDone" : "dashboardPages.getting-started.step1CtaNotDone"),
       done: hasWidget,
       trackable: true,
     },
     {
-      title: "2. Skriv prompt og vælg stemme",
-      description: "Fortæl agenten om jeres virksomhed, og vælg en dansk stemme under Prompt Lab / Settings.",
+      title: t("dashboardPages.getting-started.step2Title"),
+      description: t("dashboardPages.getting-started.step2Description"),
       href: `${agentHref}?tab=prompt`,
-      cta: "Tilpas agent",
+      cta: t("dashboardPages.getting-started.step2Cta"),
       done: hasConfiguredPrompt,
       trackable: true,
     },
     {
-      title: "3. Få et telefonnummer",
-      description: "Køb et dansk nummer gennem os, eller importér jeres eget Twilio-nummer.",
+      title: t("dashboardPages.getting-started.step3Title"),
+      description: t("dashboardPages.getting-started.step3Description"),
       href: "/dashboard/inbound",
-      cta: hasPhoneNumber ? "Se numre" : "Få et nummer",
+      cta: t(hasPhoneNumber ? "dashboardPages.getting-started.step3CtaDone" : "dashboardPages.getting-started.step3CtaNotDone"),
       done: hasPhoneNumber,
       trackable: true,
     },
     {
-      title: "4. Viderestil jeres eksisterende nummer",
-      description: "Ring en kort kode op fra jeres nuværende mobil/fastnet, så opkald går videre til agenten.",
+      title: t("dashboardPages.getting-started.step4Title"),
+      description: t("dashboardPages.getting-started.step4Description"),
       href: "/dashboard/inbound",
-      cta: "Se koder",
+      cta: t("dashboardPages.getting-started.step4Cta"),
       done: hasPhoneNumber,
       trackable: false,
     },
     {
-      title: "5. Forbind jeres kalender",
-      description: "Google Kalender, Outlook/Microsoft 365 eller Cal.com — så agenten kan se ledige tider.",
+      title: t("dashboardPages.getting-started.step5Title"),
+      description: t("dashboardPages.getting-started.step5Description"),
       href: "/dashboard/integrations",
-      cta: hasCalendar ? "Se forbindelser" : "Forbind kalender",
+      cta: t(hasCalendar ? "dashboardPages.getting-started.step5CtaDone" : "dashboardPages.getting-started.step5CtaNotDone"),
       done: hasCalendar,
       trackable: true,
     },
     {
-      title: "6. Hent jeres embed-kode",
-      description: "Indsæt widget-koden på jeres hjemmeside, så kunder kan tale med agenten direkte på sitet.",
+      title: t("dashboardPages.getting-started.step6Title"),
+      description: t("dashboardPages.getting-started.step6Description"),
       href: `${agentHref}?tab=embed`,
-      cta: "Hent kode",
+      cta: t("dashboardPages.getting-started.step6Cta"),
       done: embedCodeUnlocked && hasWidget,
       trackable: true,
     },
@@ -118,9 +118,9 @@ export default async function GettingStartedPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Kom i gang</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.getting-started.title")}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Følg trinene herunder for at få jeres AI-agent live — {completedCount} af {steps.length} klaret.
+          {t("dashboardPages.getting-started.subtitle", { completed: completedCount, total: steps.length })}
         </p>
         <div className="mt-3 h-2 w-full max-w-md overflow-hidden rounded-full bg-slate-100">
           <div
@@ -148,7 +148,9 @@ export default async function GettingStartedPage() {
                 <p className="text-sm font-semibold text-slate-900">{step.title}</p>
                 <p className="mt-0.5 text-sm text-slate-500">{step.description}</p>
                 {!step.trackable && step.done ? (
-                  <p className="mt-1 text-xs font-medium text-amber-600">Husk selv at gennemføre dette trin</p>
+                  <p className="mt-1 text-xs font-medium text-amber-600">
+                    {t("dashboardPages.getting-started.rememberStep")}
+                  </p>
                 ) : null}
               </div>
             </div>
