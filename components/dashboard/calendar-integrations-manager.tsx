@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Widget } from "@/types/database";
 import type { CalendarConnectionSummary } from "@/app/dashboard/integrations/page";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface CalcomEventType {
   id: number;
@@ -16,60 +17,33 @@ interface CalendarIntegrationsManagerProps {
   eventTypesByConnection: Record<string, CalcomEventType[]>;
 }
 
-const PROVIDERS = [
-  {
-    key: "google" as const,
-    name: "Google Calendar",
-    category: "Kalender",
-    popular: true,
-    description: "Den mest udbredte kalender blandt danske virksomheder. Forbindes med ét klik via Google.",
-    kind: "oauth" as const,
-  },
-  {
-    key: "outlook" as const,
-    name: "Outlook",
-    category: "Kalender",
-    popular: true,
-    description: "Til virksomheder der bruger Microsoft 365 eller Outlook som kalender.",
-    kind: "oauth" as const,
-  },
-  {
-    key: "calcom" as const,
-    name: "Cal.com",
-    category: "Kalender",
-    popular: false,
-    description: "Forbind med jeres Cal.com API-nøgle og vælg hvilken event-type agenten skal booke i.",
-    kind: "apikey" as const,
-  },
-];
-
 // Everything else from aibooking.dk/integrationer's "Populære Integrationer"
 // showcase that this app doesn't build yet — shown in the same grid as the
 // working calendar providers above so the page reads as one coherent
 // roadmap, each clearly labelled "Kommer snart" rather than offering a
 // button that would do nothing.
 const COMING_SOON = [
-  { name: "WhatsApp", category: "Kommunikation", popular: true },
-  { name: "Slack", category: "Kommunikation", popular: false },
-  { name: "Shopify", category: "E-handel", popular: true },
-  { name: "Notion", category: "Produktivitet", popular: false },
-  { name: "WordPress", category: "Hjemmeside", popular: true },
-  { name: "Zapier", category: "Automatisering", popular: true },
-  { name: "Zoom", category: "Video", popular: true },
-  { name: "Microsoft Teams", category: "Video", popular: false },
-  { name: "Messenger", category: "Kommunikation", popular: false },
-  { name: "Discord", category: "Kommunikation", popular: false },
-  { name: "Webhooks", category: "Udvikler", popular: true },
-  { name: "REST API", category: "Udvikler", popular: true },
-  { name: "HubSpot", category: "CRM", popular: false },
-  { name: "Salesforce", category: "CRM", popular: false },
-  { name: "Pipedrive", category: "CRM", popular: false },
-  { name: "CalDAV", category: "Kalender", popular: false },
-  { name: "Google Docs", category: "Dokumenter", popular: false },
-  { name: "WooCommerce", category: "E-handel", popular: false },
-  { name: "Stripe", category: "E-handel", popular: false },
-  { name: "Make", category: "Automatisering", popular: false },
-];
+  { name: "WhatsApp", categoryKey: "categoryCommunication", popular: true },
+  { name: "Slack", categoryKey: "categoryCommunication", popular: false },
+  { name: "Shopify", categoryKey: "categoryEcommerce", popular: true },
+  { name: "Notion", categoryKey: "categoryProductivity", popular: false },
+  { name: "WordPress", categoryKey: "categoryWebsite", popular: true },
+  { name: "Zapier", categoryKey: "categoryAutomation", popular: true },
+  { name: "Zoom", categoryKey: "categoryVideo", popular: true },
+  { name: "Microsoft Teams", categoryKey: "categoryVideo", popular: false },
+  { name: "Messenger", categoryKey: "categoryCommunication", popular: false },
+  { name: "Discord", categoryKey: "categoryCommunication", popular: false },
+  { name: "Webhooks", categoryKey: "categoryDeveloper", popular: true },
+  { name: "REST API", categoryKey: "categoryDeveloper", popular: true },
+  { name: "HubSpot", categoryKey: "categoryCrm", popular: false },
+  { name: "Salesforce", categoryKey: "categoryCrm", popular: false },
+  { name: "Pipedrive", categoryKey: "categoryCrm", popular: false },
+  { name: "CalDAV", categoryKey: "categoryCalendar", popular: false },
+  { name: "Google Docs", categoryKey: "categoryDocuments", popular: false },
+  { name: "WooCommerce", categoryKey: "categoryEcommerce", popular: false },
+  { name: "Stripe", categoryKey: "categoryEcommerce", popular: false },
+  { name: "Make", categoryKey: "categoryAutomation", popular: false },
+] as const;
 
 function initials(name: string): string {
   return name
@@ -85,6 +59,38 @@ export function CalendarIntegrationsManager({
   initialConnections,
   eventTypesByConnection,
 }: CalendarIntegrationsManagerProps) {
+  const { t } = useTranslation();
+
+  const PROVIDERS = useMemo(
+    () => [
+      {
+        key: "google" as const,
+        name: "Google Calendar",
+        category: t("dashboardPages.calendar-integrations.categoryCalendar"),
+        popular: true,
+        description: t("dashboardPages.calendar-integrations.googleDescription"),
+        kind: "oauth" as const,
+      },
+      {
+        key: "outlook" as const,
+        name: "Outlook",
+        category: t("dashboardPages.calendar-integrations.categoryCalendar"),
+        popular: true,
+        description: t("dashboardPages.calendar-integrations.outlookDescription"),
+        kind: "oauth" as const,
+      },
+      {
+        key: "calcom" as const,
+        name: "Cal.com",
+        category: t("dashboardPages.calendar-integrations.categoryCalendar"),
+        popular: false,
+        description: t("dashboardPages.calendar-integrations.calcomDescription"),
+        kind: "apikey" as const,
+      },
+    ],
+    [t]
+  );
+
   const [connections, setConnections] = useState(initialConnections);
   const [widgetId, setWidgetId] = useState(widgets[0]?.id ?? "");
   const [calcomForm, setCalcomForm] = useState<{ apiKey: string; open: boolean }>({ apiKey: "", open: false });
@@ -118,7 +124,7 @@ export function CalendarIntegrationsManager({
 
   async function handleCalcomConnect() {
     if (!calcomForm.apiKey.trim()) {
-      setCalcomError("Indsæt jeres Cal.com API-nøgle.");
+      setCalcomError(t("dashboardPages.calendar-integrations.apiKeyPlaceholder"));
       return;
     }
     setCalcomConnecting(true);
@@ -134,7 +140,7 @@ export function CalendarIntegrationsManager({
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setCalcomError(data?.error?.message ?? "Kunne ikke forbinde Cal.com.");
+      setCalcomError(data?.error?.message ?? t("dashboardPages.calendar-integrations.testErrorFallback"));
       return;
     }
 
@@ -152,13 +158,17 @@ export function CalendarIntegrationsManager({
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setTestMessage({ id: connectionId, ok: false, text: data?.error?.message ?? "Kunne ikke forbinde til Cal.com." });
+      setTestMessage({
+        id: connectionId,
+        ok: false,
+        text: data?.error?.message ?? t("dashboardPages.calendar-integrations.testErrorFallback"),
+      });
       return;
     }
 
     const { connection } = await res.json();
     setConnections((prev) => prev.map((c) => (c.id === connectionId ? connection : c)));
-    setTestMessage({ id: connectionId, ok: true, text: "Forbindelsen virker." });
+    setTestMessage({ id: connectionId, ok: true, text: t("dashboardPages.calendar-integrations.testSuccess") });
   }
 
   async function handleChangeEventType(connectionId: string, eventTypeId: number) {
@@ -173,7 +183,11 @@ export function CalendarIntegrationsManager({
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setTestMessage({ id: connectionId, ok: false, text: data?.error?.message ?? "Kunne ikke skifte event-type." });
+      setTestMessage({
+        id: connectionId,
+        ok: false,
+        text: data?.error?.message ?? t("dashboardPages.calendar-integrations.eventTypeErrorFallback"),
+      });
       return;
     }
 
@@ -184,11 +198,10 @@ export function CalendarIntegrationsManager({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-semibold text-slate-900">Populære Integrationer</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Arbejd problemfrit med jeres eksisterende værktøjer — forbind jeres kalender nedenfor, så agenten kan se
-          ledige tider og booke direkte.
-        </p>
+        <h2 className="text-2xl font-semibold text-slate-900">
+          {t("dashboardPages.calendar-integrations.heading")}
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.calendar-integrations.subtitle")}</p>
       </div>
 
       {banner ? (
@@ -198,20 +211,20 @@ export function CalendarIntegrationsManager({
           }`}
         >
           {banner.type === "success"
-            ? `Kalenderen blev forbundet (${banner.provider}).`
-            : `Kunne ikke forbinde kalenderen (${banner.provider}). Prøv igen.`}
+            ? t("dashboardPages.calendar-integrations.connectedBanner", { provider: banner.provider })
+            : t("dashboardPages.calendar-integrations.errorBanner", { provider: banner.provider })}
         </div>
       ) : null}
 
       {widgets.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-          Opret en agent under &quot;Agent&quot; f&oslash;rst &mdash; en kalender skal knyttes til en agent.
+          {t("dashboardPages.calendar-integrations.noAgentsYet")}
         </div>
       ) : (
         <>
           <div className="max-w-sm">
             <label htmlFor="calendar-widget" className="mb-1 block text-sm font-medium text-slate-700">
-              Agent
+              {t("dashboardPages.shared.agentLabel")}
             </label>
             <select
               id="calendar-widget"
@@ -237,11 +250,11 @@ export function CalendarIntegrationsManager({
                       <h2 className="text-sm font-semibold text-slate-900">{provider.name}</h2>
                       {connection ? (
                         <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                          Forbundet
+                          {t("dashboardPages.calendar-integrations.connectedLabel")}
                         </span>
                       ) : provider.popular ? (
                         <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-600">
-                          Populær
+                          {t("dashboardPages.shared.popularBadge")}
                         </span>
                       ) : null}
                     </div>
@@ -260,17 +273,23 @@ export function CalendarIntegrationsManager({
                             }`}
                           />
                           <span className="font-medium text-slate-700">
-                            {connection.status === "connected" ? "Connected" : "Fejl — tjek forbindelsen"}
+                            {connection.status === "connected"
+                              ? t("dashboardPages.calendar-integrations.connectedLabel")
+                              : t("dashboardPages.calendar-integrations.connectionErrorLabel")}
                           </span>
                         </div>
 
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Account</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                            {t("dashboardPages.calendar-integrations.accountLabel")}
+                          </p>
                           <p className="text-xs text-slate-700">{connection.external_account_email ?? "—"}</p>
                         </div>
 
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Event Type</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                            {t("dashboardPages.calendar-integrations.eventTypeLabel")}
+                          </p>
                           <select
                             value={connection.calcom_event_type_id ?? ""}
                             onChange={(e) => handleChangeEventType(connection.id, Number(e.target.value))}
@@ -286,7 +305,9 @@ export function CalendarIntegrationsManager({
                         </div>
 
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Timezone</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                            {t("dashboardPages.calendar-integrations.timezoneLabel")}
+                          </p>
                           <p className="text-xs text-slate-700">{connection.calcom_timezone ?? "—"}</p>
                         </div>
 
@@ -296,7 +317,9 @@ export function CalendarIntegrationsManager({
                           disabled={testingId === connection.id}
                           className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                         >
-                          {testingId === connection.id ? "Tester…" : "Test forbindelse"}
+                          {testingId === connection.id
+                            ? t("dashboardPages.calendar-integrations.testing")
+                            : t("dashboardPages.calendar-integrations.testConnection")}
                         </button>
                         {testMessage?.id === connection.id ? (
                           <p className={`text-xs ${testMessage.ok ? "text-emerald-600" : "text-red-600"}`}>{testMessage.text}</p>
@@ -313,14 +336,16 @@ export function CalendarIntegrationsManager({
                         disabled={disconnectingId === connection.id}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                       >
-                        {disconnectingId === connection.id ? "Fjerner…" : "Fjern forbindelse"}
+                        {disconnectingId === connection.id
+                          ? t("dashboardPages.calendar-integrations.disconnecting")
+                          : t("dashboardPages.calendar-integrations.disconnect")}
                       </button>
                     ) : provider.kind === "oauth" ? (
                       <a
                         href={`/api/customer/calendar/${provider.key}/connect?widgetId=${widgetId}`}
                         className="block w-full rounded-lg bg-brand-600 px-3 py-2 text-center text-xs font-medium text-white hover:bg-brand-700"
                       >
-                        Forbind {provider.name} →
+                        {t("dashboardPages.calendar-integrations.connectButton", { name: provider.name })}
                       </a>
                     ) : calcomForm.open ? (
                       <div className="space-y-2">
@@ -338,7 +363,7 @@ export function CalendarIntegrationsManager({
                             onClick={() => setCalcomForm({ apiKey: "", open: false })}
                             className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
                           >
-                            Annuller
+                            {t("common.cancel")}
                           </button>
                           <button
                             type="button"
@@ -346,7 +371,9 @@ export function CalendarIntegrationsManager({
                             disabled={calcomConnecting}
                             className="flex-1 rounded-lg bg-brand-600 px-3 py-2 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
                           >
-                            {calcomConnecting ? "Forbinder…" : "Forbind"}
+                            {calcomConnecting
+                              ? t("dashboardPages.calendar-integrations.connecting")
+                              : t("dashboardPages.calendar-integrations.connectShort")}
                           </button>
                         </div>
                       </div>
@@ -356,7 +383,7 @@ export function CalendarIntegrationsManager({
                         onClick={() => setCalcomForm({ apiKey: "", open: true })}
                         className="w-full rounded-lg bg-brand-600 px-3 py-2 text-xs font-medium text-white hover:bg-brand-700"
                       >
-                        Forbind {provider.name} →
+                        {t("dashboardPages.calendar-integrations.connectButton", { name: provider.name })}
                       </button>
                     )}
                   </div>
@@ -381,13 +408,15 @@ export function CalendarIntegrationsManager({
                 <p className="text-sm font-semibold text-slate-800">{tool.name}</p>
                 {tool.popular ? (
                   <span className="rounded-full bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                    Populær
+                    {t("dashboardPages.shared.popularBadge")}
                   </span>
                 ) : null}
               </div>
-              <p className="text-[11px] uppercase tracking-wide text-slate-400">{tool.category}</p>
+              <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                {t(`dashboardPages.calendar-integrations.${tool.categoryKey}`)}
+              </p>
               <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                Kommer snart
+                {t("dashboardPages.shared.comingSoon")}
               </span>
             </div>
           </div>
@@ -395,7 +424,7 @@ export function CalendarIntegrationsManager({
       </div>
 
       <p className="text-center text-xs text-slate-500">
-        Mangler I en integration? Vi tilføjer løbende nye — skriv til support, så hører I fra os når den lander.
+        {t("dashboardPages.calendar-integrations.footerNote")}
       </p>
     </div>
   );

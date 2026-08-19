@@ -95,7 +95,7 @@ function useWidgetConfigCheck(publicId: string) {
     return () => {
       cancelled = true;
     };
-  }, [publicId]);
+  }, [publicId, t]);
 
   return { status, errorMessage };
 }
