@@ -140,8 +140,22 @@ export const widgetExtraSettingsSchema = z
     // assistant is a separate resource in Vapi, unlike the shared
     // llm_models row that just marks the widget as using Vapi at all.
     vapiAssistantId: z.string().trim().min(1).max(200).nullable(),
+    // Which admin-configured Vapi voice template ("Mand"/"Dame") the
+    // widget's own assistant clones its voice from — see
+    // resolveVoiceConfig in lib/vapi/assistants.ts. The raw template ids
+    // themselves are never sent to the customer-facing UI.
+    voiceGender: z.enum(["male", "female"]).nullable(),
   })
   .partial();
+
+// ---------------------------------------------------------------------------
+// Admin: Vapi voice templates ("Mand"/"Dame") — see
+// lib/settings/platform.ts's getVapiVoiceTemplateAssistantId.
+// ---------------------------------------------------------------------------
+export const vapiVoiceTemplatesInputSchema = z.object({
+  maleAssistantId: z.string().trim().min(1).max(200).nullable().optional(),
+  femaleAssistantId: z.string().trim().min(1).max(200).nullable().optional(),
+});
 
 // ---------------------------------------------------------------------------
 // Widget (public, end-user facing)

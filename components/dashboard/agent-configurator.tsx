@@ -24,6 +24,7 @@ export interface WidgetExtra {
   showLeadForm?: boolean;
   agentMute?: boolean;
   vapiAssistantId?: string | null;
+  voiceGender?: "male" | "female" | null;
   knowledgeBase?: KnowledgeBaseSource[];
 }
 

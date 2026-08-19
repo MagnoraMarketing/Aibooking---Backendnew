@@ -58,7 +58,11 @@ export const POST = withErrorHandling(async (request) => {
 
   if (error) throw error;
 
-  await supabase.from("widget_settings").insert({ widget_id: widget.id, extra: {} });
+  // Widgets on the Vapi model default to the "female" voice template until
+  // the customer picks explicitly in the wizard's Stemme step — see
+  // WizardVoiceStep and resolveVoiceConfig in lib/vapi/assistants.ts.
+  const DEFAULT_VOICE_GENDER = "female";
+  await supabase.from("widget_settings").insert({ widget_id: widget.id, extra: { voiceGender: DEFAULT_VOICE_GENDER } });
 
   // Agents are now created exclusively on the Vapi model (see
   // 0012_vapi_default_model.sql) — provision the matching Vapi assistant
@@ -74,10 +78,11 @@ export const POST = withErrorHandling(async (request) => {
         name: widget.name,
         systemPrompt,
         firstMessage: widget.opening_message ?? DEFAULT_VAPI_FIRST_MESSAGE,
+        voiceGender: DEFAULT_VOICE_GENDER,
       });
       await supabase
         .from("widget_settings")
-        .update({ extra: { vapiAssistantId: assistant.id } })
+        .update({ extra: { voiceGender: DEFAULT_VOICE_GENDER, vapiAssistantId: assistant.id } })
         .eq("widget_id", widget.id);
     } catch (err) {
       // Don't leave behind a widget that can never take a call — widget_settings

@@ -17,6 +17,9 @@ export function AdminHeader({ userLabel }: { userLabel: string }) {
             <Link href="/admin/phone-numbers" className="hover:text-slate-900">
               Telefonnumre
             </Link>
+            <Link href="/admin/settings" className="hover:text-slate-900">
+              Indstillinger
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">

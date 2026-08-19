@@ -6,7 +6,7 @@ import { getDefaultSystemPrompt } from "@/lib/settings/platform";
 import { formatKnowledgeBaseForPrompt } from "@/lib/knowledge-base/format";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import type { Widget } from "@/types/database";
-import { updateVapiAssistant, DEFAULT_VAPI_FIRST_MESSAGE } from "./assistants";
+import { updateVapiAssistant, DEFAULT_VAPI_FIRST_MESSAGE, type VapiVoiceGender } from "./assistants";
 
 // Single place that knows how to turn a widget + its extra settings into an
 // up-to-date Vapi assistant — used by every call site that can change
@@ -34,11 +34,14 @@ export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<st
   const basePrompt = widget.system_prompt ?? (await getDefaultSystemPrompt());
   const systemPrompt = [basePrompt, knowledgeBase].filter(Boolean).join("\n\n");
 
+  const voiceGender = (extra.voiceGender as VapiVoiceGender | null | undefined) ?? null;
+
   try {
     await updateVapiAssistant(vapiAssistantId, {
       name: widget.name,
       systemPrompt,
       firstMessage: widget.opening_message ?? DEFAULT_VAPI_FIRST_MESSAGE,
+      voiceGender,
     });
   } catch (err) {
     console.error("Failed to sync widget to Vapi assistant:", err);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { VoiceModel } from "@/types/database";
+import type { LLMModel, VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 
 // Deliberately a smaller picker than the full Settings tab (which also
@@ -10,16 +10,20 @@ import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 // field stays reachable afterwards on the full agent config page.
 export function WizardVoiceStep({
   widget,
+  llmModels,
   voiceModels,
   savePatch,
   onNext,
 }: {
   widget: WidgetWithExtras;
+  llmModels: LLMModel[];
   voiceModels: VoiceModel[];
   savePatch: SavePatch;
   onNext: () => void;
 }) {
+  const isVapiModel = llmModels.find((m) => m.id === widget.llm_model_id)?.provider === "vapi";
   const [voiceModelId, setVoiceModelId] = useState(widget.voice_model_id ?? "");
+  const [voiceGender, setVoiceGender] = useState<"male" | "female">(widget.extra.voiceGender ?? "female");
   const [language, setLanguage] = useState(widget.language);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +31,9 @@ export function WizardVoiceStep({
   async function handleContinue() {
     setSaving(true);
     setError(null);
-    const ok = await savePatch({ voiceModelId: voiceModelId || null, language });
+    const ok = await savePatch(
+      isVapiModel ? { language, extra: { voiceGender } } : { voiceModelId: voiceModelId || null, language }
+    );
     setSaving(false);
     if (!ok) {
       setError("Kunne ikke gemme. Prøv igen.");
@@ -43,24 +49,46 @@ export function WizardVoiceStep({
         <p className="mt-1 text-sm text-slate-500">Vælg den stemme jeres agent skal tale med.</p>
       </div>
 
-      <div>
-        <label htmlFor="wizard-voice-model" className="mb-1 block text-sm font-medium text-slate-700">
-          Stemme
-        </label>
-        <select
-          id="wizard-voice-model"
-          value={voiceModelId}
-          onChange={(e) => setVoiceModelId(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-        >
-          <option value="">Ingen valgt (brug standard)</option>
-          {voiceModels.map((voice) => (
-            <option key={voice.id} value={voice.id}>
-              {voice.name} ({voice.language})
-            </option>
-          ))}
-        </select>
-      </div>
+      {isVapiModel ? (
+        <div>
+          <span className="mb-1 block text-sm font-medium text-slate-700">Stemme</span>
+          <div className="grid grid-cols-2 gap-3">
+            {(["female", "male"] as const).map((gender) => (
+              <button
+                key={gender}
+                type="button"
+                onClick={() => setVoiceGender(gender)}
+                className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                  voiceGender === gender
+                    ? "border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-500"
+                    : "border-slate-300 text-slate-600 hover:border-slate-400"
+                }`}
+              >
+                {gender === "female" ? "Dame" : "Mand"}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label htmlFor="wizard-voice-model" className="mb-1 block text-sm font-medium text-slate-700">
+            Stemme
+          </label>
+          <select
+            id="wizard-voice-model"
+            value={voiceModelId}
+            onChange={(e) => setVoiceModelId(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+          >
+            <option value="">Ingen valgt (brug standard)</option>
+            {voiceModels.map((voice) => (
+              <option key={voice.id} value={voice.id}>
+                {voice.name} ({voice.language})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <label htmlFor="wizard-language" className="mb-1 block text-sm font-medium text-slate-700">

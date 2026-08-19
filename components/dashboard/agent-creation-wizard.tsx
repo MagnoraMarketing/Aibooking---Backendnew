@@ -311,7 +311,13 @@ export function AgentCreationWizard({
 
       {step === 2 && widget ? (
         <div className="space-y-4">
-          <WizardVoiceStep widget={widget} voiceModels={voiceModels} savePatch={savePatch} onNext={() => setStep(3)} />
+          <WizardVoiceStep
+            widget={widget}
+            llmModels={llmModels}
+            voiceModels={voiceModels}
+            savePatch={savePatch}
+            onNext={() => setStep(3)}
+          />
           <button
             type="button"
             onClick={() => setStep(3)}
