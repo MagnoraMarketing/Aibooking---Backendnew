@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SessionDetailsModal } from "./session-details-modal";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 export interface SessionRow {
   id: string;

@@ -93,23 +93,22 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
     <div className="space-y-6">
       <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Videnbase</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Tilføj tekst, et link eller en PDF, så agenten kan svare mere præcist ud fra jeres eget indhold. Der
-            trækkes minutter fra jeres saldo svarende til mængden af indhold.
-          </p>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            {t("agent.knowledgeBase.title")}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">{t("agent.knowledgeBase.description")}</p>
         </div>
 
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2 rounded-xl border border-slate-200 p-4">
-            <p className="text-sm font-medium text-slate-700">Tekst</p>
+            <p className="text-sm font-medium text-slate-700">{t("agent.knowledgeBase.textCardTitle")}</p>
             <textarea
               rows={4}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Indsæt tekst, fx ofte stillede spørgsmål..."
+              placeholder={t("agent.knowledgeBase.textPlaceholder")}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
             <button
@@ -118,16 +117,16 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
               disabled={busy === "text" || !text.trim()}
               className="w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {busy === "text" ? "Tilføjer…" : "Tilføj tekst"}
+              {busy === "text" ? t("agent.knowledgeBase.addingText") : t("agent.knowledgeBase.addTextButton")}
             </button>
           </div>
 
           <div className="space-y-2 rounded-xl border border-slate-200 p-4">
-            <p className="text-sm font-medium text-slate-700">Link</p>
+            <p className="text-sm font-medium text-slate-700">{t("agent.knowledgeBase.linkCardTitle")}</p>
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://jeresvirksomhed.dk"
+              placeholder={t("agent.knowledgeBase.linkPlaceholder")}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
             <button
@@ -136,12 +135,12 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
               disabled={busy === "url" || !url.trim()}
               className="w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {busy === "url" ? "Henter…" : "Hent fra link"}
+              {busy === "url" ? t("agent.knowledgeBase.fetchingLink") : t("agent.knowledgeBase.fetchLinkButton")}
             </button>
           </div>
 
           <div className="space-y-2 rounded-xl border border-slate-200 p-4">
-            <p className="text-sm font-medium text-slate-700">PDF</p>
+            <p className="text-sm font-medium text-slate-700">{t("agent.knowledgeBase.pdfCardTitle")}</p>
             <input
               type="file"
               accept="application/pdf"
@@ -154,16 +153,18 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
               disabled={busy === "pdf" || !file}
               className="w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {busy === "pdf" ? "Læser PDF…" : "Upload PDF"}
+              {busy === "pdf" ? t("agent.knowledgeBase.readingPdf") : t("agent.knowledgeBase.uploadPdfButton")}
             </button>
           </div>
         </div>
       </div>
 
       <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Tilføjet indhold</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          {t("agent.knowledgeBase.addedContentTitle")}
+        </h2>
         {sources.length === 0 ? (
-          <p className="text-sm text-slate-500">Intet tilføjet endnu.</p>
+          <p className="text-sm text-slate-500">{t("agent.knowledgeBase.nothingAddedYet")}</p>
         ) : (
           <ul className="space-y-2">
             {sources.map((source) => (
@@ -176,7 +177,10 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
                     {TYPE_LABELS[source.type]}: {source.label}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {source.characterCount.toLocaleString("da-DK")} tegn · {Math.round(source.costSeconds / 60)} min
+                    {t("agent.knowledgeBase.sourceMeta", {
+                      count: source.characterCount.toLocaleString("da-DK"),
+                      minutes: Math.round(source.costSeconds / 60),
+                    })}
                   </p>
                 </div>
                 <button
@@ -184,7 +188,7 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
                   onClick={() => handleDelete(source.id)}
                   className="text-xs font-medium text-red-600 hover:text-red-700"
                 >
-                  Fjern
+                  {t("agent.knowledgeBase.removeButton")}
                 </button>
               </li>
             ))}
