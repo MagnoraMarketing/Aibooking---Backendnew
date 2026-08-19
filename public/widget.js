@@ -772,8 +772,18 @@
               });
               call.client.on("call-end", handleCallEnd);
               call.client.on("message", handleMessage);
-              call.client.on("error", function () {
-                statusEl.textContent = "Der opstod en fejl under samtalen.";
+              call.client.on("error", function (e) {
+                // Vapi's error event shape isn't fixed (varies by failure
+                // source — mic permissions, ICE negotiation, the assistant
+                // itself) — surface whatever text it gives us instead of a
+                // dead-end generic message, and always log the raw object so
+                // it's visible in devtools even when no readable text exists.
+                console.error("Vapi call error:", e);
+                var detail =
+                  (e && (e.message || e.errorMsg || (e.error && e.error.message))) || null;
+                statusEl.textContent = detail
+                  ? "Fejl: " + detail
+                  : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
               });
             }
             call.client.start(data.vapi.assistantId);
