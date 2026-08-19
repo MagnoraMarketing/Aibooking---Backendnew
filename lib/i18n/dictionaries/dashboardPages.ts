@@ -1486,6 +1486,37 @@ export const dashboardPages: Namespace = {
     fr: "Impossible d'importer le numéro.",
     pt: "Não foi possível importar o número.",
   },
+  // Phone number purchase_status labels — not covered by any other section,
+  // added while wiring up inbound-manager.tsx.
+  "inbound.statusPendingPayment": {
+    da: "Afventer betaling",
+    en: "Awaiting payment",
+    es: "Esperando el pago",
+    fr: "En attente de paiement",
+    pt: "Aguardando pagamento",
+  },
+  "inbound.statusPaymentConfirmed": {
+    da: "Betaling bekræftet — aktiveres…",
+    en: "Payment confirmed — activating…",
+    es: "Pago confirmado — activando…",
+    fr: "Paiement confirmé — activation…",
+    pt: "Pagamento confirmado — ativando…",
+  },
+  "inbound.statusProvisioning": {
+    da: "Aktiveres…",
+    en: "Activating…",
+    es: "Activando…",
+    fr: "Activation…",
+    pt: "Ativando…",
+  },
+  "inbound.statusFailed": { da: "Fejlet", en: "Failed", es: "Fallido", fr: "Échoué", pt: "Falhou" },
+  "inbound.statusReleased": {
+    da: "Frigivet",
+    en: "Released",
+    es: "Liberado",
+    fr: "Libéré",
+    pt: "Liberado",
+  },
 
   // ---------------------------------------------------------------------
   // app/dashboard/inbound/free-trial/page.tsx

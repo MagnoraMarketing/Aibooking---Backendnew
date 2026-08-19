@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { Widget, PhoneNumberDirection } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import { CallForwardingInstructions } from "./call-forwarding-instructions";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface InboundManagerProps {
   widgets: Widget[];
@@ -32,30 +33,23 @@ interface OwnedNumber {
 
 type Mode = "buy" | "byo";
 
-const STATUS_LABELS: Record<PhoneNumberRow["purchase_status"], string> = {
-  pending_payment: "Afventer betaling",
-  payment_confirmed: "Betaling bekræftet — aktiveres…",
-  provisioning: "Aktiveres…",
-  active: "Aktiv",
-  failed: "Fejlet",
-  released: "Frigivet",
-};
-
-const DIRECTION_LABELS: Record<PhoneNumberDirection, string> = {
-  inbound: "Inbound",
-  outbound: "Outbound",
-  both: "Inbound + Outbound",
-};
-
-function DirectionPicker({ value, onChange }: { value: PhoneNumberDirection; onChange: (v: PhoneNumberDirection) => void }) {
+function DirectionPicker({
+  value,
+  onChange,
+  t,
+}: {
+  value: PhoneNumberDirection;
+  onChange: (v: PhoneNumberDirection) => void;
+  t: (key: string) => string;
+}) {
   const options: { value: PhoneNumberDirection; label: string }[] = [
-    { value: "inbound", label: "Inbound" },
-    { value: "outbound", label: "Outbound" },
-    { value: "both", label: "Inbound + Outbound" },
+    { value: "inbound", label: t("dashboardPages.inbound.directionInbound") },
+    { value: "outbound", label: t("dashboardPages.inbound.directionOutbound") },
+    { value: "both", label: t("dashboardPages.inbound.directionBoth") },
   ];
   return (
     <div>
-      <p className="mb-1 text-sm font-medium text-slate-700">Nummerets rolle</p>
+      <p className="mb-1 text-sm font-medium text-slate-700">{t("dashboardPages.inbound.directionRoleLabel")}</p>
       <div className="flex gap-2">
         {options.map((option) => (
           <button
@@ -77,6 +71,29 @@ function DirectionPicker({ value, onChange }: { value: PhoneNumberDirection; onC
 }
 
 export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailable }: InboundManagerProps) {
+  const { t } = useTranslation();
+
+  const STATUS_LABELS: Record<PhoneNumberRow["purchase_status"], string> = useMemo(
+    () => ({
+      pending_payment: t("dashboardPages.inbound.statusPendingPayment"),
+      payment_confirmed: t("dashboardPages.inbound.statusPaymentConfirmed"),
+      provisioning: t("dashboardPages.inbound.statusProvisioning"),
+      active: t("dashboardPages.shared.statusActive"),
+      failed: t("dashboardPages.inbound.statusFailed"),
+      released: t("dashboardPages.inbound.statusReleased"),
+    }),
+    [t]
+  );
+
+  const DIRECTION_LABELS: Record<PhoneNumberDirection, string> = useMemo(
+    () => ({
+      inbound: t("dashboardPages.inbound.directionInbound"),
+      outbound: t("dashboardPages.inbound.directionOutbound"),
+      both: t("dashboardPages.inbound.directionBoth"),
+    }),
+    [t]
+  );
+
   const [phoneNumbers, setPhoneNumbers] = useState(initialPhoneNumbers);
   const [showForm, setShowForm] = useState(initialPhoneNumbers.length === 0);
   const [mode, setMode] = useState<Mode>("buy");
@@ -104,7 +121,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
   const [busyId, setBusyId] = useState<string | null>(null);
 
   function widgetName(id: string): string {
-    return widgets.find((w) => w.id === id)?.name ?? "Ukendt agent";
+    return widgets.find((w) => w.id === id)?.name ?? t("dashboardPages.shared.unknownAgent");
   }
 
   function handleOpenTrialModal() {
@@ -141,7 +158,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke hente ledige numre. Prøv igen.");
+      setError(data?.error?.message ?? t("dashboardPages.inbound.errorSearchNumbers"));
       return;
     }
 
@@ -151,7 +168,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
   async function handlePurchase() {
     if (!widgetId || !selectedNumber) {
-      setError("Vælg agent og et nummer.");
+      setError(t("dashboardPages.inbound.errorSelectAgentAndNumber"));
       return;
     }
     setPurchasing(true);
@@ -167,7 +184,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke købe nummeret.");
+      setError(data?.error?.message ?? t("dashboardPages.inbound.errorPurchase"));
       return;
     }
 
@@ -180,7 +197,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
   async function handleFetchByoNumbers() {
     if (!twilioAccountSid.trim() || !twilioAuthToken.trim()) {
-      setError("Udfyld Account SID og Auth Token først.");
+      setError(t("dashboardPages.inbound.errorFillTwilioCredentials"));
       return;
     }
     setFetchingByoNumbers(true);
@@ -200,7 +217,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke hente numre fra Twilio.");
+      setError(data?.error?.message ?? t("dashboardPages.inbound.errorFetchTwilioNumbers"));
       return;
     }
 
@@ -211,7 +228,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
   async function handleImport() {
     if (!widgetId || !twilioAccountSid.trim() || !twilioAuthToken.trim() || !twilioPhoneNumber.trim()) {
-      setError("Udfyld agent og alle Twilio-felter.");
+      setError(t("dashboardPages.inbound.errorFillAllTwilioFields"));
       return;
     }
     setImporting(true);
@@ -234,7 +251,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke importere nummeret.");
+      setError(data?.error?.message ?? t("dashboardPages.inbound.errorImport"));
       return;
     }
 
@@ -261,7 +278,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
   }
 
   async function handleRelease(id: string) {
-    if (!confirm("Er du sikker? Telefonnummeret frigives fra Twilio og kan muligvis ikke gendannes.")) return;
+    if (!confirm(t("dashboardPages.inbound.confirmRelease"))) return;
     setBusyId(id);
     const res = await fetch(`/api/customer/phone-numbers/${id}`, { method: "DELETE" });
     setBusyId(null);
@@ -363,7 +380,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
             </select>
           </div>
 
-          <DirectionPicker value={direction} onChange={setDirection} />
+          <DirectionPicker value={direction} onChange={setDirection} t={t} />
 
           <div>
             <label htmlFor="phone-label" className="mb-1 block text-sm font-medium text-slate-700">
