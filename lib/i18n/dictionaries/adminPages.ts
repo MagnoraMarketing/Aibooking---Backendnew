@@ -10,18 +10,19 @@ export const adminPages: Namespace = {
   // Small set of strings identical across more than one file in this batch
   // (status words, unit abbreviations) — kept here instead of repeated per
   // section so all callers stay in sync.
-  "shared.statusLabel": { da: "Status", en: "Status", es: "Estado", fr: "Statut", pt: "Estado" },
-  "shared.active": { da: "Aktiv", en: "Active", es: "Activo", fr: "Actif", pt: "Ativo" },
-  "shared.inactive": { da: "Inaktiv", en: "Inactive", es: "Inactivo", fr: "Inactif", pt: "Inativo" },
-  "shared.paused": { da: "Pause", en: "Paused", es: "Pausado", fr: "En pause", pt: "Pausado" },
+  "shared.statusLabel": { da: "Status", en: "Status", es: "Estado", fr: "Statut", pt: "Estado", de: "Status" },
+  "shared.active": { da: "Aktiv", en: "Active", es: "Activo", fr: "Actif", pt: "Ativo", de: "Aktiv" },
+  "shared.inactive": { da: "Inaktiv", en: "Inactive", es: "Inactivo", fr: "Inactif", pt: "Inativo", de: "Inaktiv" },
+  "shared.paused": { da: "Pause", en: "Paused", es: "Pausado", fr: "En pause", pt: "Pausado", de: "Pausiert" },
   "shared.creditsRemaining": {
     da: "Credits tilbage",
     en: "Credits remaining",
     es: "Créditos restantes",
     fr: "Crédits restants",
     pt: "Créditos restantes",
+    de: "Verbleibendes Guthaben",
   },
-  "shared.minutesUnit": { da: "min", en: "min", es: "min", fr: "min", pt: "min" },
+  "shared.minutesUnit": { da: "min", en: "min", es: "min", fr: "min", pt: "min", de: "Min" },
 
   // app/admin/customers/[id]/page.tsx + components/admin/customer-detail.tsx
   "customerDetail.backToPortal": {
@@ -30,15 +31,17 @@ export const adminPages: Namespace = {
     es: "← Volver al Portal de clientes",
     fr: "← Retour au Portail client",
     pt: "← Voltar ao Portal de clientes",
+    de: "← Zurück zum Kundenportal",
   },
-  "customerDetail.package": { da: "Pakke", en: "Package", es: "Paquete", fr: "Forfait", pt: "Pacote" },
-  "customerDetail.agentsHeading": { da: "Agenter", en: "Agents", es: "Agentes", fr: "Agents", pt: "Agentes" },
+  "customerDetail.package": { da: "Pakke", en: "Package", es: "Paquete", fr: "Forfait", pt: "Pacote", de: "Paket" },
+  "customerDetail.agentsHeading": { da: "Agenter", en: "Agents", es: "Agentes", fr: "Agents", pt: "Agentes", de: "Agenten" },
   "customerDetail.noAgentsYet": {
     da: "Ingen agenter oprettet endnu.",
     en: "No agents created yet.",
     es: "Aún no se han creado agentes.",
     fr: "Aucun agent créé pour le moment.",
     pt: "Nenhum agente criado ainda.",
+    de: "Noch keine Agenten erstellt.",
   },
   "customerDetail.pauseAction": {
     da: "Sæt på pause",
@@ -46,6 +49,7 @@ export const adminPages: Namespace = {
     es: "Pausar",
     fr: "Mettre en pause",
     pt: "Pausar",
+    de: "Pausieren",
   },
   "customerDetail.activateAction": {
     da: "Aktivér",
@@ -53,6 +57,7 @@ export const adminPages: Namespace = {
     es: "Activar",
     fr: "Activer",
     pt: "Ativar",
+    de: "Aktivieren",
   },
 
   // components/admin/client-portal.tsx
@@ -62,6 +67,7 @@ export const adminPages: Namespace = {
     es: "Portal de clientes",
     fr: "Portail client",
     pt: "Portal de clientes",
+    de: "Kundenportal",
   },
   "clientPortal.subtitle": {
     da: "Overblik over kunder, omsætning og forbrug",
@@ -69,6 +75,7 @@ export const adminPages: Namespace = {
     es: "Resumen de clientes, ingresos y consumo",
     fr: "Aperçu des clients, du chiffre d'affaires et de l'utilisation",
     pt: "Visão geral de clientes, receita e consumo",
+    de: "Überblick über Kunden, Umsatz und Nutzung",
   },
   "clientPortal.statTotalClients": {
     da: "Kunder i alt",
@@ -76,6 +83,7 @@ export const adminPages: Namespace = {
     es: "Clientes totales",
     fr: "Clients au total",
     pt: "Total de clientes",
+    de: "Kunden insgesamt",
   },
   "clientPortal.statNewClients30d": {
     da: "Nye kunder (30 dage)",
@@ -83,6 +91,7 @@ export const adminPages: Namespace = {
     es: "Nuevos clientes (30 días)",
     fr: "Nouveaux clients (30 jours)",
     pt: "Novos clientes (30 dias)",
+    de: "Neue Kunden (30 Tage)",
   },
   "clientPortal.statMrr": {
     da: "Omsætning (MRR)",
@@ -90,6 +99,7 @@ export const adminPages: Namespace = {
     es: "Ingresos (MRR)",
     fr: "Chiffre d'affaires (MRR)",
     pt: "Receita (MRR)",
+    de: "Umsatz (MRR)",
   },
   "clientPortal.statGrossMargin": {
     da: "Estimeret overskud",
@@ -97,6 +107,7 @@ export const adminPages: Namespace = {
     es: "Beneficio estimado",
     fr: "Bénéfice estimé",
     pt: "Lucro estimado",
+    de: "Geschätzter Gewinn",
   },
   "clientPortal.statCreditsRemainingTotal": {
     da: "Credits tilbage i alt",
@@ -104,6 +115,7 @@ export const adminPages: Namespace = {
     es: "Créditos restantes totales",
     fr: "Crédits restants au total",
     pt: "Total de créditos restantes",
+    de: "Verbleibendes Guthaben insgesamt",
   },
   "clientPortal.statTotalAgents": {
     da: "Agenter i alt",
@@ -111,6 +123,7 @@ export const adminPages: Namespace = {
     es: "Agentes totales",
     fr: "Agents au total",
     pt: "Total de agentes",
+    de: "Agenten insgesamt",
   },
   "clientPortal.addClient": {
     da: "+ Tilføj kunde",
@@ -118,6 +131,7 @@ export const adminPages: Namespace = {
     es: "+ Añadir cliente",
     fr: "+ Ajouter un client",
     pt: "+ Adicionar cliente",
+    de: "+ Kunde hinzufügen",
   },
   "clientPortal.formNameLabel": {
     da: "Navn / virksomhed",
@@ -125,6 +139,7 @@ export const adminPages: Namespace = {
     es: "Nombre / empresa",
     fr: "Nom / entreprise",
     pt: "Nome / empresa",
+    de: "Name / Unternehmen",
   },
   "clientPortal.formErrorMissingFields": {
     da: "Udfyld navn og email.",
@@ -132,6 +147,7 @@ export const adminPages: Namespace = {
     es: "Complete el nombre y el correo electrónico.",
     fr: "Renseignez le nom et l'e-mail.",
     pt: "Preencha o nome e o e-mail.",
+    de: "Bitte Name und E-Mail-Adresse angeben.",
   },
   "clientPortal.formErrorCreateFailed": {
     da: "Kunne ikke oprette kunden. Prøv igen.",
@@ -139,6 +155,7 @@ export const adminPages: Namespace = {
     es: "No se pudo crear el cliente. Inténtelo de nuevo.",
     fr: "Impossible de créer le client. Réessayez.",
     pt: "Não foi possível criar o cliente. Tente novamente.",
+    de: "Der Kunde konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
   },
   "clientPortal.formSubmitCreate": {
     da: "Opret kunde",
@@ -146,6 +163,7 @@ export const adminPages: Namespace = {
     es: "Crear cliente",
     fr: "Créer un client",
     pt: "Criar cliente",
+    de: "Kunde erstellen",
   },
   "clientPortal.searchPlaceholder": {
     da: "Søg kunder på navn eller email…",
@@ -153,6 +171,7 @@ export const adminPages: Namespace = {
     es: "Buscar clientes por nombre o correo electrónico…",
     fr: "Rechercher des clients par nom ou e-mail…",
     pt: "Pesquisar clientes por nome ou e-mail…",
+    de: "Kunden nach Name oder E-Mail suchen…",
   },
   "clientPortal.noClientsFound": {
     da: "Ingen kunder fundet.",
@@ -160,6 +179,7 @@ export const adminPages: Namespace = {
     es: "No se encontraron clientes.",
     fr: "Aucun client trouvé.",
     pt: "Nenhum cliente encontrado.",
+    de: "Keine Kunden gefunden.",
   },
   "clientPortal.overpricePerMinute": {
     da: "Overpris: {price}/min",
@@ -167,6 +187,7 @@ export const adminPages: Namespace = {
     es: "Precio de exceso: {price}/min",
     fr: "Prix de dépassement : {price}/min",
     pt: "Preço de excedente: {price}/min",
+    de: "Mehrverbrauchspreis: {price}/Min.",
   },
   "clientPortal.minutesUsed": {
     da: "Minutter brugt",
@@ -174,6 +195,7 @@ export const adminPages: Namespace = {
     es: "Minutos usados",
     fr: "Minutes utilisées",
     pt: "Minutos usados",
+    de: "Verbrauchte Minuten",
   },
   "clientPortal.activeAgents": {
     da: "Aktive agenter",
@@ -181,14 +203,16 @@ export const adminPages: Namespace = {
     es: "Agentes activos",
     fr: "Agents actifs",
     pt: "Agentes ativos",
+    de: "Aktive Agenten",
   },
-  "clientPortal.createdAt": { da: "Oprettet", en: "Created", es: "Creado", fr: "Créé", pt: "Criado" },
+  "clientPortal.createdAt": { da: "Oprettet", en: "Created", es: "Creado", fr: "Créé", pt: "Criado", de: "Erstellt" },
   "clientPortal.addMinutesLabel": {
     da: "Tilføj minutter:",
     en: "Add minutes:",
     es: "Añadir minutos:",
     fr: "Ajouter des minutes :",
     pt: "Adicionar minutos:",
+    de: "Minuten hinzufügen:",
   },
   "clientPortal.removeMinutesLabel": {
     da: "Fjern minutter:",
@@ -196,14 +220,16 @@ export const adminPages: Namespace = {
     es: "Eliminar minutos:",
     fr: "Supprimer des minutes :",
     pt: "Remover minutos:",
+    de: "Minuten entfernen:",
   },
-  "clientPortal.confirm": { da: "Bekræft", en: "Confirm", es: "Confirmar", fr: "Confirmer", pt: "Confirmar" },
+  "clientPortal.confirm": { da: "Bekræft", en: "Confirm", es: "Confirmar", fr: "Confirmer", pt: "Confirmar", de: "Bestätigen" },
   "clientPortal.viewAccount": {
     da: "Se konto",
     en: "View account",
     es: "Ver cuenta",
     fr: "Voir le compte",
     pt: "Ver conta",
+    de: "Konto ansehen",
   },
   "clientPortal.manageAgents": {
     da: "Administrer agenter",
@@ -211,6 +237,7 @@ export const adminPages: Namespace = {
     es: "Gestionar agentes",
     fr: "Gérer les agents",
     pt: "Gerenciar agentes",
+    de: "Agenten verwalten",
   },
   "clientPortal.addCredits": {
     da: "Tilføj credits",
@@ -218,6 +245,7 @@ export const adminPages: Namespace = {
     es: "Añadir créditos",
     fr: "Ajouter des crédits",
     pt: "Adicionar créditos",
+    de: "Guthaben hinzufügen",
   },
   "clientPortal.removeCredits": {
     da: "Fjern credits",
@@ -225,6 +253,7 @@ export const adminPages: Namespace = {
     es: "Eliminar créditos",
     fr: "Supprimer des crédits",
     pt: "Remover créditos",
+    de: "Guthaben entfernen",
   },
   "clientPortal.updatePrice": {
     da: "Opdater pris",
@@ -232,6 +261,7 @@ export const adminPages: Namespace = {
     es: "Actualizar precio",
     fr: "Mettre à jour le prix",
     pt: "Atualizar preço",
+    de: "Preis aktualisieren",
   },
   "clientPortal.updatePriceTooltip": {
     da: "Kommer snart — priser sættes i dag pr. pakke, ikke pr. kunde",
@@ -239,6 +269,7 @@ export const adminPages: Namespace = {
     es: "Próximamente — los precios se establecen actualmente por paquete, no por cliente",
     fr: "Bientôt disponible — les prix sont actuellement définis par forfait, pas par client",
     pt: "Em breve — os preços são atualmente definidos por pacote, não por cliente",
+    de: "Demnächst verfügbar — Preise werden derzeit pro Paket festgelegt, nicht pro Kunde",
   },
   "clientPortal.permissions": {
     da: "Rettigheder",
@@ -246,6 +277,7 @@ export const adminPages: Namespace = {
     es: "Permisos",
     fr: "Autorisations",
     pt: "Permissões",
+    de: "Berechtigungen",
   },
   "clientPortal.permissionsTooltip": {
     da: "Kommer snart",
@@ -253,6 +285,7 @@ export const adminPages: Namespace = {
     es: "Próximamente",
     fr: "Bientôt disponible",
     pt: "Em breve",
+    de: "Demnächst verfügbar",
   },
   "clientPortal.confirmDelete": {
     da: "Slet {name}? Dette deaktiverer kundens konto og widgets.",
@@ -260,6 +293,7 @@ export const adminPages: Namespace = {
     es: "¿Eliminar a {name}? Esto desactivará la cuenta y los widgets del cliente.",
     fr: "Supprimer {name} ? Cela désactivera le compte et les widgets du client.",
     pt: "Excluir {name}? Isso desativará a conta e os widgets do cliente.",
+    de: "{name} löschen? Dadurch werden das Konto und die Widgets des Kunden deaktiviert.",
   },
 
   // app/admin/phone-numbers/page.tsx + components/admin/phone-numbers-table.tsx
@@ -269,6 +303,7 @@ export const adminPages: Namespace = {
     es: "Todos los números de teléfono de todos los clientes.",
     fr: "Tous les numéros de téléphone, tous clients confondus.",
     pt: "Todos os números de telefone de todos os clientes.",
+    de: "Alle Telefonnummern über alle Kunden hinweg.",
   },
   "phoneNumbers.unknownCustomer": {
     da: "Ukendt kunde",
@@ -276,6 +311,7 @@ export const adminPages: Namespace = {
     es: "Cliente desconocido",
     fr: "Client inconnu",
     pt: "Cliente desconhecido",
+    de: "Unbekannter Kunde",
   },
   "phoneNumbers.unknownAgent": {
     da: "Ukendt agent",
@@ -283,6 +319,7 @@ export const adminPages: Namespace = {
     es: "Agente desconocido",
     fr: "Agent inconnu",
     pt: "Agente desconhecido",
+    de: "Unbekannter Agent",
   },
   "phoneNumbers.statusPendingPayment": {
     da: "Afventer betaling",
@@ -290,6 +327,7 @@ export const adminPages: Namespace = {
     es: "Esperando pago",
     fr: "En attente de paiement",
     pt: "Aguardando pagamento",
+    de: "Zahlung ausstehend",
   },
   "phoneNumbers.statusPaymentConfirmed": {
     da: "Betaling bekræftet",
@@ -297,6 +335,7 @@ export const adminPages: Namespace = {
     es: "Pago confirmado",
     fr: "Paiement confirmé",
     pt: "Pagamento confirmado",
+    de: "Zahlung bestätigt",
   },
   "phoneNumbers.statusProvisioning": {
     da: "Provisionerer…",
@@ -304,24 +343,27 @@ export const adminPages: Namespace = {
     es: "Aprovisionando…",
     fr: "Provisionnement…",
     pt: "Provisionando…",
+    de: "Wird bereitgestellt…",
   },
-  "phoneNumbers.statusFailed": { da: "Fejlet", en: "Failed", es: "Fallido", fr: "Échoué", pt: "Falhou" },
+  "phoneNumbers.statusFailed": { da: "Fejlet", en: "Failed", es: "Fallido", fr: "Échoué", pt: "Falhou", de: "Fehlgeschlagen" },
   "phoneNumbers.statusReleased": {
     da: "Frigivet",
     en: "Released",
     es: "Liberado",
     fr: "Libéré",
     pt: "Liberado",
+    de: "Freigegeben",
   },
   // Telephony direction terms — kept as the same English words in every
   // locale, matching the current Danish UI (already unstranslated there).
-  "phoneNumbers.directionInbound": { da: "Inbound", en: "Inbound", es: "Inbound", fr: "Inbound", pt: "Inbound" },
+  "phoneNumbers.directionInbound": { da: "Inbound", en: "Inbound", es: "Inbound", fr: "Inbound", pt: "Inbound", de: "Inbound" },
   "phoneNumbers.directionOutbound": {
     da: "Outbound",
     en: "Outbound",
     es: "Outbound",
     fr: "Outbound",
     pt: "Outbound",
+    de: "Outbound",
   },
   "phoneNumbers.directionBoth": {
     da: "Inbound + Outbound",
@@ -329,6 +371,7 @@ export const adminPages: Namespace = {
     es: "Inbound + Outbound",
     fr: "Inbound + Outbound",
     pt: "Inbound + Outbound",
+    de: "Inbound + Outbound",
   },
   "phoneNumbers.sourcePlatform": {
     da: "Købt gennem os",
@@ -336,6 +379,7 @@ export const adminPages: Namespace = {
     es: "Comprado a través de nosotros",
     fr: "Acheté via nous",
     pt: "Comprado através de nós",
+    de: "Über uns gekauft",
   },
   "phoneNumbers.sourceByo": {
     da: "Eget Twilio",
@@ -343,25 +387,28 @@ export const adminPages: Namespace = {
     es: "Twilio propio",
     fr: "Twilio personnel",
     pt: "Twilio próprio",
+    de: "Eigenes Twilio",
   },
-  "phoneNumbers.tableNumber": { da: "Nummer", en: "Number", es: "Número", fr: "Numéro", pt: "Número" },
-  "phoneNumbers.tableCustomer": { da: "Kunde", en: "Customer", es: "Cliente", fr: "Client", pt: "Cliente" },
-  "phoneNumbers.tableAgent": { da: "Agent", en: "Agent", es: "Agente", fr: "Agent", pt: "Agente" },
+  "phoneNumbers.tableNumber": { da: "Nummer", en: "Number", es: "Número", fr: "Numéro", pt: "Número", de: "Nummer" },
+  "phoneNumbers.tableCustomer": { da: "Kunde", en: "Customer", es: "Cliente", fr: "Client", pt: "Cliente", de: "Kunde" },
+  "phoneNumbers.tableAgent": { da: "Agent", en: "Agent", es: "Agente", fr: "Agent", pt: "Agente", de: "Agent" },
   "phoneNumbers.tableDirection": {
     da: "Retning",
     en: "Direction",
     es: "Dirección",
     fr: "Sens",
     pt: "Direção",
+    de: "Richtung",
   },
-  "phoneNumbers.tableSource": { da: "Kilde", en: "Source", es: "Origen", fr: "Source", pt: "Origem" },
-  "phoneNumbers.tablePrice": { da: "Pris", en: "Price", es: "Precio", fr: "Prix", pt: "Preço" },
+  "phoneNumbers.tableSource": { da: "Kilde", en: "Source", es: "Origen", fr: "Source", pt: "Origem", de: "Quelle" },
+  "phoneNumbers.tablePrice": { da: "Pris", en: "Price", es: "Precio", fr: "Prix", pt: "Preço", de: "Preis" },
   "phoneNumbers.tableActions": {
     da: "Handlinger",
     en: "Actions",
     es: "Acciones",
     fr: "Actions",
     pt: "Ações",
+    de: "Aktionen",
   },
   "phoneNumbers.empty": {
     da: "Ingen telefonnumre endnu.",
@@ -369,6 +416,7 @@ export const adminPages: Namespace = {
     es: "Aún no hay números de teléfono.",
     fr: "Aucun numéro de téléphone pour le moment.",
     pt: "Ainda não há números de telefone.",
+    de: "Noch keine Telefonnummern.",
   },
   "phoneNumbers.priceMonthly": {
     da: "{price} DKK/md",
@@ -376,17 +424,19 @@ export const adminPages: Namespace = {
     es: "{price} DKK/mes",
     fr: "{price} DKK/mois",
     pt: "{price} DKK/mês",
+    de: "{price} DKK/Monat",
   },
-  "phoneNumbers.noPrice": { da: "—", en: "—", es: "—", fr: "—", pt: "—" },
+  "phoneNumbers.noPrice": { da: "—", en: "—", es: "—", fr: "—", pt: "—", de: "—" },
   "phoneNumbers.confirmRelease": {
     da: "Frigiv dette nummer fra Twilio? Det kan ikke gendannes.",
     en: "Release this number from Twilio? This cannot be undone.",
     es: "¿Liberar este número de Twilio? Esta acción no se puede deshacer.",
     fr: "Libérer ce numéro de Twilio ? Cette action est irréversible.",
     pt: "Liberar este número do Twilio? Isso não pode ser desfeito.",
+    de: "Diese Nummer bei Twilio freigeben? Dies kann nicht rückgängig gemacht werden.",
   },
-  "phoneNumbers.retry": { da: "Prøv igen", en: "Retry", es: "Reintentar", fr: "Réessayer", pt: "Tentar novamente" },
-  "phoneNumbers.release": { da: "Frigiv", en: "Release", es: "Liberar", fr: "Libérer", pt: "Liberar" },
+  "phoneNumbers.retry": { da: "Prøv igen", en: "Retry", es: "Reintentar", fr: "Réessayer", pt: "Tentar novamente", de: "Erneut versuchen" },
+  "phoneNumbers.release": { da: "Frigiv", en: "Release", es: "Liberar", fr: "Libérer", pt: "Liberar", de: "Freigeben" },
 
   // app/admin/settings/page.tsx
   "settings.subtitle": {
@@ -395,6 +445,7 @@ export const adminPages: Namespace = {
     es: "Configuración de toda la plataforma.",
     fr: "Configuration à l'échelle de la plateforme.",
     pt: "Configuração de toda a plataforma.",
+    de: "Plattformweite Einrichtung.",
   },
 
   // components/admin/vapi-voice-templates-settings.tsx
@@ -404,6 +455,7 @@ export const adminPages: Namespace = {
     es: "Agentes de voz de Vapi",
     fr: "Agents vocaux Vapi",
     pt: "Agentes de voz Vapi",
+    de: "Vapi-Sprachagenten",
   },
   "vapiVoiceTemplates.description": {
     da: `Peg "Mand" og "Dame" på jeres to hand-konfigurerede Vapi-agenter. Kunder vælger kun mellem Mand/Dame i deres Widget Voice-agent — de ser aldrig disse ID'er.`,
@@ -411,6 +463,7 @@ export const adminPages: Namespace = {
     es: `Asigna "Hombre" y "Mujer" a vuestros dos agentes de Vapi configurados manualmente. Los clientes solo eligen entre Hombre/Mujer en su agente de voz del widget — nunca ven estos ID.`,
     fr: `Associez "Homme" et "Femme" à vos deux agents Vapi configurés manuellement. Les clients choisissent uniquement entre Homme/Femme dans leur agent vocal du widget — ils ne voient jamais ces ID.`,
     pt: `Aponte "Masculino" e "Feminino" para os seus dois agentes Vapi configurados manualmente. Os clientes só escolhem entre Masculino/Feminino no agente de voz do widget — eles nunca veem esses IDs.`,
+    de: `Weisen Sie "Männlich" und "Weiblich" Ihren beiden manuell konfigurierten Vapi-Agenten zu. Kunden wählen in ihrem Widget-Sprachagenten nur zwischen Männlich/Weiblich — diese IDs bekommen sie nie zu sehen.`,
   },
   "vapiVoiceTemplates.maleFieldLabel": {
     da: "Mand — Vapi Assistant ID",
@@ -418,6 +471,7 @@ export const adminPages: Namespace = {
     es: "Hombre — ID de asistente de Vapi",
     fr: "Homme — ID d'assistant Vapi",
     pt: "Masculino — ID do assistente Vapi",
+    de: "Männlich — Vapi-Assistant-ID",
   },
   "vapiVoiceTemplates.femaleFieldLabel": {
     da: "Dame — Vapi Assistant ID",
@@ -425,6 +479,7 @@ export const adminPages: Namespace = {
     es: "Mujer — ID de asistente de Vapi",
     fr: "Femme — ID d'assistant Vapi",
     pt: "Feminino — ID do assistente Vapi",
+    de: "Weiblich — Vapi-Assistant-ID",
   },
   "vapiVoiceTemplates.idPlaceholder": {
     da: "fx 8f1c2e3a-...",
@@ -432,5 +487,6 @@ export const adminPages: Namespace = {
     es: "ej. 8f1c2e3a-...",
     fr: "p. ex. 8f1c2e3a-...",
     pt: "ex.: 8f1c2e3a-...",
+    de: "z. B. 8f1c2e3a-...",
   },
 };

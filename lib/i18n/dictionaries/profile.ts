@@ -5,13 +5,14 @@ import type { Namespace } from "./types";
 // signed-in user changes their own Dashboard/Admin UI language after
 // signup. See lib/i18n/locales.ts and app/api/profile/language/route.ts.
 export const profile: Namespace = {
-  title: { da: "Profil", en: "Profile", es: "Perfil", fr: "Profil", pt: "Perfil" },
+  title: { da: "Profil", en: "Profile", es: "Perfil", fr: "Profil", pt: "Perfil", de: "Profil" },
   subtitle: {
     da: "Dine personlige indstillinger.",
     en: "Your personal settings.",
     es: "Su configuración personal.",
     fr: "Vos paramètres personnels.",
     pt: "Suas configurações pessoais.",
+    de: "Ihre persönlichen Einstellungen.",
   },
   languageSectionTitle: {
     da: "Sprog",
@@ -19,6 +20,7 @@ export const profile: Namespace = {
     es: "Idioma",
     fr: "Langue",
     pt: "Idioma",
+    de: "Sprache",
   },
   languageSectionDescription: {
     da: "Sproget Dashboard/Admin vises på for dig. Påvirker ikke jeres widgets' eget sprog.",
@@ -26,6 +28,7 @@ export const profile: Namespace = {
     es: "El idioma en el que se muestra el Panel/Admin para usted. No afecta al idioma propio de sus widgets.",
     fr: "La langue dans laquelle le Tableau de bord/Admin vous est présenté. N'affecte pas la langue propre de vos widgets.",
     pt: "O idioma em que o Painel/Admin é exibido para você. Não afeta o idioma próprio dos seus widgets.",
+    de: "Die Sprache, in der Dashboard/Admin für Sie angezeigt wird. Hat keinen Einfluss auf die eigene Sprache Ihrer Widgets.",
   },
   languageLabel: {
     da: "Sprog",
@@ -33,5 +36,6 @@ export const profile: Namespace = {
     es: "Idioma",
     fr: "Langue",
     pt: "Idioma",
+    de: "Sprache",
   },
 };

@@ -10,13 +10,14 @@ export const dashboardPages: Namespace = {
   // ---------------------------------------------------------------------
   // shared — small fragments reused by more than one file in this batch.
   // ---------------------------------------------------------------------
-  "shared.agentLabel": { da: "Agent", en: "Agent", es: "Agente", fr: "Agent", pt: "Agente" },
+  "shared.agentLabel": { da: "Agent", en: "Agent", es: "Agente", fr: "Agent", pt: "Agente", de: "Agent" },
   "shared.unknownAgent": {
     da: "Ukendt agent",
     en: "Unknown agent",
     es: "Agente desconocido",
     fr: "Agent inconnu",
     pt: "Agente desconhecido",
+    de: "Unbekannter Agent",
   },
   "shared.unknownWidget": {
     da: "Ukendt widget",
@@ -24,6 +25,7 @@ export const dashboardPages: Namespace = {
     es: "Widget desconocido",
     fr: "Widget inconnu",
     pt: "Widget desconhecido",
+    de: "Unbekanntes Widget",
   },
   "shared.unknownCustomer": {
     da: "Ukendt kunde",
@@ -31,14 +33,16 @@ export const dashboardPages: Namespace = {
     es: "Cliente desconocido",
     fr: "Client inconnu",
     pt: "Cliente desconhecido",
+    de: "Unbekannter Kunde",
   },
-  "shared.statusActive": { da: "Aktiv", en: "Active", es: "Activo", fr: "Actif", pt: "Ativo" },
+  "shared.statusActive": { da: "Aktiv", en: "Active", es: "Activo", fr: "Actif", pt: "Ativo", de: "Aktiv" },
   "shared.widgetStatusPaused": {
     da: "Sat på pause",
     en: "Paused",
     es: "En pausa",
     fr: "En pause",
     pt: "Em pausa",
+    de: "Pausiert",
   },
   "shared.comingSoon": {
     da: "Kommer snart",
@@ -46,22 +50,25 @@ export const dashboardPages: Namespace = {
     es: "Próximamente",
     fr: "Bientôt disponible",
     pt: "Em breve",
+    de: "Demnächst verfügbar",
   },
-  "shared.roleCustomer": { da: "Kunde", en: "Customer", es: "Cliente", fr: "Client", pt: "Cliente" },
+  "shared.roleCustomer": { da: "Kunde", en: "Customer", es: "Cliente", fr: "Client", pt: "Cliente", de: "Kunde" },
   "shared.roleAssistant": {
     da: "AI-assistent",
     en: "AI assistant",
     es: "Asistente de IA",
     fr: "Assistant IA",
     pt: "Assistente de IA",
+    de: "KI-Assistent",
   },
-  "shared.roleSystem": { da: "System", en: "System", es: "Sistema", fr: "Système", pt: "Sistema" },
+  "shared.roleSystem": { da: "System", en: "System", es: "Sistema", fr: "Système", pt: "Sistema", de: "System" },
   "shared.includedInPackage": {
     da: "Inkluderet i pakke",
     en: "Included in your plan",
     es: "Incluido en el plan",
     fr: "Inclus dans le forfait",
     pt: "Incluído no plano",
+    de: "Im Tarif enthalten",
   },
   "shared.introOfferBadge": {
     da: "Introtilbud",
@@ -69,14 +76,16 @@ export const dashboardPages: Namespace = {
     es: "Oferta de bienvenida",
     fr: "Offre de bienvenue",
     pt: "Oferta de boas-vindas",
+    de: "Einführungsangebot",
   },
-  "shared.popularBadge": { da: "Populær", en: "Popular", es: "Popular", fr: "Populaire", pt: "Popular" },
+  "shared.popularBadge": { da: "Populær", en: "Popular", es: "Popular", fr: "Populaire", pt: "Popular", de: "Beliebt" },
   "shared.openingCheckout": {
     da: "Åbner betaling…",
     en: "Opening checkout…",
     es: "Abriendo el pago…",
     fr: "Ouverture du paiement…",
     pt: "Abrindo o pagamento…",
+    de: "Zahlung wird geöffnet…",
   },
   "shared.noMessagesForConversation": {
     da: "Ingen beskeder registreret for denne samtale.",
@@ -84,18 +93,20 @@ export const dashboardPages: Namespace = {
     es: "No hay mensajes registrados para esta conversación.",
     fr: "Aucun message enregistré pour cette conversation.",
     pt: "Nenhuma mensagem registrada para esta conversa.",
+    de: "Für dieses Gespräch wurden keine Nachrichten erfasst.",
   },
 
   // ---------------------------------------------------------------------
   // app/dashboard/page.tsx
   // ---------------------------------------------------------------------
-  "dashboard.title": { da: "Dashboard", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel" },
+  "dashboard.title": { da: "Dashboard", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel", de: "Dashboard" },
   "dashboard.subtitle": {
     da: "Følg jeres AI-widgets' performance",
     en: "Track your AI widgets' performance",
     es: "Siga el rendimiento de sus widgets de IA",
     fr: "Suivez les performances de vos widgets IA",
     pt: "Acompanhe o desempenho dos seus widgets de IA",
+    de: "Behalten Sie die Leistung Ihrer KI-Widgets im Blick",
   },
   "dashboard.statTotalConversations": {
     da: "Samtaler i alt",
@@ -103,6 +114,7 @@ export const dashboardPages: Namespace = {
     es: "Conversaciones totales",
     fr: "Total des conversations",
     pt: "Total de conversas",
+    de: "Gespräche insgesamt",
   },
   "dashboard.statActiveWidgets": {
     da: "Aktive widgets",
@@ -110,6 +122,7 @@ export const dashboardPages: Namespace = {
     es: "Widgets activos",
     fr: "Widgets actifs",
     pt: "Widgets ativos",
+    de: "Aktive Widgets",
   },
   "dashboard.statMinutesUsed": {
     da: "Minutter brugt",
@@ -117,6 +130,7 @@ export const dashboardPages: Namespace = {
     es: "Minutos usados",
     fr: "Minutes utilisées",
     pt: "Minutos usados",
+    de: "Genutzte Minuten",
   },
   "dashboard.statMinutesRemaining": {
     da: "Minutter tilbage",
@@ -124,6 +138,7 @@ export const dashboardPages: Namespace = {
     es: "Minutos restantes",
     fr: "Minutes restantes",
     pt: "Minutos restantes",
+    de: "Verbleibende Minuten",
   },
   "dashboard.voiceWidgetHeading": {
     da: "Voice Widget",
@@ -131,6 +146,7 @@ export const dashboardPages: Namespace = {
     es: "Widget de voz",
     fr: "Widget vocal",
     pt: "Widget de voz",
+    de: "Voice Widget",
   },
   "dashboard.seeAgents": {
     da: "Se agenter →",
@@ -138,6 +154,7 @@ export const dashboardPages: Namespace = {
     es: "Ver agentes →",
     fr: "Voir les agents →",
     pt: "Ver agentes →",
+    de: "Agenten ansehen →",
   },
   "dashboard.activeAgents": {
     da: "Aktive agenter",
@@ -145,6 +162,7 @@ export const dashboardPages: Namespace = {
     es: "Agentes activos",
     fr: "Agents actifs",
     pt: "Agentes ativos",
+    de: "Aktive Agenten",
   },
   "dashboard.conversations": {
     da: "Samtaler",
@@ -152,22 +170,25 @@ export const dashboardPages: Namespace = {
     es: "Conversaciones",
     fr: "Conversations",
     pt: "Conversas",
+    de: "Gespräche",
   },
-  "dashboard.minutes": { da: "Minutter", en: "Minutes", es: "Minutos", fr: "Minutes", pt: "Minutos" },
+  "dashboard.minutes": { da: "Minutter", en: "Minutes", es: "Minutos", fr: "Minutes", pt: "Minutos", de: "Minuten" },
   "dashboard.phoneHeading": {
     da: "Telefon (Inbound/Outbound)",
     en: "Phone (Inbound/Outbound)",
     es: "Teléfono (entrante/saliente)",
     fr: "Téléphone (entrant/sortant)",
     pt: "Telefone (recebidas/efetuadas)",
+    de: "Telefon (eingehend/ausgehend)",
   },
-  "dashboard.calls": { da: "Opkald", en: "Calls", es: "Llamadas", fr: "Appels", pt: "Chamadas" },
+  "dashboard.calls": { da: "Opkald", en: "Calls", es: "Llamadas", fr: "Appels", pt: "Chamadas", de: "Anrufe" },
   "dashboard.recentConversationsHeading": {
     da: "Seneste samtaler",
     en: "Recent conversations",
     es: "Conversaciones recientes",
     fr: "Conversations récentes",
     pt: "Conversas recentes",
+    de: "Letzte Gespräche",
   },
   "dashboard.recentlyUsedWidgetsHeading": {
     da: "Senest brugte widgets",
@@ -175,6 +196,7 @@ export const dashboardPages: Namespace = {
     es: "Widgets usados recientemente",
     fr: "Widgets récemment utilisés",
     pt: "Widgets usados recentemente",
+    de: "Zuletzt verwendete Widgets",
   },
   "dashboard.noWidgetsUsedYet": {
     da: "Ingen widgets brugt endnu.",
@@ -182,6 +204,7 @@ export const dashboardPages: Namespace = {
     es: "Aún no se ha usado ningún widget.",
     fr: "Aucun widget utilisé pour l'instant.",
     pt: "Nenhum widget usado ainda.",
+    de: "Noch keine Widgets verwendet.",
   },
   "dashboard.bookingsHeading": {
     da: "Bookinger",
@@ -189,6 +212,7 @@ export const dashboardPages: Namespace = {
     es: "Reservas",
     fr: "Rendez-vous",
     pt: "Agendamentos",
+    de: "Buchungen",
   },
 
   // ---------------------------------------------------------------------
@@ -200,6 +224,7 @@ export const dashboardPages: Namespace = {
     es: "Primeros pasos",
     fr: "Prise en main",
     pt: "Primeiros passos",
+    de: "Erste Schritte",
   },
   "getting-started.subtitle": {
     da: "Følg trinene herunder for at få jeres AI-agent live — {completed} af {total} klaret.",
@@ -207,6 +232,7 @@ export const dashboardPages: Namespace = {
     es: "Siga los pasos a continuación para poner en marcha su agente de IA — {completed} de {total} completados.",
     fr: "Suivez les étapes ci-dessous pour mettre votre agent IA en ligne — {completed} sur {total} terminées.",
     pt: "Siga as etapas abaixo para colocar seu agente de IA no ar — {completed} de {total} concluídas.",
+    de: "Folgen Sie den Schritten unten, um Ihren KI-Agenten live zu schalten — {completed} von {total} erledigt.",
   },
   "getting-started.rememberStep": {
     da: "Husk selv at gennemføre dette trin",
@@ -214,6 +240,7 @@ export const dashboardPages: Namespace = {
     es: "Recuerde completar este paso usted mismo",
     fr: "N'oubliez pas d'effectuer vous-même cette étape",
     pt: "Lembre-se de concluir esta etapa você mesmo",
+    de: "Denken Sie daran, diesen Schritt selbst abzuschließen",
   },
   "getting-started.step1Title": {
     da: "1. Opret jeres agent",
@@ -221,6 +248,7 @@ export const dashboardPages: Namespace = {
     es: "1. Cree su agente",
     fr: "1. Créez votre agent",
     pt: "1. Crie seu agente",
+    de: "1. Erstellen Sie Ihren Agenten",
   },
   "getting-started.step1Description": {
     da: "Giv agenten et navn og vælg hvilken AI-model den skal bruge.",
@@ -228,6 +256,7 @@ export const dashboardPages: Namespace = {
     es: "Dele un nombre a su agente y elija qué modelo de IA debe usar.",
     fr: "Donnez un nom à votre agent et choisissez le modèle d'IA qu'il doit utiliser.",
     pt: "Dê um nome ao seu agente e escolha qual modelo de IA ele deve usar.",
+    de: "Geben Sie Ihrem Agenten einen Namen und wählen Sie, welches KI-Modell er verwenden soll.",
   },
   "getting-started.step1CtaDone": {
     da: "Se agenter",
@@ -235,6 +264,7 @@ export const dashboardPages: Namespace = {
     es: "Ver agentes",
     fr: "Voir les agents",
     pt: "Ver agentes",
+    de: "Agenten ansehen",
   },
   "getting-started.step1CtaNotDone": {
     da: "Opret agent",
@@ -242,6 +272,7 @@ export const dashboardPages: Namespace = {
     es: "Crear agente",
     fr: "Créer un agent",
     pt: "Criar agente",
+    de: "Agent erstellen",
   },
   "getting-started.step2Title": {
     da: "2. Skriv prompt og vælg stemme",
@@ -249,6 +280,7 @@ export const dashboardPages: Namespace = {
     es: "2. Escriba el prompt y elija una voz",
     fr: "2. Rédigez le prompt et choisissez une voix",
     pt: "2. Escreva o prompt e escolha uma voz",
+    de: "2. Schreiben Sie den Prompt und wählen Sie eine Stimme",
   },
   "getting-started.step2Description": {
     da: "Fortæl agenten om jeres virksomhed, og vælg en dansk stemme under Prompt Lab / Settings.",
@@ -256,6 +288,7 @@ export const dashboardPages: Namespace = {
     es: "Cuéntele al agente sobre su empresa y elija una voz en Prompt Lab / Settings.",
     fr: "Parlez de votre entreprise à l'agent et choisissez une voix dans Prompt Lab / Settings.",
     pt: "Conte ao agente sobre sua empresa e escolha uma voz em Prompt Lab / Settings.",
+    de: "Erzählen Sie dem Agenten von Ihrem Unternehmen und wählen Sie eine Stimme unter Prompt Lab / Settings.",
   },
   "getting-started.step2Cta": {
     da: "Tilpas agent",
@@ -263,6 +296,7 @@ export const dashboardPages: Namespace = {
     es: "Personalizar agente",
     fr: "Personnaliser l'agent",
     pt: "Personalizar agente",
+    de: "Agent anpassen",
   },
   "getting-started.step3Title": {
     da: "3. Få et telefonnummer",
@@ -270,6 +304,7 @@ export const dashboardPages: Namespace = {
     es: "3. Obtenga un número de teléfono",
     fr: "3. Obtenez un numéro de téléphone",
     pt: "3. Obtenha um número de telefone",
+    de: "3. Holen Sie sich eine Telefonnummer",
   },
   "getting-started.step3Description": {
     da: "Køb et dansk nummer gennem os, eller importér jeres eget Twilio-nummer.",
@@ -277,6 +312,7 @@ export const dashboardPages: Namespace = {
     es: "Compre un número danés a través de nosotros, o importe su propio número de Twilio.",
     fr: "Achetez un numéro danois via nous, ou importez votre propre numéro Twilio.",
     pt: "Compre um número dinamarquês conosco, ou importe seu próprio número da Twilio.",
+    de: "Kaufen Sie eine deutsche Nummer bei uns oder importieren Sie Ihre eigene Twilio-Nummer.",
   },
   "getting-started.step3CtaDone": {
     da: "Se numre",
@@ -284,6 +320,7 @@ export const dashboardPages: Namespace = {
     es: "Ver números",
     fr: "Voir les numéros",
     pt: "Ver números",
+    de: "Nummern ansehen",
   },
   "getting-started.step3CtaNotDone": {
     da: "Få et nummer",
@@ -291,6 +328,7 @@ export const dashboardPages: Namespace = {
     es: "Obtener un número",
     fr: "Obtenir un numéro",
     pt: "Obter um número",
+    de: "Nummer holen",
   },
   "getting-started.step4Title": {
     da: "4. Viderestil jeres eksisterende nummer",
@@ -298,6 +336,7 @@ export const dashboardPages: Namespace = {
     es: "4. Desvíe su número existente",
     fr: "4. Transférez votre numéro existant",
     pt: "4. Encaminhe seu número existente",
+    de: "4. Leiten Sie Ihre bestehende Nummer um",
   },
   "getting-started.step4Description": {
     da: "Ring en kort kode op fra jeres nuværende mobil/fastnet, så opkald går videre til agenten.",
@@ -305,6 +344,7 @@ export const dashboardPages: Namespace = {
     es: "Marque un código corto desde su móvil/fijo actual para que las llamadas se desvíen al agente.",
     fr: "Composez un code court depuis votre mobile/fixe actuel pour que les appels soient transférés vers l'agent.",
     pt: "Disque um código curto do seu celular/fixo atual para que as chamadas sejam encaminhadas ao agente.",
+    de: "Wählen Sie einen kurzen Code von Ihrem aktuellen Mobil-/Festnetzanschluss, damit Anrufe an den Agenten weitergeleitet werden.",
   },
   "getting-started.step4Cta": {
     da: "Se koder",
@@ -312,6 +352,7 @@ export const dashboardPages: Namespace = {
     es: "Ver códigos",
     fr: "Voir les codes",
     pt: "Ver códigos",
+    de: "Codes ansehen",
   },
   "getting-started.step5Title": {
     da: "5. Forbind jeres kalender",
@@ -319,6 +360,7 @@ export const dashboardPages: Namespace = {
     es: "5. Conecte su calendario",
     fr: "5. Connectez votre calendrier",
     pt: "5. Conecte seu calendário",
+    de: "5. Verbinden Sie Ihren Kalender",
   },
   "getting-started.step5Description": {
     da: "Google Kalender, Outlook/Microsoft 365 eller Cal.com — så agenten kan se ledige tider.",
@@ -326,6 +368,7 @@ export const dashboardPages: Namespace = {
     es: "Google Calendar, Outlook/Microsoft 365 o Cal.com — para que el agente pueda ver los horarios disponibles.",
     fr: "Google Agenda, Outlook/Microsoft 365 ou Cal.com — pour que l'agent puisse voir les créneaux disponibles.",
     pt: "Google Agenda, Outlook/Microsoft 365 ou Cal.com — para que o agente veja os horários disponíveis.",
+    de: "Google Kalender, Outlook/Microsoft 365 oder Cal.com — damit der Agent verfügbare Zeiten sehen kann.",
   },
   "getting-started.step5CtaDone": {
     da: "Se forbindelser",
@@ -333,6 +376,7 @@ export const dashboardPages: Namespace = {
     es: "Ver conexiones",
     fr: "Voir les connexions",
     pt: "Ver conexões",
+    de: "Verbindungen ansehen",
   },
   "getting-started.step5CtaNotDone": {
     da: "Forbind kalender",
@@ -340,6 +384,7 @@ export const dashboardPages: Namespace = {
     es: "Conectar calendario",
     fr: "Connecter le calendrier",
     pt: "Conectar calendário",
+    de: "Kalender verbinden",
   },
   "getting-started.step6Title": {
     da: "6. Hent jeres embed-kode",
@@ -347,6 +392,7 @@ export const dashboardPages: Namespace = {
     es: "6. Obtenga su código de inserción",
     fr: "6. Récupérez votre code d'intégration",
     pt: "6. Obtenha seu código de incorporação",
+    de: "6. Holen Sie sich Ihren Einbettungscode",
   },
   "getting-started.step6Description": {
     da: "Indsæt widget-koden på jeres hjemmeside, så kunder kan tale med agenten direkte på sitet.",
@@ -354,6 +400,7 @@ export const dashboardPages: Namespace = {
     es: "Añada el código del widget a su sitio web para que los clientes puedan hablar con el agente directamente allí.",
     fr: "Ajoutez le code du widget à votre site web pour que les clients puissent parler directement à l'agent.",
     pt: "Adicione o código do widget ao seu site para que os clientes possam falar com o agente diretamente nele.",
+    de: "Fügen Sie den Widget-Code auf Ihrer Website ein, damit Kunden direkt auf der Seite mit dem Agenten sprechen können.",
   },
   "getting-started.step6Cta": {
     da: "Hent kode",
@@ -361,6 +408,7 @@ export const dashboardPages: Namespace = {
     es: "Obtener código",
     fr: "Récupérer le code",
     pt: "Obter código",
+    de: "Code holen",
   },
 
   // ---------------------------------------------------------------------
@@ -372,6 +420,7 @@ export const dashboardPages: Namespace = {
     es: "Suba documentos, texto o enlaces por agente para que sus agentes de IA respondan con mayor precisión.",
     fr: "Téléversez des documents, du texte ou des liens par agent afin que vos agents IA répondent plus précisément.",
     pt: "Envie documentos, textos ou links por agente para que seus agentes de IA respondam com mais precisão.",
+    de: "Laden Sie Dokumente, Texte oder Links pro Agent hoch, damit Ihre KI-Agenten präziser antworten können.",
   },
   "knowledge-base.noAgentsYet": {
     da: "I har ikke oprettet nogen agenter endnu.",
@@ -379,6 +428,7 @@ export const dashboardPages: Namespace = {
     es: "Aún no ha creado ningún agente.",
     fr: "Vous n'avez encore créé aucun agent.",
     pt: "Vocês ainda não criaram nenhum agente.",
+    de: "Sie haben noch keine Agenten erstellt.",
   },
   "knowledge-base.createFirstAgent": {
     da: "Opret jeres første agent →",
@@ -386,6 +436,7 @@ export const dashboardPages: Namespace = {
     es: "Cree su primer agente →",
     fr: "Créez votre premier agent →",
     pt: "Crie seu primeiro agente →",
+    de: "Erstellen Sie Ihren ersten Agenten →",
   },
   "knowledge-base.manageKnowledgeBase": {
     da: "Administrér videnbase →",
@@ -393,6 +444,7 @@ export const dashboardPages: Namespace = {
     es: "Administrar base de conocimiento →",
     fr: "Gérer la base de connaissances →",
     pt: "Gerenciar base de conhecimento →",
+    de: "Wissensdatenbank verwalten →",
   },
 
   // ---------------------------------------------------------------------
@@ -405,6 +457,7 @@ export const dashboardPages: Namespace = {
     es: "Administre varias subcuentas desde una única vista general.",
     fr: "Gérez plusieurs sous-comptes depuis une seule vue d'ensemble.",
     pt: "Administre várias subcontas a partir de uma única visão geral.",
+    de: "Verwalten Sie mehrere Unterkonten aus einer einzigen Übersicht.",
   },
   "analytics.description": {
     da: "Dybere indsigt i samtalevolumen, konvertering og performance over tid.",
@@ -412,18 +465,20 @@ export const dashboardPages: Namespace = {
     es: "Información más profunda sobre el volumen de conversaciones, la conversión y el rendimiento a lo largo del tiempo.",
     fr: "Un aperçu plus approfondi du volume de conversations, de la conversion et des performances dans le temps.",
     pt: "Insights mais profundos sobre volume de conversas, conversão e desempenho ao longo do tempo.",
+    de: "Tiefere Einblicke in Gesprächsvolumen, Konversion und Leistung im Zeitverlauf.",
   },
 
   // ---------------------------------------------------------------------
   // components/dashboard/billing-manager.tsx
   // ---------------------------------------------------------------------
-  "billing.title": { da: "Betaling", en: "Billing", es: "Facturación", fr: "Facturation", pt: "Faturamento" },
+  "billing.title": { da: "Betaling", en: "Billing", es: "Facturación", fr: "Facturation", pt: "Faturamento", de: "Abrechnung" },
   "billing.subtitle": {
     da: "Administrer jeres pakke, forbrug og betalingsmetode.",
     en: "Manage your plan, usage, and payment method.",
     es: "Administre su plan, consumo y método de pago.",
     fr: "Gérez votre forfait, votre consommation et votre moyen de paiement.",
     pt: "Administre seu plano, consumo e método de pagamento.",
+    de: "Verwalten Sie Ihren Tarif, Ihre Nutzung und Ihre Zahlungsmethode.",
   },
   "billing.checkoutSuccess": {
     da: "Betaling gennemført — jeres pakke er nu aktiv.",
@@ -431,6 +486,7 @@ export const dashboardPages: Namespace = {
     es: "Pago completado — su plan ya está activo.",
     fr: "Paiement effectué — votre forfait est désormais actif.",
     pt: "Pagamento concluído — seu plano já está ativo.",
+    de: "Zahlung abgeschlossen — Ihr Tarif ist jetzt aktiv.",
   },
   "billing.checkoutCancelled": {
     da: "Betalingen blev annulleret — der er ikke sket noget.",
@@ -438,15 +494,17 @@ export const dashboardPages: Namespace = {
     es: "El pago fue cancelado — no ha cambiado nada.",
     fr: "Le paiement a été annulé — rien n'a changé.",
     pt: "O pagamento foi cancelado — nada foi alterado.",
+    de: "Die Zahlung wurde storniert — es hat sich nichts geändert.",
   },
-  "billing.trialDaySingular": { da: "dag", en: "day", es: "día", fr: "jour", pt: "dia" },
-  "billing.trialDayPlural": { da: "dage", en: "days", es: "días", fr: "jours", pt: "dias" },
+  "billing.trialDaySingular": { da: "dag", en: "day", es: "día", fr: "jour", pt: "dia", de: "Tag" },
+  "billing.trialDayPlural": { da: "dage", en: "days", es: "días", fr: "jours", pt: "dias", de: "Tage" },
   "billing.trialBanner": {
     da: "I er i gratis prøveperiode: {days} {dayWord} tilbage, og {minutes} af {total} prøve-minutter tilbage. Prøveperioden slutter når enten dagene eller minutterne er brugt op — alt efter hvad der sker først.",
     en: "You're in your free trial: {days} {dayWord} left, and {minutes} of {total} trial minutes remaining. The trial ends whenever the days or the minutes run out — whichever comes first.",
     es: "Está en su período de prueba gratuito: quedan {days} {dayWord}, y {minutes} de {total} minutos de prueba restantes. La prueba termina cuando se agoten los días o los minutos, lo que ocurra primero.",
     fr: "Vous êtes en période d'essai gratuite : il reste {days} {dayWord}, et {minutes} minutes d'essai sur {total} restantes. L'essai se termine dès que les jours ou les minutes sont épuisés, selon la première échéance.",
     pt: "Você está no período de teste gratuito: faltam {days} {dayWord}, e restam {minutes} de {total} minutos de teste. O teste termina quando os dias ou os minutos acabarem — o que ocorrer primeiro.",
+    de: "Sie befinden sich in der kostenlosen Testphase: {days} {dayWord} verbleibend, und {minutes} von {total} Testminuten übrig. Die Testphase endet, sobald entweder die Tage oder die Minuten aufgebraucht sind — je nachdem, was zuerst eintritt.",
   },
   "billing.currentPackageLabel": {
     da: "Nuværende pakke",
@@ -454,6 +512,7 @@ export const dashboardPages: Namespace = {
     es: "Plan actual",
     fr: "Forfait actuel",
     pt: "Plano atual",
+    de: "Aktueller Tarif",
   },
   "billing.currentPackageSubtitle": {
     da: "{price} / md · {minutes} minutter inkluderet",
@@ -461,6 +520,7 @@ export const dashboardPages: Namespace = {
     es: "{price} / mes · {minutes} minutos incluidos",
     fr: "{price} / mois · {minutes} minutes incluses",
     pt: "{price} / mês · {minutes} minutos incluídos",
+    de: "{price} / Monat · {minutes} Minuten inklusive",
   },
   "billing.statusLabel": {
     da: "Status: {status}",
@@ -468,6 +528,7 @@ export const dashboardPages: Namespace = {
     es: "Estado: {status}",
     fr: "Statut : {status}",
     pt: "Status: {status}",
+    de: "Status: {status}",
   },
   "billing.noPackageYet": {
     da: "Ingen pakke valgt endnu.",
@@ -475,6 +536,7 @@ export const dashboardPages: Namespace = {
     es: "Aún no se ha seleccionado ningún plan.",
     fr: "Aucun forfait sélectionné pour l'instant.",
     pt: "Nenhum plano selecionado ainda.",
+    de: "Noch kein Tarif ausgewählt.",
   },
   "billing.remainingBalanceLabel": {
     da: "Resterende saldo",
@@ -482,6 +544,7 @@ export const dashboardPages: Namespace = {
     es: "Saldo restante",
     fr: "Solde restant",
     pt: "Saldo restante",
+    de: "Verbleibendes Guthaben",
   },
   "billing.balanceValue": {
     da: "{value} minutter",
@@ -489,6 +552,7 @@ export const dashboardPages: Namespace = {
     es: "{value} minutos",
     fr: "{value} minutes",
     pt: "{value} minutos",
+    de: "{value} Minuten",
   },
   "billing.balanceDescription": {
     da: "Ubrugte minutter gemmes i op til 3 måneder, når pakken fornyes automatisk.",
@@ -496,6 +560,7 @@ export const dashboardPages: Namespace = {
     es: "Los minutos no utilizados se conservan hasta 3 meses cuando el plan se renueva automáticamente.",
     fr: "Les minutes inutilisées sont conservées jusqu'à 3 mois lors du renouvellement automatique du forfait.",
     pt: "Os minutos não utilizados são mantidos por até 3 meses quando o plano é renovado automaticamente.",
+    de: "Ungenutzte Minuten werden bis zu 3 Monate lang aufbewahrt, wenn sich Ihr Tarif automatisch verlängert.",
   },
   "billing.managePayment": {
     da: "Administrer betaling / opsig abonnement →",
@@ -503,6 +568,7 @@ export const dashboardPages: Namespace = {
     es: "Administrar pago / cancelar suscripción →",
     fr: "Gérer le paiement / résilier l'abonnement →",
     pt: "Gerenciar pagamento / cancelar assinatura →",
+    de: "Zahlung verwalten / Abonnement kündigen →",
   },
   "billing.packagesHeading": {
     da: "Pakker",
@@ -510,6 +576,7 @@ export const dashboardPages: Namespace = {
     es: "Planes",
     fr: "Forfaits",
     pt: "Planos",
+    de: "Tarife",
   },
   "billing.packageIncludedMinutes": {
     da: "{count} minutter inkluderet",
@@ -517,6 +584,7 @@ export const dashboardPages: Namespace = {
     es: "{count} minutos incluidos",
     fr: "{count} minutes incluses",
     pt: "{count} minutos incluídos",
+    de: "{count} Minuten inklusive",
   },
   "billing.setupFee": {
     da: "Engangspris på {price} for opsætning og onboarding",
@@ -524,6 +592,7 @@ export const dashboardPages: Namespace = {
     es: "Tarifa única de {price} por configuración e incorporación",
     fr: "Frais uniques de {price} pour la configuration et l'intégration",
     pt: "Taxa única de {price} para configuração e integração",
+    de: "Einmalige Gebühr von {price} für Einrichtung und Onboarding",
   },
   "billing.currentPlanButton": {
     da: "Jeres nuværende pakke",
@@ -531,6 +600,7 @@ export const dashboardPages: Namespace = {
     es: "Su plan actual",
     fr: "Votre forfait actuel",
     pt: "Seu plano atual",
+    de: "Ihr aktueller Tarif",
   },
   "billing.orderPackage": {
     da: "Bestil pakke →",
@@ -538,6 +608,7 @@ export const dashboardPages: Namespace = {
     es: "Solicitar plan →",
     fr: "Commander le forfait →",
     pt: "Solicitar plano →",
+    de: "Tarif bestellen →",
   },
   "billing.openingPortal": {
     da: "Åbner…",
@@ -545,6 +616,7 @@ export const dashboardPages: Namespace = {
     es: "Abriendo…",
     fr: "Ouverture…",
     pt: "Abrindo…",
+    de: "Wird geöffnet…",
   },
   "billing.checkoutErrorFallback": {
     da: "Kunne ikke åbne betaling. Prøv igen.",
@@ -552,6 +624,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudo abrir el pago. Inténtelo de nuevo.",
     fr: "Impossible d'ouvrir le paiement. Réessayez.",
     pt: "Não foi possível abrir o pagamento. Tente novamente.",
+    de: "Die Zahlung konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.",
   },
   "billing.portalErrorFallback": {
     da: "Kunne ikke åbne betalingsportalen.",
@@ -559,14 +632,16 @@ export const dashboardPages: Namespace = {
     es: "No se pudo abrir el portal de facturación.",
     fr: "Impossible d'ouvrir le portail de facturation.",
     pt: "Não foi possível abrir o portal de faturamento.",
+    de: "Das Abrechnungsportal konnte nicht geöffnet werden.",
   },
-  "billing.status.active": { da: "Aktivt", en: "Active", es: "Activo", fr: "Actif", pt: "Ativo" },
+  "billing.status.active": { da: "Aktivt", en: "Active", es: "Activo", fr: "Actif", pt: "Ativo", de: "Aktiv" },
   "billing.status.trialing": {
     da: "Prøveperiode (Stripe)",
     en: "Trial (Stripe)",
     es: "Período de prueba (Stripe)",
     fr: "Essai (Stripe)",
     pt: "Período de teste (Stripe)",
+    de: "Testphase (Stripe)",
   },
   "billing.status.pastDue": {
     da: "Betaling mangler",
@@ -574,14 +649,16 @@ export const dashboardPages: Namespace = {
     es: "Pago pendiente",
     fr: "Paiement en retard",
     pt: "Pagamento pendente",
+    de: "Zahlung überfällig",
   },
-  "billing.status.canceled": { da: "Opsagt", en: "Cancelled", es: "Cancelado", fr: "Résilié", pt: "Cancelado" },
+  "billing.status.canceled": { da: "Opsagt", en: "Cancelled", es: "Cancelado", fr: "Résilié", pt: "Cancelado", de: "Gekündigt" },
   "billing.status.incomplete": {
     da: "Ikke fuldført",
     en: "Incomplete",
     es: "Incompleto",
     fr: "Incomplet",
     pt: "Incompleto",
+    de: "Unvollständig",
   },
   "billing.status.incompleteExpired": {
     da: "Udløbet",
@@ -589,14 +666,16 @@ export const dashboardPages: Namespace = {
     es: "Caducado",
     fr: "Expiré",
     pt: "Expirado",
+    de: "Abgelaufen",
   },
-  "billing.status.unpaid": { da: "Ikke betalt", en: "Unpaid", es: "No pagado", fr: "Impayé", pt: "Não pago" },
+  "billing.status.unpaid": { da: "Ikke betalt", en: "Unpaid", es: "No pagado", fr: "Impayé", pt: "Não pago", de: "Unbezahlt" },
   "billing.status.paused": {
     da: "Sat på pause",
     en: "Paused",
     es: "En pausa",
     fr: "En pause",
     pt: "Em pausa",
+    de: "Pausiert",
   },
 
   // ---------------------------------------------------------------------
@@ -608,6 +687,7 @@ export const dashboardPages: Namespace = {
     es: "Integración sin Complicaciones",
     fr: "Intégration Sans Effort",
     pt: "Integração Perfeita",
+    de: "Nahtlose Integration",
   },
   "integrations-showcase.heroTitlePrefix": {
     da: "Forbind med dine",
@@ -615,6 +695,7 @@ export const dashboardPages: Namespace = {
     es: "Conecte con sus",
     fr: "Connectez-vous à vos",
     pt: "Conecte-se com suas",
+    de: "Verbinden Sie sich mit Ihren",
   },
   "integrations-showcase.heroTitleHighlight": {
     da: "eksisterende værktøjer",
@@ -622,6 +703,7 @@ export const dashboardPages: Namespace = {
     es: "herramientas existentes",
     fr: "outils existants",
     pt: "ferramentas existentes",
+    de: "vorhandenen Tools",
   },
   "integrations-showcase.heroDescription": {
     da: "Vores AI-løsning automatiserer administration, opkald, SMS og email ved at arbejde sammen med de systemer I allerede bruger. Spar tid, bliv mere professionel, og lad AI'en håndtere ombookinger, opfølgning og mødebekræftigelser automatisk.",
@@ -629,6 +711,7 @@ export const dashboardPages: Namespace = {
     es: "Nuestra solución de IA automatiza la administración, las llamadas, los SMS y el correo electrónico trabajando con los sistemas que ya utiliza. Ahorre tiempo, dé una imagen más profesional y deje que la IA gestione automáticamente los reagendamientos, seguimientos y confirmaciones de citas.",
     fr: "Notre solution IA automatise l'administratif, les appels, les SMS et les e-mails en s'intégrant aux systèmes que vous utilisez déjà. Gagnez du temps, gagnez en professionnalisme et laissez l'IA gérer automatiquement les reports, les relances et les confirmations de rendez-vous.",
     pt: "Nossa solução de IA automatiza a administração, as chamadas, os SMS e o e-mail trabalhando junto com os sistemas que vocês já usam. Economizem tempo, pareçam mais profissionais e deixem a IA cuidar automaticamente de remarcações, acompanhamentos e confirmações de reuniões.",
+    de: "Unsere KI-Lösung automatisiert Verwaltung, Anrufe, SMS und E-Mails, indem sie mit den Systemen zusammenarbeitet, die Sie bereits nutzen. Sparen Sie Zeit, wirken Sie professioneller, und lassen Sie die KI Umbuchungen, Follow-ups und Terminbestätigungen automatisch erledigen.",
   },
   "integrations-showcase.feature1Title": {
     da: "Spar Timer Dagligt",
@@ -636,6 +719,7 @@ export const dashboardPages: Namespace = {
     es: "Ahorre Horas a Diario",
     fr: "Économisez des Heures Chaque Jour",
     pt: "Economize Horas Diariamente",
+    de: "Sparen Sie täglich Stunden",
   },
   "integrations-showcase.feature1Description": {
     da: "Automatiser ind- og udgående opkald, SMS og emails mens AI'en synkroniserer med jeres systemer.",
@@ -643,6 +727,7 @@ export const dashboardPages: Namespace = {
     es: "Automatice llamadas entrantes y salientes, SMS y correos electrónicos mientras la IA se sincroniza con sus sistemas.",
     fr: "Automatisez les appels entrants et sortants, les SMS et les e-mails pendant que l'IA se synchronise avec vos systèmes.",
     pt: "Automatize chamadas recebidas e efetuadas, SMS e e-mails enquanto a IA sincroniza com seus sistemas.",
+    de: "Automatisieren Sie eingehende und ausgehende Anrufe, SMS und E-Mails, während die KI mit Ihren Systemen synchronisiert.",
   },
   "integrations-showcase.feature2Title": {
     da: "Hurtig Opsætning",
@@ -650,6 +735,7 @@ export const dashboardPages: Namespace = {
     es: "Configuración Rápida",
     fr: "Configuration Rapide",
     pt: "Configuração Rápida",
+    de: "Schnelle Einrichtung",
   },
   "integrations-showcase.feature2Description": {
     da: "Ingen kompliceret installation. Forbind jeres eksisterende værktøjer på minutter.",
@@ -657,6 +743,7 @@ export const dashboardPages: Namespace = {
     es: "Sin instalaciones complicadas. Conecte sus herramientas existentes en minutos.",
     fr: "Aucune installation compliquée. Connectez vos outils existants en quelques minutes.",
     pt: "Sem instalação complicada. Conecte suas ferramentas existentes em minutos.",
+    de: "Keine komplizierte Installation. Verbinden Sie Ihre vorhandenen Tools in wenigen Minuten.",
   },
   "integrations-showcase.feature3Title": {
     da: "Altid Synkroniseret",
@@ -664,6 +751,7 @@ export const dashboardPages: Namespace = {
     es: "Siempre Sincronizado",
     fr: "Toujours Synchronisé",
     pt: "Sempre Sincronizado",
+    de: "Immer synchron",
   },
   "integrations-showcase.feature3Description": {
     da: "Real-time opdateringer på tværs af alle jeres platforme. Ingen dobbeltarbejde.",
@@ -671,6 +759,7 @@ export const dashboardPages: Namespace = {
     es: "Actualizaciones en tiempo real en todas sus plataformas. Sin trabajo duplicado.",
     fr: "Mises à jour en temps réel sur toutes vos plateformes. Aucun travail en double.",
     pt: "Atualizações em tempo real em todas as suas plataformas. Sem trabalho duplicado.",
+    de: "Echtzeit-Updates über alle Ihre Plattformen hinweg. Keine doppelte Arbeit.",
   },
   "integrations-showcase.categoriesHeading": {
     da: "Integration Kategorier",
@@ -678,6 +767,7 @@ export const dashboardPages: Namespace = {
     es: "Categorías de Integración",
     fr: "Catégories d'Intégration",
     pt: "Categorias de Integração",
+    de: "Integrationskategorien",
   },
   "integrations-showcase.categoriesSubtitle": {
     da: "Vores AI-løsning forbinder med de værktøjer I allerede bruger hver dag",
@@ -685,6 +775,7 @@ export const dashboardPages: Namespace = {
     es: "Nuestra solución de IA se conecta con las herramientas que ya utiliza a diario",
     fr: "Notre solution IA se connecte aux outils que vous utilisez déjà au quotidien",
     pt: "Nossa solução de IA se conecta com as ferramentas que vocês já usam todos os dias",
+    de: "Unsere KI-Lösung verbindet sich mit den Tools, die Sie bereits täglich nutzen",
   },
   "integrations-showcase.categoryCalendarTitle": {
     da: "Kalender & Planlægning",
@@ -692,6 +783,7 @@ export const dashboardPages: Namespace = {
     es: "Calendario y Planificación",
     fr: "Calendrier et Planification",
     pt: "Calendário e Agendamento",
+    de: "Kalender & Terminplanung",
   },
   "integrations-showcase.categoryCrmTitle": {
     da: "CRM & Kunder",
@@ -699,6 +791,7 @@ export const dashboardPages: Namespace = {
     es: "CRM y Clientes",
     fr: "CRM et Clients",
     pt: "CRM e Clientes",
+    de: "CRM & Kunden",
   },
   "integrations-showcase.categoryCommunicationTitle": {
     da: "Kommunikation",
@@ -706,6 +799,7 @@ export const dashboardPages: Namespace = {
     es: "Comunicación",
     fr: "Communication",
     pt: "Comunicação",
+    de: "Kommunikation",
   },
   "integrations-showcase.categoryDocumentsTitle": {
     da: "Dokumenter",
@@ -713,6 +807,7 @@ export const dashboardPages: Namespace = {
     es: "Documentos",
     fr: "Documents",
     pt: "Documentos",
+    de: "Dokumente",
   },
   "integrations-showcase.categoryEcommerceTitle": {
     da: "E-handel",
@@ -720,6 +815,7 @@ export const dashboardPages: Namespace = {
     es: "Comercio electrónico",
     fr: "E-commerce",
     pt: "E-commerce",
+    de: "E-Commerce",
   },
   "integrations-showcase.categoryAutomationTitle": {
     da: "Automatisering",
@@ -727,6 +823,7 @@ export const dashboardPages: Namespace = {
     es: "Automatización",
     fr: "Automatisation",
     pt: "Automação",
+    de: "Automatisierung",
   },
 
   // ---------------------------------------------------------------------
@@ -738,6 +835,7 @@ export const dashboardPages: Namespace = {
     es: "Integraciones Populares",
     fr: "Intégrations Populaires",
     pt: "Integrações Populares",
+    de: "Beliebte Integrationen",
   },
   "calendar-integrations.subtitle": {
     da: "Arbejd problemfrit med jeres eksisterende værktøjer — forbind jeres kalender nedenfor, så agenten kan se ledige tider og booke direkte.",
@@ -745,6 +843,7 @@ export const dashboardPages: Namespace = {
     es: "Trabaje sin complicaciones con sus herramientas existentes — conecte su calendario a continuación para que el agente vea la disponibilidad y reserve directamente.",
     fr: "Travaillez en toute fluidité avec vos outils existants — connectez votre calendrier ci-dessous pour que l'agent puisse voir les disponibilités et réserver directement.",
     pt: "Trabalhem perfeitamente com suas ferramentas existentes — conectem seu calendário abaixo para que o agente veja os horários disponíveis e agende diretamente.",
+    de: "Arbeiten Sie nahtlos mit Ihren vorhandenen Tools — verbinden Sie unten Ihren Kalender, damit der Agent die Verfügbarkeit sehen und direkt buchen kann.",
   },
   "calendar-integrations.connectedBanner": {
     da: "Kalenderen blev forbundet ({provider}).",
@@ -752,6 +851,7 @@ export const dashboardPages: Namespace = {
     es: "El calendario se conectó ({provider}).",
     fr: "Le calendrier a été connecté ({provider}).",
     pt: "O calendário foi conectado ({provider}).",
+    de: "Der Kalender wurde verbunden ({provider}).",
   },
   "calendar-integrations.errorBanner": {
     da: "Kunne ikke forbinde kalenderen ({provider}). Prøv igen.",
@@ -759,6 +859,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudo conectar el calendario ({provider}). Inténtelo de nuevo.",
     fr: "Impossible de connecter le calendrier ({provider}). Réessayez.",
     pt: "Não foi possível conectar o calendário ({provider}). Tente novamente.",
+    de: "Der Kalender konnte nicht verbunden werden ({provider}). Bitte versuchen Sie es erneut.",
   },
   "calendar-integrations.noAgentsYet": {
     da: 'Opret en agent under "Agent" først — en kalender skal knyttes til en agent.',
@@ -766,6 +867,7 @@ export const dashboardPages: Namespace = {
     es: 'Cree primero un agente en "Agent" — un calendario debe estar vinculado a un agente.',
     fr: 'Créez d\'abord un agent dans « Agent » — un calendrier doit être associé à un agent.',
     pt: 'Crie primeiro um agente em "Agent" — um calendário precisa estar vinculado a um agente.',
+    de: "Erstellen Sie zuerst einen Agenten unter „Agent“ — ein Kalender muss mit einem Agenten verknüpft sein.",
   },
   "calendar-integrations.categoryCalendar": {
     da: "Kalender",
@@ -773,6 +875,7 @@ export const dashboardPages: Namespace = {
     es: "Calendario",
     fr: "Calendrier",
     pt: "Calendário",
+    de: "Kalender",
   },
   "calendar-integrations.googleDescription": {
     da: "Den mest udbredte kalender blandt danske virksomheder. Forbindes med ét klik via Google.",
@@ -780,6 +883,7 @@ export const dashboardPages: Namespace = {
     es: "El calendario más utilizado entre las empresas danesas. Se conecta con un solo clic a través de Google.",
     fr: "Le calendrier le plus utilisé par les entreprises danoises. Se connecte en un clic via Google.",
     pt: "O calendário mais usado entre as empresas dinamarquesas. Conecta-se com um clique via Google.",
+    de: "Der am weitesten verbreitete Kalender bei deutschen Unternehmen. Wird mit einem einzigen Klick über Google verbunden.",
   },
   "calendar-integrations.outlookDescription": {
     da: "Til virksomheder der bruger Microsoft 365 eller Outlook som kalender.",
@@ -787,6 +891,7 @@ export const dashboardPages: Namespace = {
     es: "Para empresas que usan Microsoft 365 u Outlook como calendario.",
     fr: "Pour les entreprises qui utilisent Microsoft 365 ou Outlook comme calendrier.",
     pt: "Para empresas que usam Microsoft 365 ou Outlook como calendário.",
+    de: "Für Unternehmen, die Microsoft 365 oder Outlook als Kalender nutzen.",
   },
   "calendar-integrations.calcomDescription": {
     da: "Forbind med jeres Cal.com API-nøgle og vælg hvilken event-type agenten skal booke i.",
@@ -794,6 +899,7 @@ export const dashboardPages: Namespace = {
     es: "Conéctese con su clave de API de Cal.com y elija en qué tipo de evento debe reservar el agente.",
     fr: "Connectez-vous avec votre clé API Cal.com et choisissez le type d'événement dans lequel l'agent doit réserver.",
     pt: "Conecte-se com sua chave de API do Cal.com e escolha em qual tipo de evento o agente deve agendar.",
+    de: "Verbinden Sie sich mit Ihrem Cal.com-API-Schlüssel und wählen Sie, in welchen Termintyp der Agent buchen soll.",
   },
   "calendar-integrations.connectedLabel": {
     da: "Connected",
@@ -801,6 +907,7 @@ export const dashboardPages: Namespace = {
     es: "Conectado",
     fr: "Connecté",
     pt: "Conectado",
+    de: "Verbunden",
   },
   "calendar-integrations.connectionErrorLabel": {
     da: "Fejl — tjek forbindelsen",
@@ -808,6 +915,7 @@ export const dashboardPages: Namespace = {
     es: "Error — compruebe la conexión",
     fr: "Erreur — vérifiez la connexion",
     pt: "Erro — verifique a conexão",
+    de: "Fehler — Verbindung prüfen",
   },
   "calendar-integrations.accountLabel": {
     da: "Account",
@@ -815,6 +923,7 @@ export const dashboardPages: Namespace = {
     es: "Cuenta",
     fr: "Compte",
     pt: "Conta",
+    de: "Konto",
   },
   "calendar-integrations.eventTypeLabel": {
     da: "Event Type",
@@ -822,6 +931,7 @@ export const dashboardPages: Namespace = {
     es: "Tipo de evento",
     fr: "Type d'événement",
     pt: "Tipo de evento",
+    de: "Termintyp",
   },
   "calendar-integrations.timezoneLabel": {
     da: "Timezone",
@@ -829,6 +939,7 @@ export const dashboardPages: Namespace = {
     es: "Zona horaria",
     fr: "Fuseau horaire",
     pt: "Fuso horário",
+    de: "Zeitzone",
   },
   "calendar-integrations.testConnection": {
     da: "Test forbindelse",
@@ -836,6 +947,7 @@ export const dashboardPages: Namespace = {
     es: "Probar conexión",
     fr: "Tester la connexion",
     pt: "Testar conexão",
+    de: "Verbindung testen",
   },
   "calendar-integrations.testing": {
     da: "Tester…",
@@ -843,6 +955,7 @@ export const dashboardPages: Namespace = {
     es: "Probando…",
     fr: "Test en cours…",
     pt: "Testando…",
+    de: "Wird getestet…",
   },
   "calendar-integrations.testSuccess": {
     da: "Forbindelsen virker.",
@@ -850,6 +963,7 @@ export const dashboardPages: Namespace = {
     es: "La conexión funciona.",
     fr: "La connexion fonctionne.",
     pt: "A conexão está funcionando.",
+    de: "Die Verbindung funktioniert.",
   },
   "calendar-integrations.testErrorFallback": {
     da: "Kunne ikke forbinde til Cal.com.",
@@ -857,6 +971,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudo conectar con Cal.com.",
     fr: "Impossible de se connecter à Cal.com.",
     pt: "Não foi possível conectar ao Cal.com.",
+    de: "Verbindung zu Cal.com konnte nicht hergestellt werden.",
   },
   "calendar-integrations.eventTypeErrorFallback": {
     da: "Kunne ikke skifte event-type.",
@@ -864,6 +979,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudo cambiar el tipo de evento.",
     fr: "Impossible de changer le type d'événement.",
     pt: "Não foi possível alterar o tipo de evento.",
+    de: "Der Termintyp konnte nicht geändert werden.",
   },
   "calendar-integrations.disconnect": {
     da: "Fjern forbindelse",
@@ -871,6 +987,7 @@ export const dashboardPages: Namespace = {
     es: "Eliminar conexión",
     fr: "Supprimer la connexion",
     pt: "Remover conexão",
+    de: "Verbindung entfernen",
   },
   "calendar-integrations.disconnecting": {
     da: "Fjerner…",
@@ -878,6 +995,7 @@ export const dashboardPages: Namespace = {
     es: "Eliminando…",
     fr: "Suppression…",
     pt: "Removendo…",
+    de: "Wird entfernt…",
   },
   "calendar-integrations.connectButton": {
     da: "Forbind {name} →",
@@ -885,6 +1003,7 @@ export const dashboardPages: Namespace = {
     es: "Conectar {name} →",
     fr: "Connecter {name} →",
     pt: "Conectar {name} →",
+    de: "{name} verbinden →",
   },
   "calendar-integrations.apiKeyPlaceholder": {
     da: "Indsæt jeres Cal.com API-nøgle.",
@@ -892,6 +1011,7 @@ export const dashboardPages: Namespace = {
     es: "Introduzca su clave de API de Cal.com.",
     fr: "Saisissez votre clé API Cal.com.",
     pt: "Insira sua chave de API do Cal.com.",
+    de: "Geben Sie Ihren Cal.com-API-Schlüssel ein.",
   },
   "calendar-integrations.connecting": {
     da: "Forbinder…",
@@ -899,6 +1019,7 @@ export const dashboardPages: Namespace = {
     es: "Conectando…",
     fr: "Connexion…",
     pt: "Conectando…",
+    de: "Wird verbunden…",
   },
   "calendar-integrations.connectShort": {
     da: "Forbind",
@@ -906,6 +1027,7 @@ export const dashboardPages: Namespace = {
     es: "Conectar",
     fr: "Connecter",
     pt: "Conectar",
+    de: "Verbinden",
   },
   "calendar-integrations.categoryCommunication": {
     da: "Kommunikation",
@@ -913,6 +1035,7 @@ export const dashboardPages: Namespace = {
     es: "Comunicación",
     fr: "Communication",
     pt: "Comunicação",
+    de: "Kommunikation",
   },
   "calendar-integrations.categoryEcommerce": {
     da: "E-handel",
@@ -920,6 +1043,7 @@ export const dashboardPages: Namespace = {
     es: "Comercio electrónico",
     fr: "E-commerce",
     pt: "E-commerce",
+    de: "E-Commerce",
   },
   "calendar-integrations.categoryProductivity": {
     da: "Produktivitet",
@@ -927,6 +1051,7 @@ export const dashboardPages: Namespace = {
     es: "Productividad",
     fr: "Productivité",
     pt: "Produtividade",
+    de: "Produktivität",
   },
   "calendar-integrations.categoryWebsite": {
     da: "Hjemmeside",
@@ -934,6 +1059,7 @@ export const dashboardPages: Namespace = {
     es: "Sitio web",
     fr: "Site web",
     pt: "Site",
+    de: "Website",
   },
   "calendar-integrations.categoryAutomation": {
     da: "Automatisering",
@@ -941,6 +1067,7 @@ export const dashboardPages: Namespace = {
     es: "Automatización",
     fr: "Automatisation",
     pt: "Automação",
+    de: "Automatisierung",
   },
   "calendar-integrations.categoryVideo": {
     da: "Video",
@@ -948,6 +1075,7 @@ export const dashboardPages: Namespace = {
     es: "Video",
     fr: "Vidéo",
     pt: "Vídeo",
+    de: "Video",
   },
   "calendar-integrations.categoryDeveloper": {
     da: "Udvikler",
@@ -955,6 +1083,7 @@ export const dashboardPages: Namespace = {
     es: "Desarrollador",
     fr: "Développeur",
     pt: "Desenvolvedor",
+    de: "Entwickler",
   },
   "calendar-integrations.categoryCrm": {
     da: "CRM",
@@ -962,6 +1091,7 @@ export const dashboardPages: Namespace = {
     es: "CRM",
     fr: "CRM",
     pt: "CRM",
+    de: "CRM",
   },
   "calendar-integrations.categoryDocuments": {
     da: "Dokumenter",
@@ -969,6 +1099,7 @@ export const dashboardPages: Namespace = {
     es: "Documentos",
     fr: "Documents",
     pt: "Documentos",
+    de: "Dokumente",
   },
   "calendar-integrations.footerNote": {
     da: "Mangler I en integration? Vi tilføjer løbende nye — skriv til support, så hører I fra os når den lander.",
@@ -976,6 +1107,7 @@ export const dashboardPages: Namespace = {
     es: "¿Le falta una integración? Seguimos añadiendo nuevas — escriba a soporte y le avisaremos cuando esté disponible.",
     fr: "Il vous manque une intégration ? Nous en ajoutons régulièrement — contactez le support et nous vous préviendrons dès qu'elle sera disponible.",
     pt: "Falta alguma integração? Continuamos adicionando novas — escreva para o suporte e avisaremos quando estiver disponível.",
+    de: "Fehlt eine Integration? Wir fügen laufend neue hinzu — schreiben Sie an den Support, und wir informieren Sie, wenn sie verfügbar ist.",
   },
 
   // ---------------------------------------------------------------------
@@ -987,6 +1119,7 @@ export const dashboardPages: Namespace = {
     es: "Agentes de widget",
     fr: "Agents widget",
     pt: "Agentes de widget",
+    de: "Widget-Agenten",
   },
   "agents-manager.widgetSubtitle": {
     da: "Administrer og opret jeres AI-widget-agenter",
@@ -994,6 +1127,7 @@ export const dashboardPages: Namespace = {
     es: "Administre y cree sus agentes de widget de IA",
     fr: "Gérez et créez vos agents widget IA",
     pt: "Administre e crie seus agentes de widget de IA",
+    de: "Verwalten und erstellen Sie Ihre KI-Widget-Agenten",
   },
   "agents-manager.widgetListTitle": {
     da: "Dine widget-agenter",
@@ -1001,6 +1135,7 @@ export const dashboardPages: Namespace = {
     es: "Sus agentes de widget",
     fr: "Vos agents widget",
     pt: "Seus agentes de widget",
+    de: "Ihre Widget-Agenten",
   },
   "agents-manager.phoneTitle": {
     da: "Telefon-agenter",
@@ -1008,6 +1143,7 @@ export const dashboardPages: Namespace = {
     es: "Agentes telefónicos",
     fr: "Agents téléphoniques",
     pt: "Agentes telefônicos",
+    de: "Telefon-Agenten",
   },
   "agents-manager.phoneSubtitle": {
     da: "Administrer og opret jeres inbound/outbound AI-agenter",
@@ -1015,6 +1151,7 @@ export const dashboardPages: Namespace = {
     es: "Administre y cree sus agentes de IA de llamadas entrantes/salientes",
     fr: "Gérez et créez vos agents IA d'appels entrants/sortants",
     pt: "Administre e crie seus agentes de IA de chamadas recebidas/efetuadas",
+    de: "Verwalten und erstellen Sie Ihre eingehenden/ausgehenden KI-Agenten",
   },
   "agents-manager.phoneListTitle": {
     da: "Dine telefon-agenter",
@@ -1022,6 +1159,7 @@ export const dashboardPages: Namespace = {
     es: "Sus agentes telefónicos",
     fr: "Vos agents téléphoniques",
     pt: "Seus agentes telefônicos",
+    de: "Ihre Telefon-Agenten",
   },
   "agents-manager.newAgent": {
     da: "+ Ny agent",
@@ -1029,6 +1167,7 @@ export const dashboardPages: Namespace = {
     es: "+ Nuevo agente",
     fr: "+ Nouvel agent",
     pt: "+ Novo agente",
+    de: "+ Neuer Agent",
   },
   "agents-manager.searchPlaceholder": {
     da: "Søg efter agent-navn…",
@@ -1036,6 +1175,7 @@ export const dashboardPages: Namespace = {
     es: "Buscar por nombre de agente…",
     fr: "Rechercher par nom d'agent…",
     pt: "Pesquisar por nome do agente…",
+    de: "Nach Agentennamen suchen…",
   },
   "agents-manager.noAgentsFound": {
     da: "Ingen agenter fundet.",
@@ -1043,6 +1183,7 @@ export const dashboardPages: Namespace = {
     es: "No se encontraron agentes.",
     fr: "Aucun agent trouvé.",
     pt: "Nenhum agente encontrado.",
+    de: "Keine Agenten gefunden.",
   },
   "agents-manager.createdOn": {
     da: "Oprettet {date}",
@@ -1050,6 +1191,7 @@ export const dashboardPages: Namespace = {
     es: "Creado el {date}",
     fr: "Créé le {date}",
     pt: "Criado em {date}",
+    de: "Erstellt am {date}",
   },
 
   // ---------------------------------------------------------------------
@@ -1061,6 +1203,7 @@ export const dashboardPages: Namespace = {
     es: "Aún no hay reservas.",
     fr: "Aucun rendez-vous pour l'instant.",
     pt: "Nenhum agendamento ainda.",
+    de: "Noch keine Buchungen.",
   },
   "appointments-list.statusBooked": {
     da: "Booket",
@@ -1068,6 +1211,7 @@ export const dashboardPages: Namespace = {
     es: "Reservado",
     fr: "Confirmé",
     pt: "Agendado",
+    de: "Gebucht",
   },
   "appointments-list.statusFailed": {
     da: "Fejlet",
@@ -1075,6 +1219,7 @@ export const dashboardPages: Namespace = {
     es: "Fallido",
     fr: "Échoué",
     pt: "Falhou",
+    de: "Fehlgeschlagen",
   },
 
   // ---------------------------------------------------------------------
@@ -1086,6 +1231,7 @@ export const dashboardPages: Namespace = {
     es: "Desvíe su número",
     fr: "Transférez votre numéro",
     pt: "Encaminhe seu número",
+    de: "Leiten Sie Ihre Nummer um",
   },
   "call-forwarding.description": {
     da: "Ring koden op fra den mobil eller det fastnet-nummer, kunderne allerede ringer til, og tryk opkald/grøn knap. Virker på alle danske teleselskaber (YouSee/TDC, Telenor, Telia, 3).",
@@ -1093,6 +1239,7 @@ export const dashboardPages: Namespace = {
     es: "Marque el código desde el móvil o el fijo al que ya llaman los clientes, y pulse llamar/el botón verde. Funciona con todos los operadores daneses (YouSee/TDC, Telenor, Telia, 3).",
     fr: "Composez le code depuis le mobile ou le fixe que les clients appellent déjà, puis appuyez sur appel/le bouton vert. Fonctionne avec tous les opérateurs danois (YouSee/TDC, Telenor, Telia, 3).",
     pt: "Disque o código a partir do celular ou fixo que os clientes já ligam, e pressione chamar/o botão verde. Funciona em todas as operadoras dinamarquesas (YouSee/TDC, Telenor, Telia, 3).",
+    de: "Wählen Sie den Code von der Mobil- oder Festnetznummer, die Kunden bereits anrufen, und drücken Sie dann Anruf/die grüne Taste. Funktioniert mit allen dänischen Anbietern (YouSee/TDC, Telenor, Telia, 3).",
   },
   "call-forwarding.step1Label": {
     da: "Viderestil alle opkald (anbefalet)",
@@ -1100,6 +1247,7 @@ export const dashboardPages: Namespace = {
     es: "Desviar todas las llamadas (recomendado)",
     fr: "Transférer tous les appels (recommandé)",
     pt: "Encaminhar todas as chamadas (recomendado)",
+    de: "Alle Anrufe umleiten (empfohlen)",
   },
   "call-forwarding.step1Description": {
     da: "Alle opkald til jeres eksisterende nummer går direkte til AI-agenten.",
@@ -1107,6 +1255,7 @@ export const dashboardPages: Namespace = {
     es: "Todas las llamadas a su número existente van directamente al agente de IA.",
     fr: "Tous les appels vers votre numéro existant sont dirigés directement vers l'agent IA.",
     pt: "Todas as chamadas para o seu número existente vão diretamente para o agente de IA.",
+    de: "Alle Anrufe an Ihre bestehende Nummer gehen direkt an den KI-Agenten.",
   },
   "call-forwarding.step2Label": {
     da: "Viderestil kun ved optaget/ingen svar",
@@ -1114,6 +1263,7 @@ export const dashboardPages: Namespace = {
     es: "Desviar solo si está ocupado/no contesta",
     fr: "Transférer uniquement si occupé/sans réponse",
     pt: "Encaminhar apenas quando ocupado/sem resposta",
+    de: "Nur bei Besetzt/keiner Antwort umleiten",
   },
   "call-forwarding.step2Description": {
     da: "I besvarer selv opkald som normalt — agenten tager kun over, når I ikke kan svare.",
@@ -1121,6 +1271,7 @@ export const dashboardPages: Namespace = {
     es: "Ustedes contestan las llamadas normalmente — el agente solo interviene cuando no pueden contestar.",
     fr: "Vous répondez vous-même aux appels comme d'habitude — l'agent ne prend le relais que lorsque vous ne pouvez pas répondre.",
     pt: "Vocês atendem as chamadas normalmente — o agente só assume quando vocês não conseguem atender.",
+    de: "Sie nehmen Anrufe selbst wie gewohnt entgegen — der Agent übernimmt nur, wenn Sie nicht antworten können.",
   },
   "call-forwarding.disableHeading": {
     da: "Sådan slår I viderestilling fra igen",
@@ -1128,6 +1279,7 @@ export const dashboardPages: Namespace = {
     es: "Cómo desactivar el desvío de llamadas de nuevo",
     fr: "Comment désactiver à nouveau le transfert d'appels",
     pt: "Como desativar o encaminhamento de chamadas novamente",
+    de: "So schalten Sie die Rufumleitung wieder aus",
   },
   "call-forwarding.disableDescription": {
     da: "Ring {code} og tryk opkald — det annullerer al viderestilling og I modtager opkald direkte igen.",
@@ -1135,18 +1287,20 @@ export const dashboardPages: Namespace = {
     es: "Marque {code} y pulse llamar — esto cancela todo el desvío de llamadas y volverá a recibir las llamadas directamente.",
     fr: "Composez {code} et appuyez sur appel — cela annule tout transfert d'appels et vous recevrez à nouveau les appels directement.",
     pt: "Disque {code} e pressione chamar — isso cancela todo o encaminhamento de chamadas e vocês voltarão a receber chamadas diretamente.",
+    de: "Wählen Sie {code} und drücken Sie Anruf — das storniert die gesamte Rufumleitung, und Sie erhalten Anrufe wieder direkt.",
   },
 
   // ---------------------------------------------------------------------
   // components/dashboard/inbound-manager.tsx
   // ---------------------------------------------------------------------
-  "inbound.title": { da: "Inbound", en: "Inbound", es: "Entrantes", fr: "Entrant", pt: "Recebidas" },
+  "inbound.title": { da: "Inbound", en: "Inbound", es: "Entrantes", fr: "Entrant", pt: "Recebidas", de: "Eingehend" },
   "inbound.subtitle": {
     da: "Få et telefonnummer, og viderestil jeres eksisterende nummer til det, så AI-agenten svarer kunderne.",
     en: "Get a phone number and forward your existing number to it so the AI agent answers your customers.",
     es: "Obtenga un número de teléfono y desvíe su número existente a él para que el agente de IA atienda a sus clientes.",
     fr: "Obtenez un numéro de téléphone et transférez-y votre numéro existant pour que l'agent IA réponde à vos clients.",
     pt: "Obtenha um número de telefone e encaminhe seu número existente para ele, para que o agente de IA atenda seus clientes.",
+    de: "Holen Sie sich eine Telefonnummer und leiten Sie Ihre bestehende Nummer dorthin um, damit der KI-Agent Ihre Kunden anspricht.",
   },
   "inbound.newNumber": {
     da: "+ Nyt nummer",
@@ -1154,6 +1308,7 @@ export const dashboardPages: Namespace = {
     es: "+ Nuevo número",
     fr: "+ Nouveau numéro",
     pt: "+ Novo número",
+    de: "+ Neue Nummer",
   },
   "inbound.introBannerTitle": {
     da: "Prøv AIbooking.dk Reception i 30 dage for 499 kr",
@@ -1161,6 +1316,7 @@ export const dashboardPages: Namespace = {
     es: "Pruebe AIbooking.dk Reception durante 30 días por 499 kr",
     fr: "Essayez AIbooking.dk Reception pendant 30 jours pour 499 kr",
     pt: "Experimente o AIbooking.dk Reception por 30 dias por 499 kr",
+    de: "Testen Sie AIbooking.dk Reception 30 Tage lang für 499 kr",
   },
   "inbound.introBannerSubtitle": {
     da: "Testnummer, ~75 min taletid og fuld PRO-adgang — derefter 999 kr/md.",
@@ -1168,6 +1324,7 @@ export const dashboardPages: Namespace = {
     es: "Número de prueba, ~75 min de tiempo de conversación y acceso PRO completo — luego 999 kr/mes.",
     fr: "Numéro de test, ~75 min de temps d'appel et accès PRO complet — puis 999 kr/mois.",
     pt: "Número de teste, ~75 min de tempo de conversa e acesso PRO completo — depois 999 kr/mês.",
+    de: "Testnummer, ~75 Min. Gesprächszeit und voller PRO-Zugang — danach 999 kr/Monat.",
   },
   "inbound.introBannerCta": {
     da: "Se tilbuddet →",
@@ -1175,6 +1332,7 @@ export const dashboardPages: Namespace = {
     es: "Ver la oferta →",
     fr: "Voir l'offre →",
     pt: "Ver a oferta →",
+    de: "Angebot ansehen →",
   },
   "inbound.noAgentsYet": {
     da: 'Opret en agent under "Agent" først — et telefonnummer skal knyttes til en agent.',
@@ -1182,6 +1340,7 @@ export const dashboardPages: Namespace = {
     es: 'Cree primero un agente en "Agent" — un número de teléfono debe estar vinculado a un agente.',
     fr: 'Créez d\'abord un agent dans « Agent » — un numéro de téléphone doit être associé à un agent.',
     pt: 'Crie primeiro um agente em "Agent" — um número de telefone precisa estar vinculado a um agente.',
+    de: "Erstellen Sie zuerst einen Agenten unter „Agent“ — eine Telefonnummer muss mit einem Agenten verknüpft sein.",
   },
   "inbound.tabBuy": {
     da: "Køb nummer gennem os",
@@ -1189,6 +1348,7 @@ export const dashboardPages: Namespace = {
     es: "Comprar un número con nosotros",
     fr: "Acheter un numéro chez nous",
     pt: "Comprar um número conosco",
+    de: "Nummer bei uns kaufen",
   },
   "inbound.tabByo": {
     da: "Brug eget Twilio-nummer",
@@ -1196,6 +1356,7 @@ export const dashboardPages: Namespace = {
     es: "Usar su propio número de Twilio",
     fr: "Utiliser votre propre numéro Twilio",
     pt: "Usar seu próprio número da Twilio",
+    de: "Eigene Twilio-Nummer verwenden",
   },
   "inbound.directionRoleLabel": {
     da: "Nummerets rolle",
@@ -1203,15 +1364,17 @@ export const dashboardPages: Namespace = {
     es: "Función del número",
     fr: "Rôle du numéro",
     pt: "Função do número",
+    de: "Rolle der Nummer",
   },
-  "inbound.directionInbound": { da: "Inbound", en: "Inbound", es: "Entrante", fr: "Entrant", pt: "Recebida" },
-  "inbound.directionOutbound": { da: "Outbound", en: "Outbound", es: "Saliente", fr: "Sortant", pt: "Efetuada" },
+  "inbound.directionInbound": { da: "Inbound", en: "Inbound", es: "Entrante", fr: "Entrant", pt: "Recebida", de: "Eingehend" },
+  "inbound.directionOutbound": { da: "Outbound", en: "Outbound", es: "Saliente", fr: "Sortant", pt: "Efetuada", de: "Ausgehend" },
   "inbound.directionBoth": {
     da: "Inbound + Outbound",
     en: "Inbound + Outbound",
     es: "Entrante + Saliente",
     fr: "Entrant + Sortant",
     pt: "Recebida + Efetuada",
+    de: "Eingehend + Ausgehend",
   },
   "inbound.labelOptional": {
     da: "Label (valgfrit)",
@@ -1219,6 +1382,7 @@ export const dashboardPages: Namespace = {
     es: "Etiqueta (opcional)",
     fr: "Libellé (facultatif)",
     pt: "Rótulo (opcional)",
+    de: "Label (optional)",
   },
   "inbound.labelPlaceholder": {
     da: "Fx Hovednummer",
@@ -1226,6 +1390,7 @@ export const dashboardPages: Namespace = {
     es: "Ej. Número principal",
     fr: "Ex. Numéro principal",
     pt: "Ex. Número principal",
+    de: "Z. B. Hauptnummer",
   },
   "inbound.buyDescription": {
     da: "Vi køber et dansk nummer til jer og forbinder det med agenten med det samme. Nummeret er inkluderet i jeres pakke — ingen ekstra betaling.",
@@ -1233,6 +1398,7 @@ export const dashboardPages: Namespace = {
     es: "Compraremos un número danés para ustedes y lo conectaremos con el agente de inmediato. El número está incluido en su plan — sin coste adicional.",
     fr: "Nous achetons un numéro danois pour vous et le connectons immédiatement à l'agent. Le numéro est inclus dans votre forfait — sans frais supplémentaires.",
     pt: "Compraremos um número dinamarquês para vocês e o conectaremos ao agente imediatamente. O número está incluído no plano de vocês — sem custo adicional.",
+    de: "Wir kaufen eine dänische Nummer für Sie und verbinden sie sofort mit dem Agenten. Die Nummer ist in Ihrem Tarif enthalten — keine zusätzlichen Kosten.",
   },
   "inbound.searchNumbers": {
     da: "Søg ledige numre →",
@@ -1240,6 +1406,7 @@ export const dashboardPages: Namespace = {
     es: "Buscar números disponibles →",
     fr: "Rechercher des numéros disponibles →",
     pt: "Buscar números disponíveis →",
+    de: "Verfügbare Nummern suchen →",
   },
   "inbound.searching": {
     da: "Søger…",
@@ -1247,6 +1414,7 @@ export const dashboardPages: Namespace = {
     es: "Buscando…",
     fr: "Recherche…",
     pt: "Buscando…",
+    de: "Wird gesucht…",
   },
   "inbound.noNumbersAvailable": {
     da: "Ingen ledige numre lige nu. Prøv igen om lidt.",
@@ -1254,6 +1422,7 @@ export const dashboardPages: Namespace = {
     es: "No hay números disponibles en este momento. Inténtelo de nuevo en breve.",
     fr: "Aucun numéro disponible pour le moment. Réessayez dans un instant.",
     pt: "Nenhum número disponível no momento. Tente novamente em instantes.",
+    de: "Derzeit keine Nummern verfügbar. Bitte versuchen Sie es in Kürze erneut.",
   },
   "inbound.byoDescription": {
     da: "I bringer jeres eget Twilio-nummer med. Find Account SID og Auth Token i jeres Twilio-konsol.",
@@ -1261,6 +1430,7 @@ export const dashboardPages: Namespace = {
     es: "Traiga su propio número de Twilio. Encuentre su Account SID y Auth Token en su consola de Twilio.",
     fr: "Apportez votre propre numéro Twilio. Trouvez votre Account SID et Auth Token dans votre console Twilio.",
     pt: "Traga seu próprio número da Twilio. Encontre seu Account SID e Auth Token no console da Twilio.",
+    de: "Bringen Sie Ihre eigene Twilio-Nummer mit. Sie finden Ihre Account SID und Ihr Auth Token in Ihrer Twilio-Konsole.",
   },
   "inbound.twilioSidLabel": {
     da: "Twilio Account SID",
@@ -1268,6 +1438,7 @@ export const dashboardPages: Namespace = {
     es: "Twilio Account SID",
     fr: "Twilio Account SID",
     pt: "Twilio Account SID",
+    de: "Twilio Account SID",
   },
   "inbound.twilioTokenLabel": {
     da: "Twilio Auth Token",
@@ -1275,6 +1446,7 @@ export const dashboardPages: Namespace = {
     es: "Twilio Auth Token",
     fr: "Twilio Auth Token",
     pt: "Twilio Auth Token",
+    de: "Twilio Auth Token",
   },
   "inbound.fetchTwilioNumbers": {
     da: "Hent numre fra Twilio →",
@@ -1282,6 +1454,7 @@ export const dashboardPages: Namespace = {
     es: "Obtener números de Twilio →",
     fr: "Récupérer les numéros depuis Twilio →",
     pt: "Buscar números da Twilio →",
+    de: "Nummern von Twilio abrufen →",
   },
   "inbound.fetching": {
     da: "Henter…",
@@ -1289,6 +1462,7 @@ export const dashboardPages: Namespace = {
     es: "Obteniendo…",
     fr: "Récupération…",
     pt: "Buscando…",
+    de: "Wird abgerufen…",
   },
   "inbound.noByoNumbersFound": {
     da: "Ingen numre fundet på denne Twilio-konto. Indtast nummeret manuelt herunder.",
@@ -1296,6 +1470,7 @@ export const dashboardPages: Namespace = {
     es: "No se encontraron números en esta cuenta de Twilio. Introduzca el número manualmente a continuación.",
     fr: "Aucun numéro trouvé sur ce compte Twilio. Saisissez le numéro manuellement ci-dessous.",
     pt: "Nenhum número encontrado nesta conta da Twilio. Digite o número manualmente abaixo.",
+    de: "Keine Nummern auf diesem Twilio-Konto gefunden. Geben Sie die Nummer unten manuell ein.",
   },
   "inbound.phoneNumberLabel": {
     da: "Telefonnummer",
@@ -1303,6 +1478,7 @@ export const dashboardPages: Namespace = {
     es: "Número de teléfono",
     fr: "Numéro de téléphone",
     pt: "Número de telefone",
+    de: "Telefonnummer",
   },
   "inbound.enterManually": {
     da: "Indtast nummer manuelt i stedet",
@@ -1310,6 +1486,7 @@ export const dashboardPages: Namespace = {
     es: "Introducir el número manualmente en su lugar",
     fr: "Saisir le numéro manuellement à la place",
     pt: "Digitar o número manualmente em vez disso",
+    de: "Nummer stattdessen manuell eingeben",
   },
   "inbound.chooseFromList": {
     da: "Vælg fra listen i stedet",
@@ -1317,6 +1494,7 @@ export const dashboardPages: Namespace = {
     es: "Elegir de la lista en su lugar",
     fr: "Choisir dans la liste à la place",
     pt: "Escolher da lista em vez disso",
+    de: "Stattdessen aus der Liste wählen",
   },
   "inbound.buying": {
     da: "Køber…",
@@ -1324,6 +1502,7 @@ export const dashboardPages: Namespace = {
     es: "Comprando…",
     fr: "Achat en cours…",
     pt: "Comprando…",
+    de: "Wird gekauft…",
   },
   "inbound.buyNumber": {
     da: "Køb nummer →",
@@ -1331,6 +1510,7 @@ export const dashboardPages: Namespace = {
     es: "Comprar número →",
     fr: "Acheter le numéro →",
     pt: "Comprar número →",
+    de: "Nummer kaufen →",
   },
   "inbound.importing": {
     da: "Importerer…",
@@ -1338,6 +1518,7 @@ export const dashboardPages: Namespace = {
     es: "Importando…",
     fr: "Importation…",
     pt: "Importando…",
+    de: "Wird importiert…",
   },
   "inbound.importNumber": {
     da: "Importér nummer →",
@@ -1345,6 +1526,7 @@ export const dashboardPages: Namespace = {
     es: "Importar número →",
     fr: "Importer le numéro →",
     pt: "Importar número →",
+    de: "Nummer importieren →",
   },
   "inbound.trialModalTitle": {
     da: "Sidste trin — forbind jeres Twilio-nummer",
@@ -1352,6 +1534,7 @@ export const dashboardPages: Namespace = {
     es: "Último paso — conecte su número de Twilio",
     fr: "Dernière étape — connectez votre numéro Twilio",
     pt: "Última etapa — conecte seu número da Twilio",
+    de: "Letzter Schritt — verbinden Sie Ihre Twilio-Nummer",
   },
   "inbound.trialModalSubtitle": {
     da: "I viderestiller blot jeres eksisterende firmanummer til testnummeret. Jeres rigtige opsætning rører vi ikke ved, og I kan stille viderestillingen tilbage når som helst.",
@@ -1359,6 +1542,7 @@ export const dashboardPages: Namespace = {
     es: "Simplemente desvíe su número de empresa existente al número de prueba. No tocaremos su configuración real, y podrá desactivar el desvío cuando quiera.",
     fr: "Vous transférez simplement votre numéro professionnel existant vers le numéro de test. Nous ne touchons pas à votre configuration réelle, et vous pouvez désactiver le transfert à tout moment.",
     pt: "Vocês simplesmente encaminham o número comercial existente para o número de teste. Não mexemos na configuração real de vocês, e podem desativar o encaminhamento quando quiserem.",
+    de: "Sie leiten einfach Ihre bestehende Geschäftsnummer an die Testnummer um. Wir rühren Ihre echte Einrichtung nicht an, und Sie können die Umleitung jederzeit wieder ausschalten.",
   },
   "inbound.trialStep1Title": {
     da: "Trin 1 — Har I ikke allerede en Twilio-konto?",
@@ -1366,6 +1550,7 @@ export const dashboardPages: Namespace = {
     es: "Paso 1 — ¿Aún no tiene una cuenta de Twilio?",
     fr: "Étape 1 — Vous n'avez pas encore de compte Twilio ?",
     pt: "Etapa 1 — Ainda não tem uma conta na Twilio?",
+    de: "Schritt 1 — Noch kein Twilio-Konto?",
   },
   "inbound.trialStep1Description": {
     da: 'Opret en gratis konto hos Twilio (ingen betalingskort krævet for et testnummer), og find jeres Account SID og Auth Token under "Account Info" på deres dashboard.',
@@ -1373,6 +1558,7 @@ export const dashboardPages: Namespace = {
     es: 'Cree una cuenta gratuita en Twilio (no se requiere tarjeta para un número de prueba), y encuentre su Account SID y Auth Token en "Account Info" de su panel.',
     fr: 'Créez un compte Twilio gratuit (aucune carte requise pour un numéro de test), et trouvez votre Account SID et Auth Token sous « Account Info » sur leur tableau de bord.',
     pt: 'Crie uma conta gratuita na Twilio (nenhum cartão é necessário para um número de teste), e encontre seu Account SID e Auth Token em "Account Info" no painel deles.',
+    de: "Erstellen Sie ein kostenloses Twilio-Konto (keine Karte für eine Testnummer erforderlich) und finden Sie Ihre Account SID und Ihr Auth Token unter „Account Info“ im Twilio-Dashboard.",
   },
   "inbound.trialCreateTwilioAccount": {
     da: "Opret gratis Twilio-konto →",
@@ -1380,6 +1566,7 @@ export const dashboardPages: Namespace = {
     es: "Crear cuenta gratuita de Twilio →",
     fr: "Créer un compte Twilio gratuit →",
     pt: "Criar conta gratuita na Twilio →",
+    de: "Kostenloses Twilio-Konto erstellen →",
   },
   "inbound.trialStep2Title": {
     da: "Trin 2 — Forbind kontoen",
@@ -1387,6 +1574,7 @@ export const dashboardPages: Namespace = {
     es: "Paso 2 — Conecte la cuenta",
     fr: "Étape 2 — Connectez le compte",
     pt: "Etapa 2 — Conecte a conta",
+    de: "Schritt 2 — Konto verbinden",
   },
   "inbound.trialConnecting": {
     da: "Forbinder…",
@@ -1394,6 +1582,7 @@ export const dashboardPages: Namespace = {
     es: "Conectando…",
     fr: "Connexion…",
     pt: "Conectando…",
+    de: "Wird verbunden…",
   },
   "inbound.trialConnectNumber": {
     da: "Forbind nummer →",
@@ -1401,6 +1590,7 @@ export const dashboardPages: Namespace = {
     es: "Conectar número →",
     fr: "Connecter le numéro →",
     pt: "Conectar número →",
+    de: "Nummer verbinden →",
   },
   "inbound.numbersHeading": {
     da: "Jeres numre",
@@ -1408,6 +1598,7 @@ export const dashboardPages: Namespace = {
     es: "Sus números",
     fr: "Vos numéros",
     pt: "Seus números",
+    de: "Ihre Nummern",
   },
   "inbound.noNumbersYet": {
     da: "Ingen telefonnumre endnu.",
@@ -1415,6 +1606,7 @@ export const dashboardPages: Namespace = {
     es: "Aún no hay números de teléfono.",
     fr: "Aucun numéro de téléphone pour l'instant.",
     pt: "Nenhum número de telefone ainda.",
+    de: "Noch keine Telefonnummern.",
   },
   "inbound.retry": {
     da: "Prøv igen",
@@ -1422,6 +1614,7 @@ export const dashboardPages: Namespace = {
     es: "Reintentar",
     fr: "Réessayer",
     pt: "Tentar novamente",
+    de: "Erneut versuchen",
   },
   "inbound.release": {
     da: "Frigiv",
@@ -1429,6 +1622,7 @@ export const dashboardPages: Namespace = {
     es: "Liberar",
     fr: "Libérer",
     pt: "Liberar",
+    de: "Freigeben",
   },
   "inbound.confirmRelease": {
     da: "Er du sikker? Telefonnummeret frigives fra Twilio og kan muligvis ikke gendannes.",
@@ -1436,6 +1630,7 @@ export const dashboardPages: Namespace = {
     es: "¿Está seguro? El número de teléfono se liberará de Twilio y es posible que no se pueda recuperar.",
     fr: "Êtes-vous sûr ? Le numéro de téléphone sera libéré de Twilio et pourrait ne pas être récupérable.",
     pt: "Tem certeza? O número de telefone será liberado da Twilio e pode não ser possível recuperá-lo.",
+    de: "Sind Sie sicher? Die Telefonnummer wird bei Twilio freigegeben und ist möglicherweise nicht wiederherstellbar.",
   },
   "inbound.errorSelectAgentAndNumber": {
     da: "Vælg agent og et nummer.",
@@ -1443,6 +1638,7 @@ export const dashboardPages: Namespace = {
     es: "Seleccione un agente y un número.",
     fr: "Sélectionnez un agent et un numéro.",
     pt: "Selecione um agente e um número.",
+    de: "Wählen Sie einen Agenten und eine Nummer aus.",
   },
   "inbound.errorSearchNumbers": {
     da: "Kunne ikke hente ledige numre. Prøv igen.",
@@ -1450,6 +1646,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudieron obtener los números disponibles. Inténtelo de nuevo.",
     fr: "Impossible de récupérer les numéros disponibles. Réessayez.",
     pt: "Não foi possível buscar os números disponíveis. Tente novamente.",
+    de: "Verfügbare Nummern konnten nicht abgerufen werden. Bitte versuchen Sie es erneut.",
   },
   "inbound.errorPurchase": {
     da: "Kunne ikke købe nummeret.",
@@ -1457,6 +1654,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudo comprar el número.",
     fr: "Impossible d'acheter le numéro.",
     pt: "Não foi possível comprar o número.",
+    de: "Die Nummer konnte nicht gekauft werden.",
   },
   "inbound.errorFillTwilioCredentials": {
     da: "Udfyld Account SID og Auth Token først.",
@@ -1464,6 +1662,7 @@ export const dashboardPages: Namespace = {
     es: "Complete primero el Account SID y el Auth Token.",
     fr: "Renseignez d'abord l'Account SID et l'Auth Token.",
     pt: "Preencha primeiro o Account SID e o Auth Token.",
+    de: "Füllen Sie zuerst Account SID und Auth Token aus.",
   },
   "inbound.errorFetchTwilioNumbers": {
     da: "Kunne ikke hente numre fra Twilio.",
@@ -1471,6 +1670,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudieron obtener los números de Twilio.",
     fr: "Impossible de récupérer les numéros depuis Twilio.",
     pt: "Não foi possível buscar os números da Twilio.",
+    de: "Nummern konnten nicht von Twilio abgerufen werden.",
   },
   "inbound.errorFillAllTwilioFields": {
     da: "Udfyld agent og alle Twilio-felter.",
@@ -1478,6 +1678,7 @@ export const dashboardPages: Namespace = {
     es: "Complete el agente y todos los campos de Twilio.",
     fr: "Renseignez l'agent et tous les champs Twilio.",
     pt: "Preencha o agente e todos os campos da Twilio.",
+    de: "Füllen Sie den Agenten und alle Twilio-Felder aus.",
   },
   "inbound.errorImport": {
     da: "Kunne ikke importere nummeret.",
@@ -1485,6 +1686,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudo importar el número.",
     fr: "Impossible d'importer le numéro.",
     pt: "Não foi possível importar o número.",
+    de: "Die Nummer konnte nicht importiert werden.",
   },
   // Phone number purchase_status labels — not covered by any other section,
   // added while wiring up inbound-manager.tsx.
@@ -1494,6 +1696,7 @@ export const dashboardPages: Namespace = {
     es: "Esperando el pago",
     fr: "En attente de paiement",
     pt: "Aguardando pagamento",
+    de: "Zahlung ausstehend",
   },
   "inbound.statusPaymentConfirmed": {
     da: "Betaling bekræftet — aktiveres…",
@@ -1501,6 +1704,7 @@ export const dashboardPages: Namespace = {
     es: "Pago confirmado — activando…",
     fr: "Paiement confirmé — activation…",
     pt: "Pagamento confirmado — ativando…",
+    de: "Zahlung bestätigt — wird aktiviert…",
   },
   "inbound.statusProvisioning": {
     da: "Aktiveres…",
@@ -1508,14 +1712,16 @@ export const dashboardPages: Namespace = {
     es: "Activando…",
     fr: "Activation…",
     pt: "Ativando…",
+    de: "Wird aktiviert…",
   },
-  "inbound.statusFailed": { da: "Fejlet", en: "Failed", es: "Fallido", fr: "Échoué", pt: "Falhou" },
+  "inbound.statusFailed": { da: "Fejlet", en: "Failed", es: "Fallido", fr: "Échoué", pt: "Falhou", de: "Fehlgeschlagen" },
   "inbound.statusReleased": {
     da: "Frigivet",
     en: "Released",
     es: "Liberado",
     fr: "Libéré",
     pt: "Liberado",
+    de: "Freigegeben",
   },
 
   // ---------------------------------------------------------------------
@@ -1527,6 +1733,7 @@ export const dashboardPages: Namespace = {
     es: "Pruebe AIbooking.dk Reception durante 30 días por",
     fr: "Essayez AIbooking.dk Reception pendant 30 jours pour",
     pt: "Experimente o AIbooking.dk Reception por 30 dias por",
+    de: "Testen Sie AIbooking.dk Reception 30 Tage lang für",
   },
   "inbound-free-trial.heroDescription": {
     da: "En AI-receptionist der besvarer jeres opkald, booker aftaler og aldrig går glip af en kunde — sæt den op på jeres eget telefonnummer i dag.",
@@ -1534,6 +1741,7 @@ export const dashboardPages: Namespace = {
     es: "Una recepcionista de IA que contesta sus llamadas, reserva citas y nunca pierde a un cliente — configúrela en su propio número de teléfono hoy mismo.",
     fr: "Une réceptionniste IA qui répond à vos appels, prend les rendez-vous et ne rate jamais un client — configurez-la sur votre propre numéro de téléphone dès aujourd'hui.",
     pt: "Uma recepcionista de IA que atende suas chamadas, agenda compromissos e nunca perde um cliente — configure-a no seu próprio número de telefone hoje mesmo.",
+    de: "Eine KI-Rezeption, die Ihre Anrufe entgegennimmt, Termine bucht und nie einen Kunden verpasst — richten Sie sie noch heute auf Ihrer eigenen Telefonnummer ein.",
   },
   "inbound-free-trial.priceSubtitle": {
     da: "for de første 30 dage, derefter 999 kr/md — fortsætter automatisk",
@@ -1541,6 +1749,7 @@ export const dashboardPages: Namespace = {
     es: "durante los primeros 30 días, luego 999 kr/mes — continúa automáticamente",
     fr: "pour les 30 premiers jours, puis 999 kr/mois — se poursuit automatiquement",
     pt: "pelos primeiros 30 dias, depois 999 kr/mês — continua automaticamente",
+    de: "für die ersten 30 Tage, danach 999 kr/Monat — verlängert sich automatisch",
   },
   "inbound-free-trial.included1Title": {
     da: "1 testnummer",
@@ -1548,6 +1757,7 @@ export const dashboardPages: Namespace = {
     es: "1 número de prueba",
     fr: "1 numéro de test",
     pt: "1 número de teste",
+    de: "1 Testnummer",
   },
   "inbound-free-trial.included1Description": {
     da: "Jeres eget Twilio-nummer, klar til at viderestille til med det samme.",
@@ -1555,6 +1765,7 @@ export const dashboardPages: Namespace = {
     es: "Su propio número de Twilio, listo para desviar de inmediato.",
     fr: "Votre propre numéro Twilio, prêt à recevoir le transfert immédiatement.",
     pt: "Seu próprio número da Twilio, pronto para encaminhamento imediatamente.",
+    de: "Ihre eigene Twilio-Nummer, sofort einsatzbereit zur Umleitung.",
   },
   "inbound-free-trial.included2Title": {
     da: "Op til 75 min. taletid",
@@ -1562,6 +1773,7 @@ export const dashboardPages: Namespace = {
     es: "Hasta 75 min. de tiempo de conversación",
     fr: "Jusqu'à 75 min de temps d'appel",
     pt: "Até 75 min. de tempo de conversa",
+    de: "Bis zu 75 Min. Gesprächszeit",
   },
   "inbound-free-trial.included2Description": {
     da: "Twilios egen gratis-kvote til en ny Twilio-konto, brugt til at teste agenten live på opkald.",
@@ -1569,6 +1781,7 @@ export const dashboardPages: Namespace = {
     es: "La propia cuota gratuita de Twilio para una cuenta nueva, usada para probar el agente en llamadas reales.",
     fr: "Le quota gratuit propre à Twilio pour un nouveau compte, utilisé pour tester l'agent en direct sur des appels.",
     pt: "A própria cota gratuita da Twilio para uma nova conta, usada para testar o agente ao vivo em chamadas.",
+    de: "Twilios eigenes kostenloses Kontingent für ein neues Twilio-Konto, verwendet, um den Agenten live in Anrufen zu testen.",
   },
   "inbound-free-trial.included3Title": {
     da: "Fuld PRO-adgang",
@@ -1576,6 +1789,7 @@ export const dashboardPages: Namespace = {
     es: "Acceso PRO completo",
     fr: "Accès PRO complet",
     pt: "Acesso PRO completo",
+    de: "Voller PRO-Zugang",
   },
   "inbound-free-trial.included3Description": {
     da: "Alle funktioner i AIbooking.dk-platformen låst op — agent, widget, kalender, det hele.",
@@ -1583,6 +1797,7 @@ export const dashboardPages: Namespace = {
     es: "Todas las funciones de la plataforma AIbooking.dk desbloqueadas — agente, widget, calendario, todo.",
     fr: "Toutes les fonctionnalités de la plateforme AIbooking.dk débloquées — agent, widget, calendrier, tout.",
     pt: "Todos os recursos da plataforma AIbooking.dk desbloqueados — agente, widget, calendário, tudo.",
+    de: "Alle Funktionen der AIbooking.dk-Plattform freigeschaltet — Agent, Widget, Kalender, alles.",
   },
   "inbound-free-trial.startButton": {
     da: "Prøv nu — 499 kr for 30 dage →",
@@ -1590,6 +1805,7 @@ export const dashboardPages: Namespace = {
     es: "Empezar ahora — 499 kr por 30 días →",
     fr: "Essayer maintenant — 499 kr pour 30 jours →",
     pt: "Começar agora — 499 kr por 30 dias →",
+    de: "Jetzt starten — 499 kr für 30 Tage →",
   },
   "inbound-free-trial.startDisclaimer": {
     da: "Betales sikkert via Stripe. I kan opsige når som helst under Betaling. De 75 gratis minutter er Twilios egen kvote til en ny Twilio-konto — har I allerede en Twilio-konto, kan jeres saldo se anderledes ud.",
@@ -1597,6 +1813,7 @@ export const dashboardPages: Namespace = {
     es: "Se paga de forma segura a través de Stripe. Puede cancelar en cualquier momento en Facturación. Los 75 minutos gratuitos son la cuota propia de Twilio para una cuenta nueva — si ya tiene una cuenta de Twilio, su saldo puede ser diferente.",
     fr: "Paiement sécurisé via Stripe. Vous pouvez résilier à tout moment dans Facturation. Les 75 minutes gratuites correspondent au quota propre de Twilio pour un nouveau compte — si vous avez déjà un compte Twilio, votre solde peut être différent.",
     pt: "Pago com segurança via Stripe. Vocês podem cancelar a qualquer momento em Faturamento. Os 75 minutos gratuitos são a própria cota da Twilio para uma nova conta — se vocês já têm uma conta na Twilio, o saldo pode ser diferente.",
+    de: "Sicher bezahlt über Stripe. Sie können jederzeit unter Abrechnung kündigen. Die 75 kostenlosen Minuten sind Twilios eigenes Kontingent für ein neues Twilio-Konto — wenn Sie bereits ein Twilio-Konto haben, kann Ihr Guthaben anders aussehen.",
   },
   "inbound-free-trial.alreadyUsedOffer": {
     da: "I har allerede brugt introtilbuddet — men kan stadig forbinde flere numre under Inbound.",
@@ -1604,6 +1821,7 @@ export const dashboardPages: Namespace = {
     es: "Ya han utilizado la oferta de bienvenida — pero aún pueden conectar más números en Entrantes.",
     fr: "Vous avez déjà utilisé l'offre de bienvenue — mais vous pouvez toujours connecter d'autres numéros dans Entrant.",
     pt: "Vocês já usaram a oferta de boas-vindas — mas ainda podem conectar mais números em Recebidas.",
+    de: "Sie haben das Einführungsangebot bereits genutzt — Sie können aber weiterhin weitere Nummern unter Eingehend verbinden.",
   },
   "inbound-free-trial.alreadySubscribed": {
     da: "I har allerede et abonnement — introtilbuddet er kun for nye kunder.",
@@ -1611,6 +1829,7 @@ export const dashboardPages: Namespace = {
     es: "Ya tienen una suscripción — la oferta de bienvenida es solo para clientes nuevos.",
     fr: "Vous avez déjà un abonnement — l'offre de bienvenue est réservée aux nouveaux clients.",
     pt: "Vocês já têm uma assinatura — a oferta de boas-vindas é apenas para novos clientes.",
+    de: "Sie haben bereits ein Abonnement — das Einführungsangebot gilt nur für Neukunden.",
   },
   "inbound-free-trial.goToInbound": {
     da: "Gå til Inbound →",
@@ -1618,6 +1837,7 @@ export const dashboardPages: Namespace = {
     es: "Ir a Entrantes →",
     fr: "Aller à Entrant →",
     pt: "Ir para Recebidas →",
+    de: "Zu Eingehend →",
   },
   "inbound-free-trial.benefitsHeading": {
     da: "Det får I med AIbooking.dk Reception",
@@ -1625,6 +1845,7 @@ export const dashboardPages: Namespace = {
     es: "Lo que obtiene con AIbooking.dk Reception",
     fr: "Ce que vous obtenez avec AIbooking.dk Reception",
     pt: "O que vocês obtêm com o AIbooking.dk Reception",
+    de: "Das erhalten Sie mit AIbooking.dk Reception",
   },
   "inbound-free-trial.benefit1Title": {
     da: "Svarer altid — også uden for åbningstid",
@@ -1632,6 +1853,7 @@ export const dashboardPages: Namespace = {
     es: "Siempre responde — incluso fuera del horario de apertura",
     fr: "Répond toujours — même en dehors des heures d'ouverture",
     pt: "Sempre atende — mesmo fora do horário de funcionamento",
+    de: "Antwortet immer — auch außerhalb der Öffnungszeiten",
   },
   "inbound-free-trial.benefit1Description": {
     da: "Jeres AI-receptionist tager opkaldet med det samme, dag og nat. Ingen kunder lagt i kø, ingen tabte opkald til konkurrenten.",
@@ -1639,6 +1861,7 @@ export const dashboardPages: Namespace = {
     es: "Su recepcionista de IA contesta la llamada al instante, día y noche. Sin clientes en espera, sin llamadas perdidas frente a la competencia.",
     fr: "Votre réceptionniste IA décroche immédiatement, jour et nuit. Aucun client mis en attente, aucun appel perdu au profit d'un concurrent.",
     pt: "Sua recepcionista de IA atende a chamada instantaneamente, dia e noite. Nenhum cliente em espera, nenhuma chamada perdida para o concorrente.",
+    de: "Ihre KI-Rezeption nimmt den Anruf sofort entgegen, Tag und Nacht. Keine Kunden in der Warteschleife, keine verlorenen Anrufe an die Konkurrenz.",
   },
   "inbound-free-trial.benefit2Title": {
     da: "Taler naturligt dansk",
@@ -1646,6 +1869,7 @@ export const dashboardPages: Namespace = {
     es: "Habla danés con naturalidad",
     fr: "Parle un danois naturel",
     pt: "Fala dinamarquês de forma natural",
+    de: "Spricht natürliches Dänisch",
   },
   "inbound-free-trial.benefit2Description": {
     da: "Bygget på Claude og ElevenLabs — svarer flydende og forståeligt, ikke robotagtige menuvalg eller \"tryk 1 for...\".",
@@ -1653,6 +1877,7 @@ export const dashboardPages: Namespace = {
     es: "Construido sobre Claude y ElevenLabs — responde con fluidez y claridad, no con opciones de menú robóticas ni \"pulse 1 para...\".",
     fr: "Construit sur Claude et ElevenLabs — répond de façon fluide et claire, sans menus robotiques ni « appuyez sur 1 pour... ».",
     pt: "Construído sobre Claude e ElevenLabs — responde de forma fluente e clara, sem menus robóticos ou \"pressione 1 para...\".",
+    de: "Basiert auf Claude und ElevenLabs — antwortet flüssig und verständlich, keine robotischen Menüoptionen oder „drücken Sie 1 für...“.",
   },
   "inbound-free-trial.benefit3Title": {
     da: "Booker direkte i jeres kalender",
@@ -1660,6 +1885,7 @@ export const dashboardPages: Namespace = {
     es: "Reserva directamente en su calendario",
     fr: "Réserve directement dans votre calendrier",
     pt: "Agenda diretamente no seu calendário",
+    de: "Bucht direkt in Ihren Kalender",
   },
   "inbound-free-trial.benefit3Description": {
     da: "Forbind Google Kalender, Outlook eller Cal.com, og lad agenten aftale og bekræfte tider selv.",
@@ -1667,6 +1893,7 @@ export const dashboardPages: Namespace = {
     es: "Conecte Google Calendar, Outlook o Cal.com, y deje que el agente concierte y confirme las citas por sí mismo.",
     fr: "Connectez Google Agenda, Outlook ou Cal.com, et laissez l'agent planifier et confirmer les créneaux lui-même.",
     pt: "Conecte o Google Agenda, Outlook ou Cal.com, e deixe o agente marcar e confirmar horários sozinho.",
+    de: "Verbinden Sie Google Kalender, Outlook oder Cal.com, und lassen Sie den Agenten Termine selbst planen und bestätigen.",
   },
   "inbound-free-trial.benefit4Title": {
     da: "Samler leads og kundeoplysninger",
@@ -1674,6 +1901,7 @@ export const dashboardPages: Namespace = {
     es: "Recopila leads y datos de clientes",
     fr: "Collecte les prospects et les informations clients",
     pt: "Coleta leads e informações de clientes",
+    de: "Erfasst Leads und Kundendaten",
   },
   "inbound-free-trial.benefit4Description": {
     da: "Hver samtale gemmes og opsummeres automatisk, så I aldrig mister kontekst fra et opkald.",
@@ -1681,6 +1909,7 @@ export const dashboardPages: Namespace = {
     es: "Cada conversación se guarda y resume automáticamente, para que nunca pierda el contexto de una llamada.",
     fr: "Chaque conversation est enregistrée et résumée automatiquement, afin que vous ne perdiez jamais le contexte d'un appel.",
     pt: "Cada conversa é salva e resumida automaticamente, para que vocês nunca percam o contexto de uma chamada.",
+    de: "Jedes Gespräch wird automatisch gespeichert und zusammengefasst, damit Sie nie den Kontext eines Anrufs verlieren.",
   },
   "inbound-free-trial.benefit5Title": {
     da: "Jeres eget nummer — jeres kontrol",
@@ -1688,6 +1917,7 @@ export const dashboardPages: Namespace = {
     es: "Su propio número — su control",
     fr: "Votre propre numéro — votre contrôle",
     pt: "Seu próprio número — seu controle",
+    de: "Ihre eigene Nummer — Ihre Kontrolle",
   },
   "inbound-free-trial.benefit5Description": {
     da: "I bruger jeres eget Twilio-nummer og viderestiller blot jeres eksisterende firmanummer til det. Stil viderestillingen tilbage når som helst.",
@@ -1695,6 +1925,7 @@ export const dashboardPages: Namespace = {
     es: "Utiliza su propio número de Twilio y simplemente desvía su número de empresa existente a él. Desactive el desvío cuando quiera.",
     fr: "Vous utilisez votre propre numéro Twilio et transférez simplement votre numéro professionnel existant vers celui-ci. Désactivez le transfert à tout moment.",
     pt: "Vocês usam seu próprio número da Twilio e simplesmente encaminham o número comercial existente para ele. Desativem o encaminhamento quando quiserem.",
+    de: "Sie nutzen Ihre eigene Twilio-Nummer und leiten einfach Ihre bestehende Geschäftsnummer dorthin um. Schalten Sie die Umleitung jederzeit wieder aus.",
   },
   "inbound-free-trial.howItWorksHeading": {
     da: "Sådan fungerer det",
@@ -1702,6 +1933,7 @@ export const dashboardPages: Namespace = {
     es: "Cómo funciona",
     fr: "Comment ça marche",
     pt: "Como funciona",
+    de: "So funktioniert es",
   },
   "inbound-free-trial.step1Title": {
     da: "Betal 499 kr for de første 30 dage",
@@ -1709,6 +1941,7 @@ export const dashboardPages: Namespace = {
     es: "Pague 499 kr por los primeros 30 días",
     fr: "Payez 499 kr pour les 30 premiers jours",
     pt: "Pague 499 kr pelos primeiros 30 dias",
+    de: "Zahlen Sie 499 kr für die ersten 30 Tage",
   },
   "inbound-free-trial.step1Description": {
     da: "Via Stripe — sikker betaling, kvittering på mail. Herefter fortsætter det automatisk til normalpris.",
@@ -1716,6 +1949,7 @@ export const dashboardPages: Namespace = {
     es: "A través de Stripe — pago seguro, recibo por correo electrónico. Después continúa automáticamente al precio normal.",
     fr: "Via Stripe — paiement sécurisé, reçu par e-mail. Ensuite, cela continue automatiquement au tarif normal.",
     pt: "Via Stripe — pagamento seguro, recibo por e-mail. Depois disso, continua automaticamente pelo preço normal.",
+    de: "Über Stripe — sichere Zahlung, Beleg per E-Mail. Danach läuft es automatisch zum regulären Preis weiter.",
   },
   "inbound-free-trial.step2Title": {
     da: "Forbind jeres Twilio-konto",
@@ -1723,6 +1957,7 @@ export const dashboardPages: Namespace = {
     es: "Conecte su cuenta de Twilio",
     fr: "Connectez votre compte Twilio",
     pt: "Conecte sua conta da Twilio",
+    de: "Verbinden Sie Ihr Twilio-Konto",
   },
   "inbound-free-trial.step2Description": {
     da: "Har I ikke allerede en, opretter I en gratis konto hos Twilio på 2 minutter. Indtast Account SID og Auth Token i vores popup, og vælg nummeret fra en dropdown — I skal ikke taste noget manuelt.",
@@ -1730,6 +1965,7 @@ export const dashboardPages: Namespace = {
     es: "Si aún no tiene una, cree una cuenta gratuita de Twilio en 2 minutos. Introduzca el Account SID y el Auth Token en nuestra ventana emergente, y elija el número de una lista desplegable — no necesita escribir nada manualmente.",
     fr: "Si vous n'en avez pas encore, créez un compte Twilio gratuit en 2 minutes. Saisissez l'Account SID et l'Auth Token dans notre fenêtre contextuelle, et choisissez le numéro dans une liste déroulante — vous n'avez rien à saisir manuellement.",
     pt: "Se ainda não tiverem uma, criem uma conta gratuita na Twilio em 2 minutos. Digitem o Account SID e o Auth Token em nosso pop-up, e escolham o número em uma lista suspensa — não é preciso digitar nada manualmente.",
+    de: "Falls Sie noch keines haben, erstellen Sie in 2 Minuten ein kostenloses Twilio-Konto. Geben Sie Account SID und Auth Token in unserem Popup ein und wählen Sie die Nummer aus einer Dropdown-Liste — Sie müssen nichts manuell eintippen.",
   },
   "inbound-free-trial.step3Title": {
     da: "Viderestil jeres eksisterende nummer",
@@ -1737,6 +1973,7 @@ export const dashboardPages: Namespace = {
     es: "Desvíe su número existente",
     fr: "Transférez votre numéro existant",
     pt: "Encaminhe seu número existente",
+    de: "Leiten Sie Ihre bestehende Nummer um",
   },
   "inbound-free-trial.step3Description": {
     da: "Stil jeres firmanummer om til at viderestille til det nye nummer. Det er den eneste ændring — jeres nuværende opsætning rører vi ikke ved.",
@@ -1744,6 +1981,7 @@ export const dashboardPages: Namespace = {
     es: "Configure su número de empresa para desviarse al número nuevo. Ese es el único cambio — no tocaremos su configuración actual.",
     fr: "Configurez votre numéro professionnel pour qu'il soit transféré vers le nouveau numéro. C'est le seul changement — nous ne touchons pas à votre configuration actuelle.",
     pt: "Configurem o número da empresa para encaminhar para o novo número. Essa é a única alteração — não mexemos na configuração atual de vocês.",
+    de: "Stellen Sie Ihre Geschäftsnummer so ein, dass sie an die neue Nummer weitergeleitet wird. Das ist die einzige Änderung — Ihre aktuelle Einrichtung rühren wir nicht an.",
   },
   "inbound-free-trial.notReadyTitle": {
     da: "Ikke klar til at forbinde et telefonnummer endnu?",
@@ -1751,6 +1989,7 @@ export const dashboardPages: Namespace = {
     es: "¿Aún no está listo para conectar un número de teléfono?",
     fr: "Pas encore prêt à connecter un numéro de téléphone ?",
     pt: "Ainda não está pronto para conectar um número de telefone?",
+    de: "Noch nicht bereit, eine Telefonnummer zu verbinden?",
   },
   "inbound-free-trial.notReadyDescriptionPrefix": {
     da: "I har allerede adgang til at prøve chat- og stemme-widgetten uden Twilio — test den visuelt under",
@@ -1758,6 +1997,7 @@ export const dashboardPages: Namespace = {
     es: "Ya tiene acceso para probar el widget de chat y voz sin Twilio — pruébelo visualmente en",
     fr: "Vous avez déjà accès pour essayer le widget de chat et vocal sans Twilio — testez-le visuellement dans",
     pt: "Vocês já têm acesso para experimentar o widget de chat e voz sem a Twilio — testem visualmente em",
+    de: "Sie haben bereits Zugang, um das Chat- und Voice-Widget ohne Twilio auszuprobieren — testen Sie es visuell unter",
   },
   "inbound-free-trial.notReadyDescriptionSuffix": {
     da: ", eller læg den direkte ind på jeres hjemmeside med embed-koden. Alle nye konti får 5 gratis minutter i 7 dage til det, helt uafhængigt af introtilbuddet ovenfor.",
@@ -1765,6 +2005,7 @@ export const dashboardPages: Namespace = {
     es: ", o añádalo directamente a su sitio web con el código de inserción. Todas las cuentas nuevas reciben 5 minutos gratis durante 7 días para esto, totalmente independiente de la oferta de bienvenida anterior.",
     fr: ", ou ajoutez-le directement à votre site web avec le code d'intégration. Tous les nouveaux comptes reçoivent 5 minutes gratuites pendant 7 jours pour cela, indépendamment de l'offre de bienvenue ci-dessus.",
     pt: ", ou adicionem-no diretamente ao site com o código de incorporação. Todas as novas contas recebem 5 minutos grátis por 7 dias para isso, totalmente separado da oferta de boas-vindas acima.",
+    de: ", oder fügen Sie es direkt mit dem Einbettungscode auf Ihrer Website ein. Alle neuen Konten erhalten dafür 5 kostenlose Minuten für 7 Tage, völlig unabhängig vom obigen Einführungsangebot.",
   },
   "inbound-free-trial.testAgentLink": {
     da: "Test Agent",
@@ -1772,18 +2013,20 @@ export const dashboardPages: Namespace = {
     es: "Probar agente",
     fr: "Tester l'agent",
     pt: "Testar agente",
+    de: "Agent testen",
   },
 
   // ---------------------------------------------------------------------
   // components/dashboard/outbound-manager.tsx
   // ---------------------------------------------------------------------
-  "outbound.title": { da: "Outbound", en: "Outbound", es: "Salientes", fr: "Sortant", pt: "Efetuadas" },
+  "outbound.title": { da: "Outbound", en: "Outbound", es: "Salientes", fr: "Sortant", pt: "Efetuadas", de: "Ausgehend" },
   "outbound.subtitle": {
     da: "Ring automatisk ud til en liste af numre med jeres AI-agent.",
     en: "Automatically call a list of numbers with your AI agent.",
     es: "Llame automáticamente a una lista de números con su agente de IA.",
     fr: "Appelez automatiquement une liste de numéros avec votre agent IA.",
     pt: "Ligue automaticamente para uma lista de números com seu agente de IA.",
+    de: "Rufen Sie automatisch eine Liste von Nummern mit Ihrem KI-Agenten an.",
   },
   "outbound.newCampaign": {
     da: "+ Ny kampagne",
@@ -1791,6 +2034,7 @@ export const dashboardPages: Namespace = {
     es: "+ Nueva campaña",
     fr: "+ Nouvelle campagne",
     pt: "+ Nova campanha",
+    de: "+ Neue Kampagne",
   },
   "outbound.noNumbersYet": {
     da: 'Tilføj et telefonnummer under "Inbound" først — outbound-opkald skal ringes fra et nummer.',
@@ -1798,6 +2042,7 @@ export const dashboardPages: Namespace = {
     es: 'Añada primero un número de teléfono en "Inbound" — las llamadas salientes deben hacerse desde un número.',
     fr: 'Ajoutez d\'abord un numéro de téléphone dans « Inbound » — les appels sortants doivent être passés depuis un numéro.',
     pt: 'Adicionem primeiro um número de telefone em "Inbound" — chamadas efetuadas precisam partir de um número.',
+    de: "Fügen Sie zuerst eine Telefonnummer unter „Eingehend“ hinzu — ausgehende Anrufe müssen von einer Nummer aus getätigt werden.",
   },
   "outbound.campaignNameLabel": {
     da: "Kampagnenavn",
@@ -1805,6 +2050,7 @@ export const dashboardPages: Namespace = {
     es: "Nombre de la campaña",
     fr: "Nom de la campagne",
     pt: "Nome da campanha",
+    de: "Kampagnenname",
   },
   "outbound.campaignNamePlaceholder": {
     da: "Fx Opfølgning på leads – uge 34",
@@ -1812,6 +2058,7 @@ export const dashboardPages: Namespace = {
     es: "Ej. Seguimiento de leads – semana 34",
     fr: "Ex. Relance des prospects – semaine 34",
     pt: "Ex. Acompanhamento de leads – semana 34",
+    de: "Z. B. Lead-Nachfassung – Woche 34",
   },
   "outbound.callFromLabel": {
     da: "Ring fra",
@@ -1819,6 +2066,7 @@ export const dashboardPages: Namespace = {
     es: "Llamar desde",
     fr: "Appeler depuis",
     pt: "Ligar de",
+    de: "Anrufen von",
   },
   "outbound.chooseNumberPlaceholder": {
     da: "Vælg nummer…",
@@ -1826,6 +2074,7 @@ export const dashboardPages: Namespace = {
     es: "Elegir un número…",
     fr: "Choisir un numéro…",
     pt: "Escolher um número…",
+    de: "Nummer wählen…",
   },
   "outbound.noNumberForAgent": {
     da: "Denne agent har intet telefonnummer endnu.",
@@ -1833,6 +2082,7 @@ export const dashboardPages: Namespace = {
     es: "Este agente aún no tiene un número de teléfono.",
     fr: "Cet agent n'a pas encore de numéro de téléphone.",
     pt: "Este agente ainda não tem um número de telefone.",
+    de: "Dieser Agent hat noch keine Telefonnummer.",
   },
   "outbound.contactsLabel": {
     da: "Numre der skal ringes op (ét pr. linje, maks. 100)",
@@ -1840,6 +2090,7 @@ export const dashboardPages: Namespace = {
     es: "Números a llamar (uno por línea, máx. 100)",
     fr: "Numéros à appeler (un par ligne, 100 max)",
     pt: "Números a serem chamados (um por linha, máx. 100)",
+    de: "Anzurufende Nummern (eine pro Zeile, max. 100)",
   },
   "outbound.launching": {
     da: "Starter…",
@@ -1847,6 +2098,7 @@ export const dashboardPages: Namespace = {
     es: "Iniciando…",
     fr: "Lancement…",
     pt: "Iniciando…",
+    de: "Wird gestartet…",
   },
   "outbound.launchCampaign": {
     da: "Start kampagne",
@@ -1854,6 +2106,7 @@ export const dashboardPages: Namespace = {
     es: "Iniciar campaña",
     fr: "Lancer la campagne",
     pt: "Iniciar campanha",
+    de: "Kampagne starten",
   },
   "outbound.launched": {
     da: "Startet",
@@ -1861,6 +2114,7 @@ export const dashboardPages: Namespace = {
     es: "Iniciada",
     fr: "Lancée",
     pt: "Iniciada",
+    de: "Gestartet",
   },
   "outbound.creating": {
     da: "Opretter…",
@@ -1868,6 +2122,7 @@ export const dashboardPages: Namespace = {
     es: "Creando…",
     fr: "Création…",
     pt: "Criando…",
+    de: "Wird erstellt…",
   },
   "outbound.createCampaign": {
     da: "Opret kampagne →",
@@ -1875,6 +2130,7 @@ export const dashboardPages: Namespace = {
     es: "Crear campaña →",
     fr: "Créer la campagne →",
     pt: "Criar campanha →",
+    de: "Kampagne erstellen →",
   },
   "outbound.campaignsHeading": {
     da: "Jeres kampagner",
@@ -1882,6 +2138,7 @@ export const dashboardPages: Namespace = {
     es: "Sus campañas",
     fr: "Vos campagnes",
     pt: "Suas campanhas",
+    de: "Ihre Kampagnen",
   },
   "outbound.noCampaignsYet": {
     da: "Ingen kampagner endnu.",
@@ -1889,6 +2146,7 @@ export const dashboardPages: Namespace = {
     es: "Aún no hay campañas.",
     fr: "Aucune campagne pour l'instant.",
     pt: "Nenhuma campanha ainda.",
+    de: "Noch keine Kampagnen.",
   },
   "outbound.contactsCount": {
     da: "{count} numre",
@@ -1896,6 +2154,7 @@ export const dashboardPages: Namespace = {
     es: "{count} números",
     fr: "{count} numéros",
     pt: "{count} números",
+    de: "{count} Nummern",
   },
   "outbound.errorCampaignName": {
     da: "Angiv et navn til kampagnen.",
@@ -1903,6 +2162,7 @@ export const dashboardPages: Namespace = {
     es: "Asigne un nombre a la campaña.",
     fr: "Donnez un nom à la campagne.",
     pt: "Dê um nome à campanha.",
+    de: "Geben Sie der Kampagne einen Namen.",
   },
   "outbound.errorChooseNumber": {
     da: "Vælg hvilket nummer der skal ringes fra.",
@@ -1910,6 +2170,7 @@ export const dashboardPages: Namespace = {
     es: "Elija desde qué número se debe llamar.",
     fr: "Choisissez le numéro depuis lequel appeler.",
     pt: "Escolha de qual número deve ser feita a ligação.",
+    de: "Wählen Sie, von welcher Nummer aus angerufen werden soll.",
   },
   "outbound.errorAtLeastOneContact": {
     da: "Indsæt mindst ét telefonnummer.",
@@ -1917,6 +2178,7 @@ export const dashboardPages: Namespace = {
     es: "Introduzca al menos un número de teléfono.",
     fr: "Saisissez au moins un numéro de téléphone.",
     pt: "Insira pelo menos um número de telefone.",
+    de: "Geben Sie mindestens eine Telefonnummer ein.",
   },
   "outbound.errorMaxContacts": {
     da: "Maks. 100 numre pr. kampagne.",
@@ -1924,6 +2186,7 @@ export const dashboardPages: Namespace = {
     es: "Máx. 100 números por campaña.",
     fr: "100 numéros maximum par campagne.",
     pt: "Máx. 100 números por campanha.",
+    de: "Max. 100 Nummern pro Kampagne.",
   },
   "outbound.errorCreate": {
     da: "Kunne ikke oprette kampagnen.",
@@ -1931,6 +2194,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudo crear la campaña.",
     fr: "Impossible de créer la campagne.",
     pt: "Não foi possível criar a campanha.",
+    de: "Die Kampagne konnte nicht erstellt werden.",
   },
   "outbound.errorLaunch": {
     da: "Kunne ikke starte kampagnen.",
@@ -1938,6 +2202,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudo iniciar la campaña.",
     fr: "Impossible de lancer la campagne.",
     pt: "Não foi possível iniciar a campanha.",
+    de: "Die Kampagne konnte nicht gestartet werden.",
   },
   // Fallback when a campaign's phone_number_id doesn't resolve to a known
   // number — not covered elsewhere, added while wiring up outbound-manager.tsx.
@@ -1947,6 +2212,7 @@ export const dashboardPages: Namespace = {
     es: "Número desconocido",
     fr: "Numéro inconnu",
     pt: "Número desconhecido",
+    de: "Unbekannte Nummer",
   },
 
   // ---------------------------------------------------------------------
@@ -1958,6 +2224,7 @@ export const dashboardPages: Namespace = {
     es: "← Volver al panel",
     fr: "← Retour au tableau de bord",
     pt: "← Voltar ao painel",
+    de: "← Zurück zum Dashboard",
   },
   "conversation-detail.fallbackTitle": {
     da: "Samtale",
@@ -1965,6 +2232,7 @@ export const dashboardPages: Namespace = {
     es: "Conversación",
     fr: "Conversation",
     pt: "Conversa",
+    de: "Gespräch",
   },
   "conversation-detail.summaryHeading": {
     da: "Opsummering",
@@ -1972,6 +2240,7 @@ export const dashboardPages: Namespace = {
     es: "Resumen",
     fr: "Résumé",
     pt: "Resumo",
+    de: "Zusammenfassung",
   },
   "conversation-detail.transcriptHeading": {
     da: "Transskription",
@@ -1979,6 +2248,7 @@ export const dashboardPages: Namespace = {
     es: "Transcripción",
     fr: "Transcription",
     pt: "Transcrição",
+    de: "Transkript",
   },
 
   // ---------------------------------------------------------------------
@@ -1990,6 +2260,7 @@ export const dashboardPages: Namespace = {
     es: "Detalles de la conversación",
     fr: "Détails de la conversation",
     pt: "Detalhes da conversa",
+    de: "Gesprächsdetails",
   },
   "session-details-modal.tabTranscription": {
     da: "Transskription",
@@ -1997,6 +2268,7 @@ export const dashboardPages: Namespace = {
     es: "Transcripción",
     fr: "Transcription",
     pt: "Transcrição",
+    de: "Transkript",
   },
   "session-details-modal.tabSummary": {
     da: "Opsummering",
@@ -2004,6 +2276,7 @@ export const dashboardPages: Namespace = {
     es: "Resumen",
     fr: "Résumé",
     pt: "Resumo",
+    de: "Zusammenfassung",
   },
   "session-details-modal.tabRecording": {
     da: "Optagelse",
@@ -2011,6 +2284,7 @@ export const dashboardPages: Namespace = {
     es: "Grabación",
     fr: "Enregistrement",
     pt: "Gravação",
+    de: "Aufnahme",
   },
   "session-details-modal.tabAnalysis": {
     da: "Analyse",
@@ -2018,6 +2292,7 @@ export const dashboardPages: Namespace = {
     es: "Análisis",
     fr: "Analyse",
     pt: "Análise",
+    de: "Analyse",
   },
   "session-details-modal.loading": {
     da: "Henter…",
@@ -2025,6 +2300,7 @@ export const dashboardPages: Namespace = {
     es: "Cargando…",
     fr: "Chargement…",
     pt: "Carregando…",
+    de: "Wird geladen…",
   },
   "session-details-modal.loadError": {
     da: "Kunne ikke hente samtalen.",
@@ -2032,6 +2308,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudo cargar la conversación.",
     fr: "Impossible de charger la conversation.",
     pt: "Não foi possível carregar a conversa.",
+    de: "Das Gespräch konnte nicht geladen werden.",
   },
   "session-details-modal.noSummaryYet": {
     da: "Ingen opsummering endnu — samtalen er muligvis for kort.",
@@ -2039,6 +2316,7 @@ export const dashboardPages: Namespace = {
     es: "Aún no hay resumen — la conversación puede ser demasiado corta.",
     fr: "Pas encore de résumé — la conversation est peut-être trop courte.",
     pt: "Ainda não há resumo — a conversa pode ser muito curta.",
+    de: "Noch keine Zusammenfassung — das Gespräch ist möglicherweise zu kurz.",
   },
   "session-details-modal.noRecording": {
     da: "Der gemmes ingen lydoptagelse i denne udgave — kun tekst-transskription.",
@@ -2046,6 +2324,7 @@ export const dashboardPages: Namespace = {
     es: "No se guarda ninguna grabación de audio en esta versión — solo transcripción de texto.",
     fr: "Aucun enregistrement audio n'est conservé dans cette version — uniquement la transcription texte.",
     pt: "Nenhuma gravação de áudio é armazenada nesta versão — apenas transcrição de texto.",
+    de: "In dieser Version wird keine Audioaufnahme gespeichert — nur Texttranskript.",
   },
   "session-details-modal.analysisUnavailable": {
     da: "Automatisk samtaleanalyse er ikke tilgængelig endnu.",
@@ -2053,6 +2332,7 @@ export const dashboardPages: Namespace = {
     es: "El análisis automático de conversaciones aún no está disponible.",
     fr: "L'analyse automatique des conversations n'est pas encore disponible.",
     pt: "A análise automática de conversas ainda não está disponível.",
+    de: "Die automatische Gesprächsanalyse ist noch nicht verfügbar.",
   },
   "session-details-modal.analysisComingSoon": {
     da: "Kommer snart.",
@@ -2060,6 +2340,7 @@ export const dashboardPages: Namespace = {
     es: "Próximamente.",
     fr: "Bientôt disponible.",
     pt: "Em breve.",
+    de: "Demnächst verfügbar.",
   },
 
   // ---------------------------------------------------------------------
@@ -2071,16 +2352,18 @@ export const dashboardPages: Namespace = {
     es: "Aún no hay conversaciones.",
     fr: "Aucune conversation pour l'instant.",
     pt: "Nenhuma conversa ainda.",
+    de: "Noch keine Gespräche.",
   },
-  "sessions-table.headerWidget": { da: "Widget", en: "Widget", es: "Widget", fr: "Widget", pt: "Widget" },
-  "sessions-table.headerDate": { da: "Dato", en: "Date", es: "Fecha", fr: "Date", pt: "Data" },
-  "sessions-table.headerStatus": { da: "Status", en: "Status", es: "Estado", fr: "Statut", pt: "Status" },
+  "sessions-table.headerWidget": { da: "Widget", en: "Widget", es: "Widget", fr: "Widget", pt: "Widget", de: "Widget" },
+  "sessions-table.headerDate": { da: "Dato", en: "Date", es: "Fecha", fr: "Date", pt: "Data", de: "Datum" },
+  "sessions-table.headerStatus": { da: "Status", en: "Status", es: "Estado", fr: "Statut", pt: "Status", de: "Status" },
   "sessions-table.headerMinutes": {
     da: "Minutter",
     en: "Minutes",
     es: "Minutos",
     fr: "Minutes",
     pt: "Minutos",
+    de: "Minuten",
   },
   "sessions-table.statusEnded": {
     da: "Afsluttet",
@@ -2088,6 +2371,7 @@ export const dashboardPages: Namespace = {
     es: "Finalizada",
     fr: "Terminée",
     pt: "Encerrada",
+    de: "Beendet",
   },
   "sessions-table.viewConversation": {
     da: "Se samtale",
@@ -2095,6 +2379,7 @@ export const dashboardPages: Namespace = {
     es: "Ver conversación",
     fr: "Voir la conversation",
     pt: "Ver conversa",
+    de: "Gespräch ansehen",
   },
   "sessions-table.previous": {
     da: "Forrige",
@@ -2102,6 +2387,7 @@ export const dashboardPages: Namespace = {
     es: "Anterior",
     fr: "Précédent",
     pt: "Anterior",
+    de: "Zurück",
   },
   "sessions-table.pageIndicator": {
     da: "Side {page} af {total}",
@@ -2109,6 +2395,7 @@ export const dashboardPages: Namespace = {
     es: "Página {page} de {total}",
     fr: "Page {page} sur {total}",
     pt: "Página {page} de {total}",
+    de: "Seite {page} von {total}",
   },
 
   // ---------------------------------------------------------------------
@@ -2120,6 +2407,7 @@ export const dashboardPages: Namespace = {
     es: "No se pudo iniciar el pago. Inténtelo de nuevo.",
     fr: "Impossible de démarrer le paiement. Réessayez.",
     pt: "Não foi possível iniciar o pagamento. Tente novamente.",
+    de: "Die Zahlung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
   },
 
   // ---------------------------------------------------------------------
@@ -2131,6 +2419,7 @@ export const dashboardPages: Namespace = {
     es: "La cuenta no está completamente configurada",
     fr: "Le compte n'est pas entièrement configuré",
     pt: "A conta não está totalmente configurada",
+    de: "Das Konto ist nicht vollständig eingerichtet",
   },
   "account-incomplete.bodyPrefix": {
     da: "Der er en konto tilknyttet denne login, men opsætningen blev ikke fuldført. Kontakt os på",
@@ -2138,6 +2427,7 @@ export const dashboardPages: Namespace = {
     es: "Hay una cuenta vinculada a este inicio de sesión, pero la configuración no se completó. Contáctenos en",
     fr: "Un compte est associé à cette connexion, mais la configuration n'a pas été terminée. Contactez-nous à",
     pt: "Há uma conta vinculada a este login, mas a configuração não foi concluída. Entre em contato conosco em",
+    de: "Es ist ein Konto mit diesem Login verknüpft, aber die Einrichtung wurde nicht abgeschlossen. Kontaktieren Sie uns unter",
   },
   "account-incomplete.bodySuffix": {
     da: "for at få det rettet.",
@@ -2145,6 +2435,7 @@ export const dashboardPages: Namespace = {
     es: "para que lo solucionemos.",
     fr: "pour que nous puissions corriger cela.",
     pt: "para resolvermos isso.",
+    de: ", um dies beheben zu lassen.",
   },
 
   // ---------------------------------------------------------------------
@@ -2156,6 +2447,7 @@ export const dashboardPages: Namespace = {
     es: "Iniciar sesión en el panel →",
     fr: "Connectez-vous au tableau de bord →",
     pt: "Entrar no painel →",
+    de: "Zum Dashboard anmelden →",
   },
   "home.signupLink": {
     da: "Opret konto →",
@@ -2163,5 +2455,6 @@ export const dashboardPages: Namespace = {
     es: "Crear cuenta →",
     fr: "Créer un compte →",
     pt: "Criar conta →",
+    de: "Konto erstellen →",
   },
 };

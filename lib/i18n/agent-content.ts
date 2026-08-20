@@ -2,7 +2,7 @@ import { isLocale, type Locale } from "./locales";
 
 // Widgets store language as a bare string (widgets.language, unconstrained
 // at the DB level — see 0001_init_schema.sql) but every value this platform
-// actually writes to it comes from the same 5-locale set profiles.language
+// actually writes to it comes from the same locale set profiles.language
 // uses (see lib/i18n/locales.ts). This module is the single place that
 // turns that bare code into what an AI agent actually needs to say/hear in
 // the right language: a Claude system-prompt directive, the literal
@@ -23,6 +23,7 @@ const LANGUAGE_DIRECTIVES: Record<Locale, string | null> = {
   es: "Responde siempre en español, sin importar en qué idioma esté escrito este mensaje.",
   fr: "Répondez toujours en français, quelle que soit la langue de ce message.",
   pt: "Responda sempre em português, independentemente do idioma em que esta mensagem esteja escrita.",
+  de: "Antworten Sie immer auf Deutsch, unabhängig davon, in welcher Sprache diese Eingabeaufforderung verfasst ist.",
 };
 
 export function languageDirective(widgetLanguage: string | null | undefined): string | null {
@@ -39,6 +40,7 @@ const LANGUAGE_NAMES_DA: Record<Locale, string> = {
   es: "spansk",
   fr: "fransk",
   pt: "portugisisk",
+  de: "tysk",
 };
 
 export function languageNameInDanish(widgetLanguage: string | null | undefined): string {
@@ -64,6 +66,7 @@ const DEFAULT_GREETINGS: Record<Locale, string> = {
   es: "¡Hola! ¿Cómo puedo ayudarte hoy?",
   fr: "Bonjour ! Comment puis-je vous aider aujourd'hui ?",
   pt: "Olá! Como posso ajudá-lo hoje?",
+  de: "Hallo! Wie kann ich Ihnen heute helfen?",
 };
 
 export function defaultGreeting(widgetLanguage: string | null | undefined): string {
@@ -78,6 +81,7 @@ const NO_SPEECH_HEARD: Record<Locale, string> = {
   es: "No pudimos escuchar nada. Hasta luego.",
   fr: "Nous n'avons rien entendu. Au revoir.",
   pt: "Não conseguimos ouvir nada. Até logo.",
+  de: "Wir konnten nichts hören. Auf Wiedersehen.",
 };
 
 export function noSpeechHeardText(widgetLanguage: string | null | undefined): string {
@@ -90,6 +94,7 @@ const ASK_TO_REPEAT: Record<Locale, string> = {
   es: "Lo siento, no escuché nada. ¿Puedes repetirlo?",
   fr: "Désolé, je n'ai rien entendu. Pouvez-vous répéter ?",
   pt: "Desculpe, não ouvi nada. Pode repetir?",
+  de: "Entschuldigung, ich habe nichts gehört. Können Sie das bitte wiederholen?",
 };
 
 export function askToRepeatText(widgetLanguage: string | null | undefined): string {
@@ -102,6 +107,7 @@ const AGENT_UNAVAILABLE: Record<Locale, string> = {
   es: "Este agente no está disponible en este momento. Adiós.",
   fr: "Cet agent n'est pas disponible pour le moment. Au revoir.",
   pt: "Este agente não está disponível no momento. Adeus.",
+  de: "Dieser Agent ist derzeit nicht verfügbar. Auf Wiedersehen.",
 };
 
 export function agentUnavailableText(widgetLanguage: string | null | undefined): string {
@@ -116,6 +122,7 @@ const TWILIO_LANGUAGE_TAGS: Record<Locale, string> = {
   es: "es-ES",
   fr: "fr-FR",
   pt: "pt-PT",
+  de: "de-DE",
 };
 
 export function toTwilioLanguage(widgetLanguage: string | null | undefined): string {

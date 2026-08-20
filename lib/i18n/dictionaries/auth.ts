@@ -10,6 +10,7 @@ export const auth: Namespace = {
     es: "Cree su cuenta",
     fr: "Créez votre compte",
     pt: "Crie sua conta",
+    de: "Erstellen Sie Ihr Konto",
   },
   "signup.companyName": {
     da: "Firmanavn",
@@ -17,6 +18,7 @@ export const auth: Namespace = {
     es: "Nombre de la empresa",
     fr: "Nom de l'entreprise",
     pt: "Nome da empresa",
+    de: "Firmenname",
   },
   "signup.language": {
     da: "Ønsket sprog",
@@ -24,14 +26,16 @@ export const auth: Namespace = {
     es: "Idioma preferido",
     fr: "Langue préférée",
     pt: "Idioma preferido",
+    de: "Bevorzugte Sprache",
   },
-  "signup.email": { da: "Email", en: "Email", es: "Correo electrónico", fr: "E-mail", pt: "E-mail" },
+  "signup.email": { da: "Email", en: "Email", es: "Correo electrónico", fr: "E-mail", pt: "E-mail", de: "E-Mail" },
   "signup.password": {
     da: "Adgangskode",
     en: "Password",
     es: "Contraseña",
     fr: "Mot de passe",
     pt: "Senha",
+    de: "Passwort",
   },
   "signup.passwordHint": {
     da: "Mindst 8 tegn",
@@ -39,6 +43,7 @@ export const auth: Namespace = {
     es: "Al menos 8 caracteres",
     fr: "Au moins 8 caractères",
     pt: "Pelo menos 8 caracteres",
+    de: "Mindestens 8 Zeichen",
   },
   "signup.submit": {
     da: "Opret konto",
@@ -46,6 +51,7 @@ export const auth: Namespace = {
     es: "Crear cuenta",
     fr: "Créer un compte",
     pt: "Criar conta",
+    de: "Konto erstellen",
   },
   "signup.submitting": {
     da: "Opretter…",
@@ -53,6 +59,7 @@ export const auth: Namespace = {
     es: "Creando…",
     fr: "Création…",
     pt: "Criando…",
+    de: "Wird erstellt…",
   },
   "signup.haveAccount": {
     da: "Har du allerede en konto?",
@@ -60,14 +67,16 @@ export const auth: Namespace = {
     es: "¿Ya tiene una cuenta?",
     fr: "Vous avez déjà un compte ?",
     pt: "Já tem uma conta?",
+    de: "Haben Sie bereits ein Konto?",
   },
-  "signup.login": { da: "Log ind", en: "Log in", es: "Iniciar sesión", fr: "Se connecter", pt: "Entrar" },
+  "signup.login": { da: "Log ind", en: "Log in", es: "Iniciar sesión", fr: "Se connecter", pt: "Entrar", de: "Anmelden" },
   "signup.errorGeneric": {
     da: "Kunne ikke oprette kontoen. Prøv igen.",
     en: "Could not create the account. Please try again.",
     es: "No se pudo crear la cuenta. Inténtelo de nuevo.",
     fr: "Impossible de créer le compte. Réessayez.",
     pt: "Não foi possível criar a conta. Tente novamente.",
+    de: "Das Konto konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
   },
   "signup.errorLoginAfterCreate": {
     da: "Kontoen blev oprettet, men login fejlede — prøv at logge ind manuelt.",
@@ -75,6 +84,7 @@ export const auth: Namespace = {
     es: "La cuenta se creó, pero el inicio de sesión falló; intente iniciar sesión manualmente.",
     fr: "Le compte a été créé, mais la connexion a échoué — essayez de vous connecter manuellement.",
     pt: "A conta foi criada, mas o login falhou — tente entrar manualmente.",
+    de: "Das Konto wurde erstellt, aber die Anmeldung ist fehlgeschlagen — bitte melden Sie sich manuell an.",
   },
   "signup.errorTimeout": {
     da: "Kontoen blev muligvis oprettet, men login tog for lang tid. Prøv at logge ind manuelt.",
@@ -82,6 +92,7 @@ export const auth: Namespace = {
     es: "Es posible que la cuenta se haya creado, pero el inicio de sesión tardó demasiado. Intente iniciar sesión manualmente.",
     fr: "Le compte a peut-être été créé, mais la connexion a pris trop de temps. Essayez de vous connecter manuellement.",
     pt: "A conta pode ter sido criada, mas o login demorou muito. Tente entrar manualmente.",
+    de: "Das Konto wurde möglicherweise erstellt, aber die Anmeldung hat zu lange gedauert. Bitte melden Sie sich manuell an.",
   },
   "signup.errorUnexpected": {
     da: "Kontoen blev muligvis oprettet, men noget gik galt: {detail}",
@@ -89,6 +100,7 @@ export const auth: Namespace = {
     es: "Es posible que la cuenta se haya creado, pero algo salió mal: {detail}",
     fr: "Le compte a peut-être été créé, mais un problème est survenu : {detail}",
     pt: "A conta pode ter sido criada, mas algo deu errado: {detail}",
+    de: "Das Konto wurde möglicherweise erstellt, aber es ist etwas schiefgelaufen: {detail}",
   },
   "login.tagline": {
     da: "Log ind på din konto",
@@ -96,14 +108,16 @@ export const auth: Namespace = {
     es: "Inicie sesión en su cuenta",
     fr: "Connectez-vous à votre compte",
     pt: "Entre na sua conta",
+    de: "Melden Sie sich bei Ihrem Konto an",
   },
-  "login.submit": { da: "Log ind", en: "Log in", es: "Iniciar sesión", fr: "Se connecter", pt: "Entrar" },
+  "login.submit": { da: "Log ind", en: "Log in", es: "Iniciar sesión", fr: "Se connecter", pt: "Entrar", de: "Anmelden" },
   "login.submitting": {
     da: "Logger ind…",
     en: "Logging in…",
     es: "Iniciando sesión…",
     fr: "Connexion…",
     pt: "Entrando…",
+    de: "Wird angemeldet…",
   },
   "login.newHere": {
     da: "Ny hos AIbooking.dk?",
@@ -111,6 +125,7 @@ export const auth: Namespace = {
     es: "¿Nuevo en AIbooking.dk?",
     fr: "Nouveau chez AIbooking.dk ?",
     pt: "Novo na AIbooking.dk?",
+    de: "Neu bei AIbooking.dk?",
   },
   "login.createAccount": {
     da: "Opret konto",
@@ -118,6 +133,7 @@ export const auth: Namespace = {
     es: "Crear cuenta",
     fr: "Créer un compte",
     pt: "Criar conta",
+    de: "Konto erstellen",
   },
   "login.errorWrongCredentials": {
     da: "Forkert email eller adgangskode.",
@@ -125,6 +141,7 @@ export const auth: Namespace = {
     es: "Correo electrónico o contraseña incorrectos.",
     fr: "E-mail ou mot de passe incorrect.",
     pt: "E-mail ou senha incorretos.",
+    de: "Falsche E-Mail-Adresse oder falsches Passwort.",
   },
   "login.errorTimeout": {
     da: "Kunne ikke oprette forbindelse. Tjek din internetforbindelse og prøv igen.",
@@ -132,6 +149,7 @@ export const auth: Namespace = {
     es: "No se pudo conectar. Compruebe su conexión a internet e inténtelo de nuevo.",
     fr: "Impossible de se connecter. Vérifiez votre connexion internet et réessayez.",
     pt: "Não foi possível conectar. Verifique sua conexão com a internet e tente novamente.",
+    de: "Verbindung konnte nicht hergestellt werden. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
   },
   "login.errorTechnical": {
     da: "Teknisk fejl: {detail}",
@@ -139,6 +157,7 @@ export const auth: Namespace = {
     es: "Error técnico: {detail}",
     fr: "Erreur technique : {detail}",
     pt: "Erro técnico: {detail}",
+    de: "Technischer Fehler: {detail}",
   },
   "acceptInvite.tagline": {
     da: "Vælg en adgangskode for at komme i gang",
@@ -146,6 +165,7 @@ export const auth: Namespace = {
     es: "Elija una contraseña para empezar",
     fr: "Choisissez un mot de passe pour commencer",
     pt: "Escolha uma senha para começar",
+    de: "Wählen Sie ein Passwort, um loszulegen",
   },
   "acceptInvite.passwordLabel": {
     da: "Ny adgangskode",
@@ -153,6 +173,7 @@ export const auth: Namespace = {
     es: "Nueva contraseña",
     fr: "Nouveau mot de passe",
     pt: "Nova senha",
+    de: "Neues Passwort",
   },
   "acceptInvite.confirmPasswordLabel": {
     da: "Gentag adgangskode",
@@ -160,6 +181,7 @@ export const auth: Namespace = {
     es: "Confirmar contraseña",
     fr: "Confirmer le mot de passe",
     pt: "Confirmar senha",
+    de: "Passwort bestätigen",
   },
   "acceptInvite.submit": {
     da: "Gem adgangskode og log ind",
@@ -167,6 +189,7 @@ export const auth: Namespace = {
     es: "Guardar contraseña e iniciar sesión",
     fr: "Enregistrer et se connecter",
     pt: "Salvar senha e entrar",
+    de: "Passwort speichern und anmelden",
   },
   "acceptInvite.submitting": {
     da: "Gemmer…",
@@ -174,6 +197,7 @@ export const auth: Namespace = {
     es: "Guardando…",
     fr: "Enregistrement…",
     pt: "Salvando…",
+    de: "Wird gespeichert…",
   },
   "acceptInvite.errorMismatch": {
     da: "Adgangskoderne matcher ikke.",
@@ -181,6 +205,7 @@ export const auth: Namespace = {
     es: "Las contraseñas no coinciden.",
     fr: "Les mots de passe ne correspondent pas.",
     pt: "As senhas não coincidem.",
+    de: "Die Passwörter stimmen nicht überein.",
   },
   "acceptInvite.errorInvalidLink": {
     da: "Linket er ugyldigt eller udløbet. Bed jeres administrator om at sende en ny invitation.",
@@ -188,6 +213,7 @@ export const auth: Namespace = {
     es: "Este enlace no es válido o ha caducado. Pida a su administrador que envíe una nueva invitación.",
     fr: "Ce lien est invalide ou expiré. Demandez à votre administrateur d'envoyer une nouvelle invitation.",
     pt: "Este link é inválido ou expirou. Peça ao seu administrador para enviar um novo convite.",
+    de: "Dieser Link ist ungültig oder abgelaufen. Bitten Sie Ihren Administrator, eine neue Einladung zu senden.",
   },
   "acceptInvite.errorGeneric": {
     da: "Kunne ikke gemme adgangskoden. Prøv igen.",
@@ -195,5 +221,6 @@ export const auth: Namespace = {
     es: "No se pudo guardar la contraseña. Inténtelo de nuevo.",
     fr: "Impossible d'enregistrer le mot de passe. Réessayez.",
     pt: "Não foi possível salvar a senha. Tente novamente.",
+    de: "Das Passwort konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
   },
 };

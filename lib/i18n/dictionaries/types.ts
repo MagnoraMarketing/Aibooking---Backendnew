@@ -6,7 +6,7 @@ import type { Locale } from "../locales";
 export type TranslationEntry = Record<Locale, string>;
 
 // A namespace is a flat map of dotted-suffix keys to their translations,
-// e.g. common["nav.dashboard"]. Keeping all 5 languages side by side per
+// e.g. common["nav.dashboard"]. Keeping all languages side by side per
 // key (rather than one file per locale) makes it obvious at a glance when
 // a translation is missing, and keeps each namespace file self-contained.
 export type Namespace = Record<string, TranslationEntry>;

@@ -14,6 +14,7 @@ export const agent: Namespace = {
     es: "Configurar agente",
     fr: "Configurer l'agent",
     pt: "Configurar agente",
+    de: "Agent konfigurieren",
   },
   "configurator.tab.promptLab": {
     da: "Prompt Lab",
@@ -21,6 +22,7 @@ export const agent: Namespace = {
     es: "Prompt Lab",
     fr: "Prompt Lab",
     pt: "Prompt Lab",
+    de: "Prompt Lab",
   },
   "configurator.tab.settings": {
     da: "Settings",
@@ -28,6 +30,7 @@ export const agent: Namespace = {
     es: "Configuración",
     fr: "Paramètres",
     pt: "Configurações",
+    de: "Einstellungen",
   },
   "configurator.tab.knowledgeBase": {
     da: "Knowledge Base",
@@ -35,6 +38,7 @@ export const agent: Namespace = {
     es: "Base de conocimiento",
     fr: "Base de connaissances",
     pt: "Base de conhecimento",
+    de: "Wissensdatenbank",
   },
   "configurator.tab.customizeWidget": {
     da: "Customise Widget",
@@ -42,6 +46,7 @@ export const agent: Namespace = {
     es: "Personalizar widget",
     fr: "Personnaliser le widget",
     pt: "Personalizar widget",
+    de: "Widget anpassen",
   },
   "configurator.tab.testAgent": {
     da: "Test Agent",
@@ -49,6 +54,7 @@ export const agent: Namespace = {
     es: "Probar agente",
     fr: "Tester l'agent",
     pt: "Testar agente",
+    de: "Agent testen",
   },
   "configurator.tab.embedCode": {
     da: "Embed Code",
@@ -56,6 +62,7 @@ export const agent: Namespace = {
     es: "Código de inserción",
     fr: "Code d'intégration",
     pt: "Código de incorporação",
+    de: "Einbettungscode",
   },
   "configurator.tab.phone": {
     da: "Telefonnummer",
@@ -63,6 +70,7 @@ export const agent: Namespace = {
     es: "Número de teléfono",
     fr: "Numéro de téléphone",
     pt: "Número de telefone",
+    de: "Telefonnummer",
   },
 
   // ---------------------------------------------------------------------
@@ -74,6 +82,7 @@ export const agent: Namespace = {
     es: "Voice Widget",
     fr: "Voice Widget",
     pt: "Voice Widget",
+    de: "Voice Widget",
   },
   "wizard.type.widgetDescription": {
     da: "En chat-/stemme-widget til jeres hjemmeside — besøgende taler direkte med agenten i browseren.",
@@ -81,6 +90,7 @@ export const agent: Namespace = {
     es: "Un widget de chat/voz para su página web — los visitantes hablan directamente con el agente en el navegador.",
     fr: "Un widget chat/voix pour votre site web — les visiteurs parlent directement avec l'agent dans le navigateur.",
     pt: "Um widget de chat/voz para o seu site — os visitantes falam diretamente com o agente no navegador.",
+    de: "Ein Chat-/Sprach-Widget für Ihre Website — Besucher sprechen direkt mit dem Agenten im Browser.",
   },
   "wizard.type.phoneTitle": {
     da: "Telefon (Inbound/Outbound)",
@@ -88,6 +98,7 @@ export const agent: Namespace = {
     es: "Teléfono (Inbound/Outbound)",
     fr: "Téléphone (Inbound/Outbound)",
     pt: "Telefone (Inbound/Outbound)",
+    de: "Telefon (Inbound/Outbound)",
   },
   "wizard.type.phoneDescription": {
     da: "Agenten besvarer og/eller foretager opkald via jeres telefonnummer — forbindes med Twilio.",
@@ -95,6 +106,7 @@ export const agent: Namespace = {
     es: "El agente responde y/o realiza llamadas a través de su número de teléfono — se conecta con Twilio.",
     fr: "L'agent répond et/ou passe des appels via votre numéro de téléphone — connecté via Twilio.",
     pt: "O agente atende e/ou faz chamadas através do seu número de telefone — conectado via Twilio.",
+    de: "Der Agent nimmt Anrufe entgegen und/oder tätigt sie über Ihre Telefonnummer — verbunden über Twilio.",
   },
   "wizard.engine.vapiTitle": {
     da: "Vapi (anbefalet)",
@@ -102,6 +114,7 @@ export const agent: Namespace = {
     es: "Vapi (recomendado)",
     fr: "Vapi (recommandé)",
     pt: "Vapi (recomendado)",
+    de: "Vapi (empfohlen)",
   },
   "wizard.engine.vapiDescription": {
     da: "Afprøvet i produktion — hurtigst opsætning.",
@@ -109,6 +122,7 @@ export const agent: Namespace = {
     es: "Probado en producción — configuración más rápida.",
     fr: "Éprouvé en production — configuration la plus rapide.",
     pt: "Testado em produção — configuração mais rápida.",
+    de: "In der Produktion bewährt — schnellste Einrichtung.",
   },
   "wizard.engine.twilioTitle": {
     da: "Twilio Relay (beta)",
@@ -116,6 +130,7 @@ export const agent: Namespace = {
     es: "Twilio Relay (beta)",
     fr: "Twilio Relay (bêta)",
     pt: "Twilio Relay (beta)",
+    de: "Twilio Relay (Beta)",
   },
   "wizard.engine.twilioDescription": {
     da: "Kører over jeres egen Twilio-infrastruktur — nyere, kan have færre stemmemuligheder.",
@@ -123,6 +138,7 @@ export const agent: Namespace = {
     es: "Funciona sobre su propia infraestructura de Twilio — más reciente, puede tener menos opciones de voz.",
     fr: "Fonctionne sur votre propre infrastructure Twilio — plus récent, peut offrir moins d'options de voix.",
     pt: "Funciona sobre a sua própria infraestrutura Twilio — mais recente, pode ter menos opções de voz.",
+    de: "Läuft über Ihre eigene Twilio-Infrastruktur — neuer, kann weniger Stimmoptionen bieten.",
   },
   "wizard.step.nameType": {
     da: "Navn & type",
@@ -130,6 +146,7 @@ export const agent: Namespace = {
     es: "Nombre y tipo",
     fr: "Nom et type",
     pt: "Nome e tipo",
+    de: "Name & Typ",
   },
   "wizard.step.prompt": {
     da: "Prompt",
@@ -137,6 +154,7 @@ export const agent: Namespace = {
     es: "Prompt",
     fr: "Prompt",
     pt: "Prompt",
+    de: "Prompt",
   },
   "wizard.step.voice": {
     da: "Stemme",
@@ -144,6 +162,7 @@ export const agent: Namespace = {
     es: "Voz",
     fr: "Voix",
     pt: "Voz",
+    de: "Stimme",
   },
   "wizard.step.calendar": {
     da: "Kalender",
@@ -151,6 +170,7 @@ export const agent: Namespace = {
     es: "Calendario",
     fr: "Calendrier",
     pt: "Calendário",
+    de: "Kalender",
   },
   "wizard.step.embedCode": {
     da: "Embed-kode",
@@ -158,6 +178,7 @@ export const agent: Namespace = {
     es: "Código de inserción",
     fr: "Code d'intégration",
     pt: "Código de incorporação",
+    de: "Einbettungscode",
   },
   "wizard.step.phone": {
     da: "Telefonnummer",
@@ -165,6 +186,7 @@ export const agent: Namespace = {
     es: "Número de teléfono",
     fr: "Numéro de téléphone",
     pt: "Número de telefone",
+    de: "Telefonnummer",
   },
   "wizard.agentNameLabel": {
     da: "Agent Name",
@@ -172,6 +194,7 @@ export const agent: Namespace = {
     es: "Nombre del agente",
     fr: "Nom de l'agent",
     pt: "Nome do agente",
+    de: "Agentenname",
   },
   "wizard.agentNamePlaceholder": {
     da: "Fx Reception – Hovedbutik",
@@ -179,6 +202,7 @@ export const agent: Namespace = {
     es: "Ej.: Recepción – Tienda principal",
     fr: "Ex. : Accueil – Boutique principale",
     pt: "Ex.: Receção – Loja principal",
+    de: "Z. B. Empfang – Hauptfiliale",
   },
   "wizard.typeQuestion": {
     da: "Hvad skal agenten bruges til?",
@@ -186,6 +210,7 @@ export const agent: Namespace = {
     es: "¿Para qué se usará el agente?",
     fr: "À quoi servira l'agent ?",
     pt: "Para que será utilizado o agente?",
+    de: "Wofür soll der Agent eingesetzt werden?",
   },
   "wizard.typeHelp": {
     da: "Resten af opsætningen tilpasses automatisk efter jeres valg — I skal ikke selv vælge teknisk model.",
@@ -193,6 +218,7 @@ export const agent: Namespace = {
     es: "El resto de la configuración se adapta automáticamente a su elección — no es necesario elegir el modelo técnico.",
     fr: "Le reste de la configuration s'adapte automatiquement à votre choix — vous n'avez pas besoin de choisir vous-même le modèle technique.",
     pt: "O resto da configuração adapta-se automaticamente à sua escolha — não precisa de escolher o modelo técnico.",
+    de: "Der Rest der Einrichtung passt sich automatisch an Ihre Wahl an — Sie müssen kein technisches Modell selbst auswählen.",
   },
   "wizard.engineQuestion": {
     da: "Hvilken voice-motor?",
@@ -200,6 +226,7 @@ export const agent: Namespace = {
     es: "¿Qué motor de voz?",
     fr: "Quel moteur vocal ?",
     pt: "Qual motor de voz?",
+    de: "Welche Sprach-Engine?",
   },
   "wizard.errorNameRequired": {
     da: "Angiv et navn til agenten.",
@@ -207,6 +234,7 @@ export const agent: Namespace = {
     es: "Indique un nombre para el agente.",
     fr: "Indiquez un nom pour l'agent.",
     pt: "Indique um nome para o agente.",
+    de: "Geben Sie einen Namen für den Agenten ein.",
   },
   "wizard.errorTypeRequired": {
     da: "Vælg om agenten er en Voice Widget eller til Telefon.",
@@ -214,6 +242,7 @@ export const agent: Namespace = {
     es: "Elija si el agente es un Voice Widget o para Teléfono.",
     fr: "Choisissez si l'agent est un Voice Widget ou pour le téléphone.",
     pt: "Escolha se o agente é um Voice Widget ou para Telefone.",
+    de: "Wählen Sie, ob der Agent ein Voice Widget oder für Telefon sein soll.",
   },
   "wizard.errorNoModel": {
     da: "Ingen model tilgængelig for den valgte type endnu. Kontakt support.",
@@ -221,6 +250,7 @@ export const agent: Namespace = {
     es: "Aún no hay ningún modelo disponible para el tipo seleccionado. Contacte con soporte.",
     fr: "Aucun modèle disponible pour le type sélectionné pour le moment. Contactez le support.",
     pt: "Ainda não há nenhum modelo disponível para o tipo selecionado. Contacte o suporte.",
+    de: "Für den gewählten Typ ist noch kein Modell verfügbar. Bitte kontaktieren Sie den Support.",
   },
   "wizard.errorCreateFailed": {
     da: "Kunne ikke oprette agenten. Prøv igen.",
@@ -228,6 +258,7 @@ export const agent: Namespace = {
     es: "No se pudo crear el agente. Inténtelo de nuevo.",
     fr: "Impossible de créer l'agent. Réessayez.",
     pt: "Não foi possível criar o agente. Tente novamente.",
+    de: "Der Agent konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
   },
   "wizard.creating": {
     da: "Opretter…",
@@ -235,6 +266,7 @@ export const agent: Namespace = {
     es: "Creando…",
     fr: "Création…",
     pt: "Criando…",
+    de: "Wird erstellt…",
   },
   "wizard.nextArrow": {
     da: "Næste →",
@@ -242,6 +274,7 @@ export const agent: Namespace = {
     es: "Siguiente →",
     fr: "Suivant →",
     pt: "Próximo →",
+    de: "Weiter →",
   },
   "wizard.finish": {
     da: "Fuldfør — gå til agenten →",
@@ -249,6 +282,7 @@ export const agent: Namespace = {
     es: "Finalizar — ir al agente →",
     fr: "Terminer — accéder à l'agent →",
     pt: "Concluir — ir para o agente →",
+    de: "Fertigstellen — zum Agenten →",
   },
 
   // ---------------------------------------------------------------------
@@ -260,6 +294,7 @@ export const agent: Namespace = {
     es: "Información básica",
     fr: "Informations de base",
     pt: "Informações básicas",
+    de: "Grundinformationen",
   },
   "promptLab.sectionDescription": {
     da: "Svar kort på nogle få spørgsmål om jeres virksomhed, så AI'en kan skrive et udkast til jeres AI-receptionist. I kan altid redigere resultatet manuelt bagefter.",
@@ -267,6 +302,7 @@ export const agent: Namespace = {
     es: "Responda brevemente a algunas preguntas sobre su empresa para que la IA pueda redactar un borrador de su recepcionista de IA. Siempre podrá editar el resultado manualmente después.",
     fr: "Répondez brièvement à quelques questions sur votre entreprise pour que l'IA puisse rédiger une ébauche de votre réceptionniste IA. Vous pourrez toujours modifier le résultat manuellement par la suite.",
     pt: "Responda brevemente a algumas perguntas sobre a sua empresa para que a IA possa redigir um rascunho da sua rececionista de IA. Pode sempre editar o resultado manualmente depois.",
+    de: "Beantworten Sie ein paar kurze Fragen zu Ihrem Unternehmen, damit die KI einen Entwurf für Ihre KI-Rezeptionistin erstellen kann. Sie können das Ergebnis danach jederzeit manuell bearbeiten.",
   },
   "promptLab.businessDescriptionLabel": {
     da: "Hvad laver virksomheden?",
@@ -274,6 +310,7 @@ export const agent: Namespace = {
     es: "¿A qué se dedica la empresa?",
     fr: "Que fait l'entreprise ?",
     pt: "O que faz a empresa?",
+    de: "Was macht das Unternehmen?",
   },
   "promptLab.businessDescriptionPlaceholder": {
     da: "Fx frisørsalon i København med klip, farvning og styling",
@@ -281,6 +318,7 @@ export const agent: Namespace = {
     es: "Ej.: peluquería en Copenhague con corte, tinte y peinado",
     fr: "Ex. : salon de coiffure à Copenhague proposant coupe, coloration et coiffage",
     pt: "Ex.: salão de cabeleireiro em Copenhaga com corte, coloração e penteado",
+    de: "Z. B. ein Friseursalon in Kopenhagen mit Schnitt, Färbung und Styling",
   },
   "promptLab.keyServicesLabel": {
     da: "Vigtigste ydelser/produkter",
@@ -288,6 +326,7 @@ export const agent: Namespace = {
     es: "Servicios/productos principales",
     fr: "Principaux services/produits",
     pt: "Principais serviços/produtos",
+    de: "Wichtigste Leistungen/Produkte",
   },
   "promptLab.keyServicesPlaceholder": {
     da: "Fx klipning, farvning, brudestyling",
@@ -295,6 +334,7 @@ export const agent: Namespace = {
     es: "Ej.: corte, tinte, peinado de novia",
     fr: "Ex. : coupe, coloration, coiffure de mariée",
     pt: "Ex.: corte, coloração, penteado de noiva",
+    de: "Z. B. Haarschnitt, Färbung, Brautstyling",
   },
   "promptLab.openingHoursLabel": {
     da: "Åbningstider",
@@ -302,6 +342,7 @@ export const agent: Namespace = {
     es: "Horario de apertura",
     fr: "Horaires d'ouverture",
     pt: "Horário de funcionamento",
+    de: "Öffnungszeiten",
   },
   "promptLab.openingHoursPlaceholder": {
     da: "Fx man-fre 9-18, lør 10-14",
@@ -309,6 +350,7 @@ export const agent: Namespace = {
     es: "Ej.: lun-vie 9-18, sáb 10-14",
     fr: "Ex. : lun-ven 9h-18h, sam 10h-14h",
     pt: "Ex.: seg-sex 9h-18h, sáb 10h-14h",
+    de: "Z. B. Mo-Fr 9-18, Sa 10-14",
   },
   "promptLab.otherNotesLabel": {
     da: "Andet vigtigt at vide",
@@ -316,6 +358,7 @@ export const agent: Namespace = {
     es: "Otra información importante",
     fr: "Autres informations importantes",
     pt: "Outras informações importantes",
+    de: "Sonstige wichtige Informationen",
   },
   "promptLab.otherNotesPlaceholder": {
     da: "Fx husk at spørge om telefonnummer ved booking",
@@ -323,6 +366,7 @@ export const agent: Namespace = {
     es: "Ej.: recuerda pedir el número de teléfono al reservar",
     fr: "Ex. : pensez à demander le numéro de téléphone lors de la réservation",
     pt: "Ex.: lembrar de pedir o número de telefone ao reservar",
+    de: "Z. B. bei der Buchung immer nach der Telefonnummer fragen",
   },
   "promptLab.generateErrorMissingDescription": {
     da: "Udfyld i det mindste hvad virksomheden laver.",
@@ -330,6 +374,7 @@ export const agent: Namespace = {
     es: "Complete al menos a qué se dedica la empresa.",
     fr: "Renseignez au moins ce que fait l'entreprise.",
     pt: "Preencha pelo menos o que a empresa faz.",
+    de: "Geben Sie zumindest an, was das Unternehmen macht.",
   },
   "promptLab.generateErrorWithDetail": {
     da: "Kunne ikke generere en prompt: {detail}",
@@ -337,6 +382,7 @@ export const agent: Namespace = {
     es: "No se pudo generar un prompt: {detail}",
     fr: "Impossible de générer un prompt : {detail}",
     pt: "Não foi possível gerar um prompt: {detail}",
+    de: "Der Prompt konnte nicht generiert werden: {detail}",
   },
   "promptLab.generateErrorGeneric": {
     da: "Kunne ikke generere en prompt. Prøv igen, eller skriv den selv nedenfor.",
@@ -344,6 +390,7 @@ export const agent: Namespace = {
     es: "No se pudo generar un prompt. Inténtelo de nuevo o escríbalo usted mismo a continuación.",
     fr: "Impossible de générer un prompt. Réessayez, ou rédigez-le vous-même ci-dessous.",
     pt: "Não foi possível gerar um prompt. Tente novamente ou escreva-o você mesmo abaixo.",
+    de: "Der Prompt konnte nicht generiert werden. Versuchen Sie es erneut oder schreiben Sie ihn unten selbst.",
   },
   "promptLab.generating": {
     da: "Genererer…",
@@ -351,6 +398,7 @@ export const agent: Namespace = {
     es: "Generando…",
     fr: "Génération…",
     pt: "Gerando…",
+    de: "Wird generiert…",
   },
   "promptLab.generateButton": {
     da: "Generér prompt",
@@ -358,6 +406,7 @@ export const agent: Namespace = {
     es: "Generar prompt",
     fr: "Générer le prompt",
     pt: "Gerar prompt",
+    de: "Prompt generieren",
   },
   "promptLab.systemPromptLabel": {
     da: "System-prompt",
@@ -365,6 +414,7 @@ export const agent: Namespace = {
     es: "Prompt del sistema",
     fr: "Prompt système",
     pt: "Prompt do sistema",
+    de: "System-Prompt",
   },
   "promptLab.systemPromptPlaceholder": {
     da: "Udfyld basisoplysningerne ovenfor og klik Generér prompt, eller skriv jeres egen her.",
@@ -372,6 +422,7 @@ export const agent: Namespace = {
     es: "Complete la información básica anterior y haga clic en Generar prompt, o escriba el suyo aquí.",
     fr: "Renseignez les informations de base ci-dessus et cliquez sur Générer le prompt, ou rédigez le vôtre ici.",
     pt: "Preencha as informações básicas acima e clique em Gerar prompt, ou escreva o seu aqui.",
+    de: "Füllen Sie oben die Grundinformationen aus und klicken Sie auf „Prompt generieren“, oder schreiben Sie hier Ihren eigenen.",
   },
   "promptLab.systemPromptHelp": {
     da: "Genereret af AI ud fra basisoplysningerne — I kan altid redigere teksten manuelt her.",
@@ -379,6 +430,7 @@ export const agent: Namespace = {
     es: "Generado por IA a partir de la información básica — siempre puede editar el texto manualmente aquí.",
     fr: "Généré par l'IA à partir des informations de base — vous pouvez toujours modifier le texte manuellement ici.",
     pt: "Gerado por IA a partir das informações básicas — pode sempre editar o texto manualmente aqui.",
+    de: "Von der KI anhand der Grundinformationen generiert — Sie können den Text hier jederzeit manuell bearbeiten.",
   },
   "promptLab.welcomeMessageLabel": {
     da: "Velkomstbesked",
@@ -386,6 +438,7 @@ export const agent: Namespace = {
     es: "Mensaje de bienvenida",
     fr: "Message de bienvenue",
     pt: "Mensagem de boas-vindas",
+    de: "Willkommensnachricht",
   },
   "promptLab.welcomeMessagePlaceholder": {
     da: "Hej! Hvordan kan jeg hjælpe dig i dag?",
@@ -393,6 +446,7 @@ export const agent: Namespace = {
     es: "¡Hola! ¿Cómo puedo ayudarte hoy?",
     fr: "Bonjour ! Comment puis-je vous aider aujourd'hui ?",
     pt: "Olá! Como posso ajudar hoje?",
+    de: "Hallo! Wie kann ich Ihnen heute helfen?",
   },
   "promptLab.openingMessageLabel": {
     da: "Åbningsbesked (talt)",
@@ -400,6 +454,7 @@ export const agent: Namespace = {
     es: "Mensaje de apertura (hablado)",
     fr: "Message d'ouverture (parlé)",
     pt: "Mensagem de abertura (falada)",
+    de: "Eröffnungsnachricht (gesprochen)",
   },
   "promptLab.openingMessagePlaceholder": {
     da: "Goddag, du taler med AI-assistenten. Hvad kan jeg hjælpe med?",
@@ -407,6 +462,7 @@ export const agent: Namespace = {
     es: "Buenos días, habla con el asistente de IA. ¿En qué puedo ayudarle?",
     fr: "Bonjour, vous parlez avec l'assistant IA. En quoi puis-je vous aider ?",
     pt: "Olá, está a falar com o assistente de IA. Como posso ajudar?",
+    de: "Guten Tag, Sie sprechen mit dem KI-Assistenten. Womit kann ich helfen?",
   },
 
   // ---------------------------------------------------------------------
@@ -418,6 +474,7 @@ export const agent: Namespace = {
     es: "Voz e idioma",
     fr: "Voix et langue",
     pt: "Voz e idioma",
+    de: "Stimme & Sprache",
   },
   "settings.voiceLabel": {
     da: "Stemme",
@@ -425,6 +482,7 @@ export const agent: Namespace = {
     es: "Voz",
     fr: "Voix",
     pt: "Voz",
+    de: "Stimme",
   },
   "settings.voiceFemale": {
     da: "Dame",
@@ -432,6 +490,7 @@ export const agent: Namespace = {
     es: "Mujer",
     fr: "Femme",
     pt: "Feminina",
+    de: "Weiblich",
   },
   "settings.voiceMale": {
     da: "Mand",
@@ -439,6 +498,7 @@ export const agent: Namespace = {
     es: "Hombre",
     fr: "Homme",
     pt: "Masculina",
+    de: "Männlich",
   },
   "settings.modelLabel": {
     da: "Model",
@@ -446,6 +506,7 @@ export const agent: Namespace = {
     es: "Modelo",
     fr: "Modèle",
     pt: "Modelo",
+    de: "Modell",
   },
   "settings.languageLabel": {
     da: "Sprog",
@@ -453,6 +514,7 @@ export const agent: Namespace = {
     es: "Idioma",
     fr: "Langue",
     pt: "Idioma",
+    de: "Sprache",
   },
   "settings.languageDanish": {
     da: "Dansk",
@@ -460,6 +522,7 @@ export const agent: Namespace = {
     es: "Danés",
     fr: "Danois",
     pt: "Dinamarquês",
+    de: "Dänisch",
   },
   "settings.languageEnglish": {
     da: "Engelsk",
@@ -467,6 +530,7 @@ export const agent: Namespace = {
     es: "Inglés",
     fr: "Anglais",
     pt: "Inglês",
+    de: "Englisch",
   },
   "settings.saveSummaryLabel": {
     da: "Gem opsummering",
@@ -474,6 +538,7 @@ export const agent: Namespace = {
     es: "Guardar resumen",
     fr: "Enregistrer le résumé",
     pt: "Guardar resumo",
+    de: "Zusammenfassung speichern",
   },
   "settings.saveSummaryDescription": {
     da: "Samtaler opsummeres og gemmes altid automatisk i denne udgave.",
@@ -481,6 +546,7 @@ export const agent: Namespace = {
     es: "Las conversaciones siempre se resumen y guardan automáticamente en esta versión.",
     fr: "Les conversations sont toujours résumées et enregistrées automatiquement dans cette version.",
     pt: "As conversas são sempre resumidas e guardadas automaticamente nesta versão.",
+    de: "Gespräche werden in dieser Version immer automatisch zusammengefasst und gespeichert.",
   },
   "settings.advancedFeaturesTitle": {
     da: "Videre funktioner",
@@ -488,6 +554,7 @@ export const agent: Namespace = {
     es: "Funciones adicionales",
     fr: "Fonctionnalités supplémentaires",
     pt: "Funcionalidades adicionais",
+    de: "Weitere Funktionen",
   },
   "settings.knowledgeBaseComingSoon": {
     da: "Knowledge Base",
@@ -495,6 +562,7 @@ export const agent: Namespace = {
     es: "Base de conocimiento",
     fr: "Base de connaissances",
     pt: "Base de conhecimento",
+    de: "Wissensdatenbank",
   },
   "settings.selectToAddPlaceholder": {
     da: "Vælg for at tilføje…",
@@ -502,6 +570,7 @@ export const agent: Namespace = {
     es: "Seleccione para añadir…",
     fr: "Sélectionnez pour ajouter…",
     pt: "Selecione para adicionar…",
+    de: "Zum Hinzufügen auswählen…",
   },
   "settings.autoEndCallLabel": {
     da: "Automatisk afslut opkald",
@@ -509,6 +578,7 @@ export const agent: Namespace = {
     es: "Finalizar llamada automáticamente",
     fr: "Terminer l'appel automatiquement",
     pt: "Terminar chamada automaticamente",
+    de: "Anruf automatisch beenden",
   },
   "settings.askCustomerInfoLabel": {
     da: "Spørg om kundeoplysninger",
@@ -516,6 +586,7 @@ export const agent: Namespace = {
     es: "Solicitar información del cliente",
     fr: "Demander les informations du client",
     pt: "Pedir informações do cliente",
+    de: "Nach Kundeninformationen fragen",
   },
   "settings.postCallAnalysisLabel": {
     da: "Post Call Analysis Schema / Tags",
@@ -523,6 +594,7 @@ export const agent: Namespace = {
     es: "Post Call Analysis Schema / Tags",
     fr: "Post Call Analysis Schema / Tags",
     pt: "Post Call Analysis Schema / Tags",
+    de: "Post Call Analysis Schema / Tags",
   },
   "settings.noFieldsAddedYet": {
     da: "Ingen felter tilføjet endnu.",
@@ -530,6 +602,7 @@ export const agent: Namespace = {
     es: "Aún no se han añadido campos.",
     fr: "Aucun champ ajouté pour le moment.",
     pt: "Ainda não foram adicionados campos.",
+    de: "Noch keine Felder hinzugefügt.",
   },
   "settings.calendarTimezoneLabel": {
     da: "Kalender-tidszone",
@@ -537,6 +610,7 @@ export const agent: Namespace = {
     es: "Zona horaria del calendario",
     fr: "Fuseau horaire du calendrier",
     pt: "Fuso horário do calendário",
+    de: "Kalender-Zeitzone",
   },
   "settings.calComEventIdLabel": {
     da: "Cal.com Event ID",
@@ -544,6 +618,7 @@ export const agent: Namespace = {
     es: "Cal.com Event ID",
     fr: "Cal.com Event ID",
     pt: "Cal.com Event ID",
+    de: "Cal.com Event ID",
   },
   "settings.endCallOnSilenceLabel": {
     da: "Afslut opkald ved stilhed (sekunder)",
@@ -551,6 +626,7 @@ export const agent: Namespace = {
     es: "Finalizar llamada por silencio (segundos)",
     fr: "Terminer l'appel en cas de silence (secondes)",
     pt: "Terminar chamada por silêncio (segundos)",
+    de: "Anruf bei Stille beenden (Sekunden)",
   },
   "settings.maxDurationLabel": {
     da: "Maks. varighed (minutter)",
@@ -558,6 +634,7 @@ export const agent: Namespace = {
     es: "Duración máxima (minutos)",
     fr: "Durée maximale (minutes)",
     pt: "Duração máxima (minutos)",
+    de: "Max. Dauer (Minuten)",
   },
   "settings.leadConnectorLabel": {
     da: "LeadConnector",
@@ -565,6 +642,7 @@ export const agent: Namespace = {
     es: "LeadConnector",
     fr: "LeadConnector",
     pt: "LeadConnector",
+    de: "LeadConnector",
   },
   "settings.connectLeadConnectorButton": {
     da: "Forbind LeadConnector",
@@ -572,6 +650,7 @@ export const agent: Namespace = {
     es: "Conectar LeadConnector",
     fr: "Connecter LeadConnector",
     pt: "Conectar LeadConnector",
+    de: "LeadConnector verbinden",
   },
 
   // ---------------------------------------------------------------------
@@ -583,6 +662,7 @@ export const agent: Namespace = {
     es: "Texto",
     fr: "Texte",
     pt: "Texto",
+    de: "Text",
   },
   "knowledgeBase.typeUrl": {
     da: "Link",
@@ -590,6 +670,7 @@ export const agent: Namespace = {
     es: "Enlace",
     fr: "Lien",
     pt: "Link",
+    de: "Link",
   },
   "knowledgeBase.typePdf": {
     da: "PDF",
@@ -597,6 +678,7 @@ export const agent: Namespace = {
     es: "PDF",
     fr: "PDF",
     pt: "PDF",
+    de: "PDF",
   },
   "knowledgeBase.addContentError": {
     da: "Kunne ikke tilføje indholdet.",
@@ -604,6 +686,7 @@ export const agent: Namespace = {
     es: "No se pudo añadir el contenido.",
     fr: "Impossible d'ajouter le contenu.",
     pt: "Não foi possível adicionar o conteúdo.",
+    de: "Der Inhalt konnte nicht hinzugefügt werden.",
   },
   "knowledgeBase.title": {
     da: "Videnbase",
@@ -611,6 +694,7 @@ export const agent: Namespace = {
     es: "Base de conocimiento",
     fr: "Base de connaissances",
     pt: "Base de conhecimento",
+    de: "Wissensdatenbank",
   },
   "knowledgeBase.description": {
     da: "Tilføj tekst, et link eller en PDF, så agenten kan svare mere præcist ud fra jeres eget indhold. Der trækkes minutter fra jeres saldo svarende til mængden af indhold.",
@@ -618,6 +702,7 @@ export const agent: Namespace = {
     es: "Añada texto, un enlace o un PDF para que el agente pueda responder con más precisión a partir de su propio contenido. Se descontarán minutos de su saldo según la cantidad de contenido.",
     fr: "Ajoutez du texte, un lien ou un PDF pour que l'agent puisse répondre plus précisément à partir de votre propre contenu. Des minutes seront déduites de votre solde en fonction de la quantité de contenu.",
     pt: "Adicione texto, um link ou um PDF para que o agente possa responder com mais precisão com base no seu próprio conteúdo. Serão descontados minutos do seu saldo de acordo com a quantidade de conteúdo.",
+    de: "Fügen Sie Text, einen Link oder ein PDF hinzu, damit der Agent anhand Ihrer eigenen Inhalte genauer antworten kann. Je nach Menge des Inhalts werden Minuten von Ihrem Guthaben abgezogen.",
   },
   "knowledgeBase.textCardTitle": {
     da: "Tekst",
@@ -625,6 +710,7 @@ export const agent: Namespace = {
     es: "Texto",
     fr: "Texte",
     pt: "Texto",
+    de: "Text",
   },
   "knowledgeBase.textPlaceholder": {
     da: "Indsæt tekst, fx ofte stillede spørgsmål...",
@@ -632,6 +718,7 @@ export const agent: Namespace = {
     es: "Pegue el texto, p. ej. preguntas frecuentes...",
     fr: "Collez du texte, p. ex. des questions fréquentes...",
     pt: "Cole o texto, ex.: perguntas frequentes...",
+    de: "Text einfügen, z. B. häufig gestellte Fragen …",
   },
   "knowledgeBase.addingText": {
     da: "Tilføjer…",
@@ -639,6 +726,7 @@ export const agent: Namespace = {
     es: "Añadiendo…",
     fr: "Ajout…",
     pt: "Adicionando…",
+    de: "Wird hinzugefügt…",
   },
   "knowledgeBase.addTextButton": {
     da: "Tilføj tekst",
@@ -646,6 +734,7 @@ export const agent: Namespace = {
     es: "Añadir texto",
     fr: "Ajouter le texte",
     pt: "Adicionar texto",
+    de: "Text hinzufügen",
   },
   "knowledgeBase.linkCardTitle": {
     da: "Link",
@@ -653,6 +742,7 @@ export const agent: Namespace = {
     es: "Enlace",
     fr: "Lien",
     pt: "Link",
+    de: "Link",
   },
   "knowledgeBase.linkPlaceholder": {
     da: "https://jeresvirksomhed.dk",
@@ -660,6 +750,7 @@ export const agent: Namespace = {
     es: "https://suempresa.com",
     fr: "https://votreentreprise.fr",
     pt: "https://suaempresa.com",
+    de: "https://ihrunternehmen.de",
   },
   "knowledgeBase.fetchingLink": {
     da: "Henter…",
@@ -667,6 +758,7 @@ export const agent: Namespace = {
     es: "Obteniendo…",
     fr: "Récupération…",
     pt: "Obtendo…",
+    de: "Wird abgerufen…",
   },
   "knowledgeBase.fetchLinkButton": {
     da: "Hent fra link",
@@ -674,6 +766,7 @@ export const agent: Namespace = {
     es: "Obtener del enlace",
     fr: "Récupérer depuis le lien",
     pt: "Obter do link",
+    de: "Von Link abrufen",
   },
   "knowledgeBase.pdfCardTitle": {
     da: "PDF",
@@ -681,6 +774,7 @@ export const agent: Namespace = {
     es: "PDF",
     fr: "PDF",
     pt: "PDF",
+    de: "PDF",
   },
   "knowledgeBase.readingPdf": {
     da: "Læser PDF…",
@@ -688,6 +782,7 @@ export const agent: Namespace = {
     es: "Leyendo PDF…",
     fr: "Lecture du PDF…",
     pt: "Lendo PDF…",
+    de: "PDF wird gelesen…",
   },
   "knowledgeBase.uploadPdfButton": {
     da: "Upload PDF",
@@ -695,6 +790,7 @@ export const agent: Namespace = {
     es: "Subir PDF",
     fr: "Importer le PDF",
     pt: "Enviar PDF",
+    de: "PDF hochladen",
   },
   "knowledgeBase.addedContentTitle": {
     da: "Tilføjet indhold",
@@ -702,6 +798,7 @@ export const agent: Namespace = {
     es: "Contenido añadido",
     fr: "Contenu ajouté",
     pt: "Conteúdo adicionado",
+    de: "Hinzugefügter Inhalt",
   },
   "knowledgeBase.nothingAddedYet": {
     da: "Intet tilføjet endnu.",
@@ -709,6 +806,7 @@ export const agent: Namespace = {
     es: "Aún no se ha añadido nada.",
     fr: "Rien n'a encore été ajouté.",
     pt: "Ainda não foi adicionado nada.",
+    de: "Noch nichts hinzugefügt.",
   },
   "knowledgeBase.sourceMeta": {
     da: "{count} tegn · {minutes} min",
@@ -716,6 +814,7 @@ export const agent: Namespace = {
     es: "{count} caracteres · {minutes} min",
     fr: "{count} caractères · {minutes} min",
     pt: "{count} caracteres · {minutes} min",
+    de: "{count} Zeichen · {minutes} Min.",
   },
   "knowledgeBase.removeButton": {
     da: "Fjern",
@@ -723,6 +822,7 @@ export const agent: Namespace = {
     es: "Eliminar",
     fr: "Retirer",
     pt: "Remover",
+    de: "Entfernen",
   },
 
   // ---------------------------------------------------------------------
@@ -734,6 +834,7 @@ export const agent: Namespace = {
     es: "Tranquilo y profesional",
     fr: "Calme et professionnel",
     pt: "Calmo e profissional",
+    de: "Ruhig und professionell",
   },
   "customize.themeForestDescription": {
     da: "Naturlig og afbalanceret",
@@ -741,6 +842,7 @@ export const agent: Namespace = {
     es: "Natural y equilibrado",
     fr: "Naturel et équilibré",
     pt: "Natural e equilibrado",
+    de: "Natürlich und ausgeglichen",
   },
   "customize.themeSunsetDescription": {
     da: "Varm og energisk",
@@ -748,6 +850,7 @@ export const agent: Namespace = {
     es: "Cálido y enérgico",
     fr: "Chaleureux et énergique",
     pt: "Caloroso e enérgico",
+    de: "Warm und energiegeladen",
   },
   "customize.themeSummerDescription": {
     da: "Lys og glad",
@@ -755,6 +858,7 @@ export const agent: Namespace = {
     es: "Luminoso y alegre",
     fr: "Lumineux et joyeux",
     pt: "Luminoso e alegre",
+    de: "Hell und fröhlich",
   },
   "customize.themeRoyalDescription": {
     da: "Kreativ og luksuriøs",
@@ -762,6 +866,7 @@ export const agent: Namespace = {
     es: "Creativo y lujoso",
     fr: "Créatif et luxueux",
     pt: "Criativo e luxuoso",
+    de: "Kreativ und luxuriös",
   },
   "customize.positionBottomLeft": {
     da: "Nederst venstre",
@@ -769,6 +874,7 @@ export const agent: Namespace = {
     es: "Abajo a la izquierda",
     fr: "En bas à gauche",
     pt: "Inferior esquerdo",
+    de: "Unten links",
   },
   "customize.positionBottomRight": {
     da: "Nederst højre",
@@ -776,6 +882,7 @@ export const agent: Namespace = {
     es: "Abajo a la derecha",
     fr: "En bas à droite",
     pt: "Inferior direito",
+    de: "Unten rechts",
   },
   "customize.positionTopLeft": {
     da: "Øverst venstre",
@@ -783,6 +890,7 @@ export const agent: Namespace = {
     es: "Arriba a la izquierda",
     fr: "En haut à gauche",
     pt: "Superior esquerdo",
+    de: "Oben links",
   },
   "customize.positionTopRight": {
     da: "Øverst højre",
@@ -790,6 +898,7 @@ export const agent: Namespace = {
     es: "Arriba a la derecha",
     fr: "En haut à droite",
     pt: "Superior direito",
+    de: "Oben rechts",
   },
   "customize.botNameLabel": {
     da: "Bottens navn",
@@ -797,6 +906,7 @@ export const agent: Namespace = {
     es: "Nombre del bot",
     fr: "Nom du bot",
     pt: "Nome do bot",
+    de: "Name des Bots",
   },
   "customize.botNamePlaceholder": {
     da: "Fx AIbooking Assistent",
@@ -804,6 +914,7 @@ export const agent: Namespace = {
     es: "Ej.: Asistente AIbooking",
     fr: "Ex. : Assistant AIbooking",
     pt: "Ex.: Assistente AIbooking",
+    de: "Z. B. AIbooking Assistent",
   },
   "customize.taglineLabel": {
     da: "Tagline",
@@ -811,6 +922,7 @@ export const agent: Namespace = {
     es: "Tagline",
     fr: "Tagline",
     pt: "Tagline",
+    de: "Tagline",
   },
   "customize.taglinePlaceholder": {
     da: "Fx Din digitale receptionist",
@@ -818,6 +930,7 @@ export const agent: Namespace = {
     es: "Ej.: Su recepcionista digital",
     fr: "Ex. : Votre réceptionniste numérique",
     pt: "Ex.: A sua rececionista digital",
+    de: "Z. B. Ihre digitale Rezeptionistin",
   },
   "customize.logoUrlLabel": {
     da: "Logo-URL",
@@ -825,6 +938,7 @@ export const agent: Namespace = {
     es: "URL del logotipo",
     fr: "URL du logo",
     pt: "URL do logótipo",
+    de: "Logo-URL",
   },
   "customize.logoUrlPlaceholder": {
     da: "https://…",
@@ -832,6 +946,7 @@ export const agent: Namespace = {
     es: "https://…",
     fr: "https://…",
     pt: "https://…",
+    de: "https://…",
   },
   "customize.chooseThemeLabel": {
     da: "Vælg tema",
@@ -839,6 +954,7 @@ export const agent: Namespace = {
     es: "Elegir tema",
     fr: "Choisir un thème",
     pt: "Escolher tema",
+    de: "Thema wählen",
   },
   "customize.selectedBadge": {
     da: "✓ Valgt",
@@ -846,6 +962,7 @@ export const agent: Namespace = {
     es: "✓ Seleccionado",
     fr: "✓ Sélectionné",
     pt: "✓ Selecionado",
+    de: "✓ Ausgewählt",
   },
   "customize.primaryColorLabel": {
     da: "Primær",
@@ -853,6 +970,7 @@ export const agent: Namespace = {
     es: "Primario",
     fr: "Primaire",
     pt: "Primária",
+    de: "Primär",
   },
   "customize.secondaryColorLabel": {
     da: "Sekundær",
@@ -860,6 +978,7 @@ export const agent: Namespace = {
     es: "Secundario",
     fr: "Secondaire",
     pt: "Secundária",
+    de: "Sekundär",
   },
   "customize.widgetPlacementLabel": {
     da: "Widget-placering",
@@ -867,6 +986,7 @@ export const agent: Namespace = {
     es: "Ubicación del widget",
     fr: "Emplacement du widget",
     pt: "Posição do widget",
+    de: "Widget-Platzierung",
   },
   "customize.sizeLabel": {
     da: "Størrelse",
@@ -874,6 +994,7 @@ export const agent: Namespace = {
     es: "Tamaño",
     fr: "Taille",
     pt: "Tamanho",
+    de: "Größe",
   },
   "customize.sizeSmall": {
     da: "Lille",
@@ -881,6 +1002,7 @@ export const agent: Namespace = {
     es: "Pequeño",
     fr: "Petit",
     pt: "Pequeno",
+    de: "Klein",
   },
   "customize.sizeMedium": {
     da: "Mellem",
@@ -888,6 +1010,7 @@ export const agent: Namespace = {
     es: "Mediano",
     fr: "Moyen",
     pt: "Médio",
+    de: "Mittel",
   },
   "customize.sizeLarge": {
     da: "Stor",
@@ -895,6 +1018,7 @@ export const agent: Namespace = {
     es: "Grande",
     fr: "Grand",
     pt: "Grande",
+    de: "Groß",
   },
   "customize.settingsTitle": {
     da: "Indstillinger",
@@ -902,6 +1026,7 @@ export const agent: Namespace = {
     es: "Ajustes",
     fr: "Paramètres",
     pt: "Definições",
+    de: "Einstellungen",
   },
   "customize.showBrandingLabel": {
     da: "Vis AIbooking.dk-branding",
@@ -909,6 +1034,7 @@ export const agent: Namespace = {
     es: "Mostrar la marca AIbooking.dk",
     fr: "Afficher la marque AIbooking.dk",
     pt: "Mostrar a marca AIbooking.dk",
+    de: "AIbooking.dk-Branding anzeigen",
   },
   "customize.transcriptionLabel": {
     da: "Transskription",
@@ -916,6 +1042,7 @@ export const agent: Namespace = {
     es: "Transcripción",
     fr: "Transcription",
     pt: "Transcrição",
+    de: "Transkription",
   },
   "customize.transcriptionDescription": {
     da: "Gem tekst-transskription af samtaler.",
@@ -923,6 +1050,7 @@ export const agent: Namespace = {
     es: "Guardar la transcripción de texto de las conversaciones.",
     fr: "Enregistrer la transcription textuelle des conversations.",
     pt: "Guardar a transcrição em texto das conversas.",
+    de: "Text-Transkription der Gespräche speichern.",
   },
   "customize.chatLabel": {
     da: "Tekst-chat",
@@ -930,6 +1058,7 @@ export const agent: Namespace = {
     es: "Chat de texto",
     fr: "Chat texte",
     pt: "Chat de texto",
+    de: "Text-Chat",
   },
   "customize.chatDescription": {
     da: "Tillad kunder at skrive i stedet for at tale.",
@@ -937,6 +1066,7 @@ export const agent: Namespace = {
     es: "Permitir que los clientes escriban en lugar de hablar.",
     fr: "Permettre aux clients d'écrire plutôt que de parler.",
     pt: "Permitir que os clientes escrevam em vez de falar.",
+    de: "Kunden erlauben, zu schreiben statt zu sprechen.",
   },
   "customize.autostartLabel": {
     da: "Autostart",
@@ -944,6 +1074,7 @@ export const agent: Namespace = {
     es: "Inicio automático",
     fr: "Démarrage automatique",
     pt: "Início automático",
+    de: "Autostart",
   },
   "customize.autostartDescription": {
     da: "Åbn widgetten automatisk når siden indlæses.",
@@ -951,6 +1082,7 @@ export const agent: Namespace = {
     es: "Abrir el widget automáticamente cuando se cargue la página.",
     fr: "Ouvrir le widget automatiquement au chargement de la page.",
     pt: "Abrir o widget automaticamente quando a página carregar.",
+    de: "Widget automatisch öffnen, wenn die Seite lädt.",
   },
   "customize.muteOnMinimizeLabel": {
     da: "Mute ved minimering",
@@ -958,6 +1090,7 @@ export const agent: Namespace = {
     es: "Silenciar al minimizar",
     fr: "Couper le son en réduisant",
     pt: "Silenciar ao minimizar",
+    de: "Stummschalten beim Minimieren",
   },
   "customize.muteOnTabChangeLabel": {
     da: "Mute ved faneskift",
@@ -965,6 +1098,7 @@ export const agent: Namespace = {
     es: "Silenciar al cambiar de pestaña",
     fr: "Couper le son au changement d'onglet",
     pt: "Silenciar ao mudar de separador",
+    de: "Stummschalten bei Tab-Wechsel",
   },
   "customize.showLeadFormLabel": {
     da: "Vis lead-formular",
@@ -972,6 +1106,7 @@ export const agent: Namespace = {
     es: "Mostrar formulario de contacto",
     fr: "Afficher le formulaire de prospect",
     pt: "Mostrar formulário de contacto",
+    de: "Lead-Formular anzeigen",
   },
   "customize.glowingIconLabel": {
     da: "Glødende ikon",
@@ -979,6 +1114,7 @@ export const agent: Namespace = {
     es: "Icono brillante",
     fr: "Icône lumineuse",
     pt: "Ícone brilhante",
+    de: "Leuchtendes Symbol",
   },
   "customize.transparentBackgroundLabel": {
     da: "Transparent baggrund",
@@ -986,6 +1122,7 @@ export const agent: Namespace = {
     es: "Fondo transparente",
     fr: "Arrière-plan transparent",
     pt: "Fundo transparente",
+    de: "Transparenter Hintergrund",
   },
   "customize.muteAgentLabel": {
     da: "Mute agent",
@@ -993,6 +1130,7 @@ export const agent: Namespace = {
     es: "Silenciar agente",
     fr: "Couper le son de l'agent",
     pt: "Silenciar agente",
+    de: "Agent stummschalten",
   },
   "customize.footerNote": {
     da: "Farve, størrelse, placering og branding-visning slår igennem på den rigtige widget med det samme. De øvrige til/fra-valg gemmes til jeres profil, men styrer endnu ikke widgettens adfærd i denne udgave.",
@@ -1000,6 +1138,7 @@ export const agent: Namespace = {
     es: "El color, el tamaño, la ubicación y la visualización de la marca se aplican inmediatamente al widget real. Las demás opciones de activar/desactivar se guardan en su perfil, pero aún no controlan el comportamiento del widget en esta versión.",
     fr: "La couleur, la taille, l'emplacement et l'affichage de la marque s'appliquent immédiatement au widget réel. Les autres options d'activation/désactivation sont enregistrées dans votre profil, mais ne contrôlent pas encore le comportement du widget dans cette version.",
     pt: "A cor, o tamanho, a posição e a exibição da marca aplicam-se imediatamente ao widget real. As restantes opções de ativar/desativar são guardadas no seu perfil, mas ainda não controlam o comportamento do widget nesta versão.",
+    de: "Farbe, Größe, Platzierung und Branding-Anzeige wirken sich sofort auf das echte Widget aus. Die übrigen Ein/Aus-Optionen werden in Ihrem Profil gespeichert, steuern das Verhalten des Widgets in dieser Version aber noch nicht.",
   },
 
   // ---------------------------------------------------------------------
@@ -1011,6 +1150,7 @@ export const agent: Namespace = {
     es: "Así se ve su página",
     fr: "Voici à quoi ressemble votre page",
     pt: "É assim que a sua página fica",
+    de: "So sieht Ihre Seite aus",
   },
   "testAgent.previewParagraph": {
     da: 'Dette er en simuleret side, så I kan se hvordan agenten opfører sig, når den er sat ind på jeres rigtige hjemmeside — med præcis den samme kode som under "Embed Code".',
@@ -1018,6 +1158,7 @@ export const agent: Namespace = {
     es: 'Esta es una página simulada para que pueda ver cómo se comporta el agente una vez colocado en su sitio web real — con exactamente el mismo código que en "Embed Code".',
     fr: 'Ceci est une page simulée pour que vous puissiez voir comment l\'agent se comporte une fois intégré à votre site web réel — avec exactement le même code que sous « Embed Code ».',
     pt: 'Esta é uma página simulada para que possa ver como o agente se comporta quando colocado no seu site real — com exatamente o mesmo código que em "Embed Code".',
+    de: "Dies ist eine simulierte Seite, damit Sie sehen können, wie sich der Agent verhält, wenn er auf Ihrer echten Website eingebunden ist — mit genau demselben Code wie unter „Einbettungscode“.",
   },
   "testAgent.previewFooterParagraph": {
     da: "Klik på ikonet i hjørnet for at teste agenten. Samtaler her tæller med i forbrug og statistik, ligesom på jeres rigtige side.",
@@ -1025,6 +1166,7 @@ export const agent: Namespace = {
     es: "Haga clic en el icono de la esquina para probar el agente. Las conversaciones aquí cuentan para el consumo y las estadísticas, igual que en su sitio real.",
     fr: "Cliquez sur l'icône dans le coin pour tester l'agent. Les conversations ici comptent dans la consommation et les statistiques, comme sur votre site réel.",
     pt: "Clique no ícone no canto para testar o agente. As conversas aqui contam para o consumo e as estatísticas, tal como no seu site real.",
+    de: "Klicken Sie auf das Symbol in der Ecke, um den Agenten zu testen. Gespräche hier zählen zum Verbrauch und zur Statistik, genau wie auf Ihrer echten Seite.",
   },
   "testAgent.defaultWelcomeMessage": {
     da: "Velkommen til vores hjemmeside.",
@@ -1032,6 +1174,7 @@ export const agent: Namespace = {
     es: "Bienvenido a nuestra página web.",
     fr: "Bienvenue sur notre site web.",
     pt: "Bem-vindo ao nosso site.",
+    de: "Willkommen auf unserer Website.",
   },
   "testAgent.pausedMessage": {
     da: 'Agenten er sat på pause. Aktivér den under "Dine agenter" for at teste den live.',
@@ -1039,6 +1182,7 @@ export const agent: Namespace = {
     es: 'El agente está en pausa. Actívelo en "Sus agentes" para probarlo en vivo.',
     fr: 'L\'agent est en pause. Activez-le sous « Vos agents » pour le tester en direct.',
     pt: 'O agente está em pausa. Ative-o em "Os seus agentes" para o testar ao vivo.',
+    de: "Der Agent ist pausiert. Aktivieren Sie ihn unter „Ihre Agenten“, um ihn live zu testen.",
   },
   "testAgent.configErrorTitle": {
     da: "Widget-boblen kunne ikke indlæses herunder.",
@@ -1046,6 +1190,7 @@ export const agent: Namespace = {
     es: "No se pudo cargar la burbuja del widget a continuación.",
     fr: "La bulle du widget n'a pas pu être chargée ci-dessous.",
     pt: "A bolha do widget não pôde ser carregada abaixo.",
+    de: "Die Widget-Blase konnte unten nicht geladen werden.",
   },
   "testAgent.configErrorFromLabel": {
     da: "Fejl fra",
@@ -1053,6 +1198,7 @@ export const agent: Namespace = {
     es: "Error de",
     fr: "Erreur de",
     pt: "Erro de",
+    de: "Fehler von",
   },
   "testAgent.configErrorSuffix": {
     da: ": {detail}. Samme fejl vil ramme agenten på jeres rigtige hjemmeside — ret dette før I går live.",
@@ -1060,6 +1206,7 @@ export const agent: Namespace = {
     es: ": {detail}. El mismo error afectará al agente en su sitio web real — corríjalo antes de salir en producción.",
     fr: " : {detail}. La même erreur affectera l'agent sur votre site web réel — corrigez-le avant la mise en ligne.",
     pt: ": {detail}. O mesmo erro afetará o agente no seu site real — corrija isto antes de entrar em produção.",
+    de: ": {detail}. Derselbe Fehler wird den Agenten auf Ihrer echten Website betreffen — beheben Sie dies, bevor Sie live gehen.",
   },
   "testAgent.description": {
     da: "Simuleret side med jeres rigtige indlejrings-kode — samtaler her tæller med i forbrug og statistik ligesom på jeres hjemmeside.",
@@ -1067,6 +1214,7 @@ export const agent: Namespace = {
     es: "Página simulada con su código de inserción real — las conversaciones aquí cuentan para el consumo y las estadísticas igual que en su sitio web.",
     fr: "Page simulée avec votre véritable code d'intégration — les conversations ici comptent dans la consommation et les statistiques, comme sur votre site web.",
     pt: "Página simulada com o seu código de incorporação real — as conversas aqui contam para o consumo e as estatísticas tal como no seu site.",
+    de: "Simulierte Seite mit Ihrem echten Einbettungscode — Gespräche hier zählen zum Verbrauch und zur Statistik, genau wie auf Ihrer Website.",
   },
   "testAgent.openInNewWindow": {
     da: "Åbn i nyt vindue ↗",
@@ -1074,6 +1222,7 @@ export const agent: Namespace = {
     es: "Abrir en nueva ventana ↗",
     fr: "Ouvrir dans une nouvelle fenêtre ↗",
     pt: "Abrir em nova janela ↗",
+    de: "In neuem Fenster öffnen ↗",
   },
   "testAgent.hideHtml": {
     da: "Skjul HTML",
@@ -1081,6 +1230,7 @@ export const agent: Namespace = {
     es: "Ocultar HTML",
     fr: "Masquer le HTML",
     pt: "Ocultar HTML",
+    de: "HTML ausblenden",
   },
   "testAgent.showHtml": {
     da: "Vis HTML",
@@ -1088,6 +1238,7 @@ export const agent: Namespace = {
     es: "Mostrar HTML",
     fr: "Afficher le HTML",
     pt: "Mostrar HTML",
+    de: "HTML anzeigen",
   },
   "testAgent.iframeTitle": {
     da: "Test agent",
@@ -1095,6 +1246,7 @@ export const agent: Namespace = {
     es: "Test agent",
     fr: "Test agent",
     pt: "Test agent",
+    de: "Test agent",
   },
 
   // ---------------------------------------------------------------------
@@ -1106,6 +1258,7 @@ export const agent: Namespace = {
     es: "Bot de voz con IA – los clientes hablan directamente con la IA",
     fr: "Bot vocal IA – les clients parlent directement avec l'IA",
     pt: "Bot de voz com IA – os clientes falam diretamente com a IA",
+    de: "Voice-KI-Bot – Kunden sprechen direkt mit der KI",
   },
   "embedCode.feature2": {
     da: "Besvarer spørgsmål og håndterer bookinger",
@@ -1113,6 +1266,7 @@ export const agent: Namespace = {
     es: "Responde preguntas y gestiona reservas",
     fr: "Répond aux questions et gère les réservations",
     pt: "Responde a perguntas e gere reservas",
+    de: "Beantwortet Fragen und übernimmt Buchungen",
   },
   "embedCode.feature3": {
     da: "Bookinger går direkte i din kalender",
@@ -1120,6 +1274,7 @@ export const agent: Namespace = {
     es: "Las reservas van directamente a su calendario",
     fr: "Les réservations arrivent directement dans votre calendrier",
     pt: "As reservas vão diretamente para o seu calendário",
+    de: "Buchungen gehen direkt in Ihren Kalender",
   },
   "embedCode.feature4": {
     da: "24/7 tilgængelig på din hjemmeside",
@@ -1127,6 +1282,7 @@ export const agent: Namespace = {
     es: "Disponible 24/7 en su página web",
     fr: "Disponible 24 h/24 et 7 j/7 sur votre site web",
     pt: "Disponível 24/7 no seu site",
+    de: "24/7 auf Ihrer Website verfügbar",
   },
   "embedCode.feature5": {
     da: "Betal kun for aktiv tale – ingen timeløn",
@@ -1134,6 +1290,7 @@ export const agent: Namespace = {
     es: "Pague solo por el tiempo de conversación activo – sin salario por hora",
     fr: "Payez uniquement le temps de parole actif – pas de salaire horaire",
     pt: "Pague apenas pelo tempo de conversação ativo – sem salário por hora",
+    de: "Zahlen Sie nur für aktive Sprechzeit – kein Stundenlohn",
   },
   "embedCode.feature6": {
     da: "Åben 24/7, 365 dage om året – altid klar",
@@ -1141,6 +1298,7 @@ export const agent: Namespace = {
     es: "Abierto 24/7, 365 días al año – siempre listo",
     fr: "Ouvert 24 h/24 et 7 j/7, 365 jours par an – toujours prêt",
     pt: "Aberto 24/7, 365 dias por ano – sempre pronto",
+    de: "Geöffnet 24/7, 365 Tage im Jahr – immer bereit",
   },
   "embedCode.feature7": {
     da: "Håndterer kunder selv når du er optaget",
@@ -1148,6 +1306,7 @@ export const agent: Namespace = {
     es: "Atiende a los clientes incluso cuando usted está ocupado",
     fr: "Gère les clients même lorsque vous êtes occupé",
     pt: "Atende clientes mesmo quando está ocupado",
+    de: "Kümmert sich um Kunden, auch wenn Sie beschäftigt sind",
   },
   "embedCode.unlockTitle": {
     da: "Lås widget-koden op",
@@ -1155,6 +1314,7 @@ export const agent: Namespace = {
     es: "Desbloquear el código del widget",
     fr: "Débloquer le code du widget",
     pt: "Desbloquear o código do widget",
+    de: "Widget-Code freischalten",
   },
   "embedCode.trialRemaining": {
     da: "{days} dages gratis prøveperiode tilbage.",
@@ -1162,6 +1322,7 @@ export const agent: Namespace = {
     es: "Quedan {days} días de prueba gratuita.",
     fr: "Il reste {days} jours d'essai gratuit.",
     pt: "Restam {days} dias de teste gratuito.",
+    de: "Noch {days} Tage kostenlose Testphase übrig.",
   },
   "embedCode.trialExpired": {
     da: "Jeres gratis prøveperiode er slut, og der er ikke flere minutter tilbage.",
@@ -1169,6 +1330,7 @@ export const agent: Namespace = {
     es: "Su periodo de prueba gratuito ha terminado y no quedan minutos.",
     fr: "Votre essai gratuit est terminé et il ne reste plus de minutes.",
     pt: "O seu período de teste gratuito terminou e não restam minutos.",
+    de: "Ihre kostenlose Testphase ist abgelaufen, und es sind keine Minuten mehr übrig.",
   },
   "embedCode.orderPackageInstruction": {
     da: "Bestil en pakke for at hente den rigtige indlejrings-kode og gå live.",
@@ -1176,6 +1338,7 @@ export const agent: Namespace = {
     es: "Solicite un paquete para obtener el código de inserción real y salir en producción.",
     fr: "Commandez un forfait pour obtenir le vrai code d'intégration et passer en ligne.",
     pt: "Contrate um pacote para obter o código de incorporação real e entrar em produção.",
+    de: "Bestellen Sie ein Paket, um den echten Einbettungscode zu erhalten und live zu gehen.",
   },
   "embedCode.perMonthSuffix": {
     da: "/md",
@@ -1183,6 +1346,7 @@ export const agent: Namespace = {
     es: "/mes",
     fr: "/mois",
     pt: "/mês",
+    de: "/Mon.",
   },
   "embedCode.includedMinutes": {
     da: "Inkluderer {minutes} minutters taletid (ca. {overagePrice} {currency}/minut)",
@@ -1190,6 +1354,7 @@ export const agent: Namespace = {
     es: "Incluye {minutes} minutos de conversación (aprox. {overagePrice} {currency}/minuto)",
     fr: "Comprend {minutes} minutes de temps de parole (env. {overagePrice} {currency}/minute)",
     pt: "Inclui {minutes} minutos de conversação (aprox. {overagePrice} {currency}/minuto)",
+    de: "Beinhaltet {minutes} Minuten Sprechzeit (ca. {overagePrice} {currency}/Minute)",
   },
   "embedCode.includedMinutesFeature": {
     da: "{minutes} minutters taletid inkluderet",
@@ -1197,6 +1362,7 @@ export const agent: Namespace = {
     es: "{minutes} minutos de conversación incluidos",
     fr: "{minutes} minutes de temps de parole incluses",
     pt: "{minutes} minutos de conversação incluídos",
+    de: "{minutes} Minuten Sprechzeit inklusive",
   },
   "embedCode.renewalNote": {
     da: "Pakken fornyes automatisk når de {minutes} minutter er brugt.",
@@ -1204,6 +1370,7 @@ export const agent: Namespace = {
     es: "El paquete se renueva automáticamente cuando se agotan los {minutes} minutos.",
     fr: "Le forfait se renouvelle automatiquement une fois les {minutes} minutes utilisées.",
     pt: "O pacote é renovado automaticamente quando os {minutes} minutos forem utilizados.",
+    de: "Das Paket verlängert sich automatisch, sobald die {minutes} Minuten verbraucht sind.",
   },
   "embedCode.checkoutError": {
     da: "Betaling er ikke sat op endnu. Kontakt os på mail@aibooking.dk for at komme i gang.",
@@ -1211,6 +1378,7 @@ export const agent: Namespace = {
     es: "El pago aún no está configurado. Contáctenos en mail@aibooking.dk para empezar.",
     fr: "Le paiement n'est pas encore configuré. Contactez-nous à mail@aibooking.dk pour commencer.",
     pt: "O pagamento ainda não está configurado. Contacte-nos em mail@aibooking.dk para começar.",
+    de: "Die Zahlung ist noch nicht eingerichtet. Kontaktieren Sie uns unter mail@aibooking.dk, um loszulegen.",
   },
   "embedCode.openingCheckout": {
     da: "Åbner betaling…",
@@ -1218,6 +1386,7 @@ export const agent: Namespace = {
     es: "Abriendo el pago…",
     fr: "Ouverture du paiement…",
     pt: "Abrindo pagamento…",
+    de: "Zahlung wird geöffnet…",
   },
   "embedCode.orderNow": {
     da: "Bestil nu",
@@ -1225,6 +1394,7 @@ export const agent: Namespace = {
     es: "Pedir ahora",
     fr: "Commander maintenant",
     pt: "Encomendar agora",
+    de: "Jetzt bestellen",
   },
   "embedCode.pasteOnSiteTitle": {
     da: "Indsæt på jeres hjemmeside",
@@ -1232,6 +1402,7 @@ export const agent: Namespace = {
     es: "Pegar en su página web",
     fr: "Coller sur votre site web",
     pt: "Colar no seu site",
+    de: "Auf Ihrer Website einfügen",
   },
   "embedCode.pasteInstructionBefore": {
     da: "Indsæt denne kode lige før",
@@ -1239,6 +1410,7 @@ export const agent: Namespace = {
     es: "Pegue este código justo antes de",
     fr: "Collez ce code juste avant",
     pt: "Cole este código logo antes de",
+    de: "Fügen Sie diesen Code direkt vor",
   },
   "embedCode.pasteInstructionAfter": {
     da: "på jeres side.",
@@ -1246,6 +1418,7 @@ export const agent: Namespace = {
     es: "en su página.",
     fr: "sur votre page.",
     pt: "na sua página.",
+    de: "auf Ihrer Seite ein.",
   },
   "embedCode.shareLinkLabel": {
     da: "Del-link (til test eller sociale medier):",
@@ -1253,6 +1426,7 @@ export const agent: Namespace = {
     es: "Enlace para compartir (para pruebas o redes sociales):",
     fr: "Lien de partage (pour les tests ou les réseaux sociaux) :",
     pt: "Link de partilha (para testes ou redes sociais):",
+    de: "Freigabelink (zum Testen oder für soziale Medien):",
   },
   "embedCode.copied": {
     da: "Kopieret!",
@@ -1260,6 +1434,7 @@ export const agent: Namespace = {
     es: "¡Copiado!",
     fr: "Copié !",
     pt: "Copiado!",
+    de: "Kopiert!",
   },
   "embedCode.copy": {
     da: "Kopiér",
@@ -1267,6 +1442,7 @@ export const agent: Namespace = {
     es: "Copiar",
     fr: "Copier",
     pt: "Copiar",
+    de: "Kopieren",
   },
 
   // ---------------------------------------------------------------------
@@ -1278,6 +1454,7 @@ export const agent: Namespace = {
     es: "Calendario",
     fr: "Calendrier",
     pt: "Calendário",
+    de: "Kalender",
   },
   "wizardCalendar.description": {
     da: "Forbind Cal.com, så agenten kan tjekke ledige tider og booke møder direkte under samtalen — kan tilføjes senere under Integrationer, hvis I springer det over nu.",
@@ -1285,6 +1462,7 @@ export const agent: Namespace = {
     es: "Conecte Cal.com para que el agente pueda comprobar la disponibilidad y reservar reuniones directamente durante la conversación — puede añadirlo más tarde en Integraciones si lo omite ahora.",
     fr: "Connectez Cal.com pour que l'agent puisse vérifier les disponibilités et réserver des rendez-vous directement pendant la conversation — vous pourrez l'ajouter plus tard sous Intégrations si vous passez cette étape maintenant.",
     pt: "Conecte o Cal.com para que o agente possa verificar disponibilidade e marcar reuniões diretamente durante a conversa — pode adicionar isto mais tarde em Integrações se saltar este passo agora.",
+    de: "Verbinden Sie Cal.com, damit der Agent während des Gesprächs direkt verfügbare Zeiten prüfen und Termine buchen kann — Sie können dies später unter Integrationen hinzufügen, falls Sie es jetzt überspringen.",
   },
   "wizardCalendar.errorApiKeyRequired": {
     da: "Indsæt jeres Cal.com API-nøgle.",
@@ -1292,6 +1470,7 @@ export const agent: Namespace = {
     es: "Introduzca su clave API de Cal.com.",
     fr: "Saisissez votre clé API Cal.com.",
     pt: "Introduza a sua chave API do Cal.com.",
+    de: "Geben Sie Ihren Cal.com-API-Schlüssel ein.",
   },
   "wizardCalendar.errorConnectFailed": {
     da: "Kunne ikke forbinde Cal.com.",
@@ -1299,6 +1478,7 @@ export const agent: Namespace = {
     es: "No se pudo conectar Cal.com.",
     fr: "Impossible de connecter Cal.com.",
     pt: "Não foi possível conectar o Cal.com.",
+    de: "Cal.com konnte nicht verbunden werden.",
   },
   "wizardCalendar.connectedMessage": {
     da: "Cal.com forbundet. I kan vælge event-type og teste forbindelsen under Integrationer.",
@@ -1306,6 +1486,7 @@ export const agent: Namespace = {
     es: "Cal.com conectado. Puede elegir un tipo de evento y probar la conexión en Integraciones.",
     fr: "Cal.com connecté. Vous pouvez choisir un type d'événement et tester la connexion sous Intégrations.",
     pt: "Cal.com conectado. Pode escolher um tipo de evento e testar a ligação em Integrações.",
+    de: "Cal.com verbunden. Sie können den Ereignistyp wählen und die Verbindung unter Integrationen testen.",
   },
   "wizardCalendar.apiKeyLabel": {
     da: "Cal.com API-nøgle",
@@ -1313,6 +1494,7 @@ export const agent: Namespace = {
     es: "Clave API de Cal.com",
     fr: "Clé API Cal.com",
     pt: "Chave API do Cal.com",
+    de: "Cal.com-API-Schlüssel",
   },
   "wizardCalendar.apiKeyHelp": {
     da: "Findes under Cal.com → Settings → Developer → API keys.",
@@ -1320,6 +1502,7 @@ export const agent: Namespace = {
     es: "Se encuentra en Cal.com → Settings → Developer → API keys.",
     fr: "Disponible dans Cal.com → Settings → Developer → API keys.",
     pt: "Disponível em Cal.com → Settings → Developer → API keys.",
+    de: "Zu finden unter Cal.com → Settings → Developer → API keys.",
   },
   "wizardCalendar.connecting": {
     da: "Forbinder…",
@@ -1327,6 +1510,7 @@ export const agent: Namespace = {
     es: "Conectando…",
     fr: "Connexion…",
     pt: "Conectando…",
+    de: "Wird verbunden…",
   },
   "wizardCalendar.connectButton": {
     da: "Forbind Cal.com →",
@@ -1334,6 +1518,7 @@ export const agent: Namespace = {
     es: "Conectar Cal.com →",
     fr: "Connecter Cal.com →",
     pt: "Conectar Cal.com →",
+    de: "Cal.com verbinden →",
   },
 
   // ---------------------------------------------------------------------
@@ -1345,6 +1530,7 @@ export const agent: Namespace = {
     es: "Número de teléfono",
     fr: "Numéro de téléphone",
     pt: "Número de telefone",
+    de: "Telefonnummer",
   },
   "wizardPhone.description": {
     da: "{name} er klar til at besvare og foretage opkald. Sidste trin er at forbinde et telefonnummer, så I kan komme i gang.",
@@ -1352,6 +1538,7 @@ export const agent: Namespace = {
     es: "{name} está listo para recibir y realizar llamadas. El último paso es conectar un número de teléfono para poder empezar.",
     fr: "{name} est prêt à répondre et à passer des appels. La dernière étape consiste à connecter un numéro de téléphone pour pouvoir commencer.",
     pt: "{name} está pronto para atender e fazer chamadas. O último passo é conectar um número de telefone para poder começar.",
+    de: "{name} ist bereit, Anrufe entgegenzunehmen und zu tätigen. Der letzte Schritt ist die Verbindung einer Telefonnummer, damit Sie loslegen können.",
   },
   "wizardPhone.infoBox": {
     da: "Under Inbound kan I enten købe et nummer gennem os (inkluderet i jeres pakke) eller forbinde jeres eget Twilio-nummer helt gratis i 30 dage — begge dele klarer I på under et minut.",
@@ -1359,6 +1546,7 @@ export const agent: Namespace = {
     es: "En Inbound puede comprar un número a través de nosotros (incluido en su paquete) o conectar su propio número de Twilio totalmente gratis durante 30 días — ambas opciones se completan en menos de un minuto.",
     fr: "Dans Inbound, vous pouvez soit acheter un numéro auprès de nous (inclus dans votre forfait), soit connecter votre propre numéro Twilio gratuitement pendant 30 jours — les deux options prennent moins d'une minute.",
     pt: "Em Inbound, pode comprar um número através de nós (incluído no seu pacote) ou conectar o seu próprio número Twilio totalmente grátis durante 30 dias — ambas as opções demoram menos de um minuto.",
+    de: "Unter Inbound können Sie entweder eine Nummer über uns kaufen (in Ihrem Paket enthalten) oder Ihre eigene Twilio-Nummer 30 Tage lang völlig kostenlos verbinden — beides erledigen Sie in weniger als einer Minute.",
   },
   "wizardPhone.connectButton": {
     da: "Forbind telefonnummer →",
@@ -1366,6 +1554,7 @@ export const agent: Namespace = {
     es: "Conectar número de teléfono →",
     fr: "Connecter le numéro de téléphone →",
     pt: "Conectar número de telefone →",
+    de: "Telefonnummer verbinden →",
   },
 
   // ---------------------------------------------------------------------
@@ -1377,6 +1566,7 @@ export const agent: Namespace = {
     es: "Voz e idioma",
     fr: "Voix et langue",
     pt: "Voz e idioma",
+    de: "Stimme & Sprache",
   },
   "wizardVoice.description": {
     da: "Vælg den stemme jeres agent skal tale med.",
@@ -1384,6 +1574,7 @@ export const agent: Namespace = {
     es: "Elija la voz con la que hablará su agente.",
     fr: "Choisissez la voix avec laquelle votre agent doit parler.",
     pt: "Escolha a voz com que o seu agente deve falar.",
+    de: "Wählen Sie die Stimme, mit der Ihr Agent sprechen soll.",
   },
   "wizardVoice.voiceLabel": {
     da: "Stemme",
@@ -1391,6 +1582,7 @@ export const agent: Namespace = {
     es: "Voz",
     fr: "Voix",
     pt: "Voz",
+    de: "Stimme",
   },
   "wizardVoice.voiceFemale": {
     da: "Dame",
@@ -1398,6 +1590,7 @@ export const agent: Namespace = {
     es: "Mujer",
     fr: "Femme",
     pt: "Feminina",
+    de: "Weiblich",
   },
   "wizardVoice.voiceMale": {
     da: "Mand",
@@ -1405,6 +1598,7 @@ export const agent: Namespace = {
     es: "Hombre",
     fr: "Homme",
     pt: "Masculina",
+    de: "Männlich",
   },
   "wizardVoice.noneSelectedDefault": {
     da: "Ingen valgt (brug standard)",
@@ -1412,6 +1606,7 @@ export const agent: Namespace = {
     es: "Ninguno seleccionado (usar predeterminado)",
     fr: "Aucun sélectionné (utiliser la valeur par défaut)",
     pt: "Nenhuma selecionada (usar predefinição)",
+    de: "Keine ausgewählt (Standard verwenden)",
   },
   "wizardVoice.languageLabel": {
     da: "Sprog",
@@ -1419,6 +1614,7 @@ export const agent: Namespace = {
     es: "Idioma",
     fr: "Langue",
     pt: "Idioma",
+    de: "Sprache",
   },
   "wizardVoice.languageDanish": {
     da: "Dansk",
@@ -1426,6 +1622,7 @@ export const agent: Namespace = {
     es: "Danés",
     fr: "Danois",
     pt: "Dinamarquês",
+    de: "Dänisch",
   },
   "wizardVoice.languageEnglish": {
     da: "Engelsk",
@@ -1433,5 +1630,6 @@ export const agent: Namespace = {
     es: "Inglés",
     fr: "Anglais",
     pt: "Inglês",
+    de: "Englisch",
   },
 };
