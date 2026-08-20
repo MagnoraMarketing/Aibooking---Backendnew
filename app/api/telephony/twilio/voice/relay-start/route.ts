@@ -3,6 +3,7 @@ import { getWidgetBundleByPublicId } from "@/lib/widgets";
 import { getPlatformTwilioCredentials, validateTwilioSignature, formDataToParams } from "@/lib/twilio";
 import { twilioWebhookUrls, toTwilioLanguage, conversationRelayWebSocketUrl } from "@/lib/telephony/urls";
 import { buildConversationRelayResponse, buildSayAndHangupResponse, twimlResponseHeaders } from "@/lib/telephony/twiml";
+import { defaultGreeting } from "@/lib/i18n/agent-content";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +51,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const language = toTwilioLanguage(bundle.widget.language);
-  const welcomeGreeting = bundle.widget.opening_message ?? "Hej! Hvordan kan jeg hjælpe dig i dag?";
+  const welcomeGreeting = bundle.widget.opening_message ?? defaultGreeting(bundle.widget.language);
 
   return xml(
     buildConversationRelayResponse({

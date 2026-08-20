@@ -1,19 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ConversationMessage } from "@/types/database";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface SessionDetailsData {
   widgetName: string | null;
   messages: ConversationMessage[];
   summary: string | null;
 }
-
-const ROLE_LABEL: Record<string, string> = {
-  user: "Kunde",
-  assistant: "AI-assistent",
-  system: "System",
-};
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("da-DK", {
@@ -25,20 +20,34 @@ function formatDate(iso: string): string {
   });
 }
 
-const TABS = [
-  { key: "transcription", label: "Transskription" },
-  { key: "summary", label: "Opsummering" },
-  { key: "recording", label: "Optagelse" },
-  { key: "analysis", label: "Analyse" },
-] as const;
-
-type TabKey = (typeof TABS)[number]["key"];
+type TabKey = "transcription" | "summary" | "recording" | "analysis";
 
 export function SessionDetailsModal({ conversationId, onClose }: { conversationId: string; onClose: () => void }) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>("transcription");
   const [data, setData] = useState<SessionDetailsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const ROLE_LABEL: Record<string, string> = useMemo(
+    () => ({
+      user: t("dashboardPages.shared.roleCustomer"),
+      assistant: t("dashboardPages.shared.roleAssistant"),
+      system: t("dashboardPages.shared.roleSystem"),
+    }),
+    [t]
+  );
+
+  const TABS = useMemo(
+    () =>
+      [
+        { key: "transcription", label: t("dashboardPages.session-details-modal.tabTranscription") },
+        { key: "summary", label: t("dashboardPages.session-details-modal.tabSummary") },
+        { key: "recording", label: t("dashboardPages.session-details-modal.tabRecording") },
+        { key: "analysis", label: t("dashboardPages.session-details-modal.tabAnalysis") },
+      ] as const,
+    [t]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -47,14 +56,14 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
 
     fetch(`/api/customer/conversations/${conversationId}/messages`)
       .then((res) => {
-        if (!res.ok) throw new Error("Kunne ikke hente samtalen");
+        if (!res.ok) throw new Error(t("dashboardPages.session-details-modal.loadError"));
         return res.json();
       })
       .then((json) => {
         if (!cancelled) setData(json);
       })
       .catch(() => {
-        if (!cancelled) setError("Kunne ikke hente samtalen.");
+        if (!cancelled) setError(t("dashboardPages.session-details-modal.loadError"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -63,7 +72,7 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
     return () => {
       cancelled = true;
     };
-  }, [conversationId]);
+  }, [conversationId, t]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -84,13 +93,15 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Samtaledetaljer</h2>
+            <h2 className="text-lg font-semibold text-slate-900">
+              {t("dashboardPages.session-details-modal.title")}
+            </h2>
             {data?.widgetName ? <p className="text-sm text-slate-500">{data.widgetName}</p> : null}
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Luk"
+            aria-label={t("common.close")}
             className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             ✕
@@ -115,14 +126,14 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {loading ? <p className="text-sm text-slate-500">Henter…</p> : null}
+          {loading ? <p className="text-sm text-slate-500">{t("dashboardPages.session-details-modal.loading")}</p> : null}
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
           {!loading && !error && data ? (
             <>
               {activeTab === "transcription" ? (
                 data.messages.length === 0 ? (
-                  <p className="text-sm text-slate-500">Ingen beskeder registreret for denne samtale.</p>
+                  <p className="text-sm text-slate-500">{t("dashboardPages.shared.noMessagesForConversation")}</p>
                 ) : (
                   <div className="space-y-4">
                     {data.messages
@@ -143,20 +154,20 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
                 data.summary ? (
                   <p className="whitespace-pre-wrap text-sm text-slate-700">{data.summary}</p>
                 ) : (
-                  <p className="text-sm text-slate-500">Ingen opsummering endnu — samtalen er muligvis for kort.</p>
+                  <p className="text-sm text-slate-500">{t("dashboardPages.session-details-modal.noSummaryYet")}</p>
                 )
               ) : null}
 
               {activeTab === "recording" ? (
-                <p className="text-sm text-slate-500">
-                  Der gemmes ingen lydoptagelse i denne udgave — kun tekst-transskription.
-                </p>
+                <p className="text-sm text-slate-500">{t("dashboardPages.session-details-modal.noRecording")}</p>
               ) : null}
 
               {activeTab === "analysis" ? (
                 <p className="text-sm text-slate-500">
-                  Automatisk samtaleanalyse er ikke tilgængelig endnu.{" "}
-                  <span className="font-medium text-brand-600">Kommer snart.</span>
+                  {t("dashboardPages.session-details-modal.analysisUnavailable")}{" "}
+                  <span className="font-medium text-brand-600">
+                    {t("dashboardPages.session-details-modal.analysisComingSoon")}
+                  </span>
                 </p>
               ) : null}
             </>

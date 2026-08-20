@@ -3,16 +3,19 @@
 import { useState } from "react";
 import type { Package } from "@/types/database";
 import type { WidgetWithExtras } from "../agent-configurator";
+import { useTranslation } from "@/components/i18n/language-provider";
 
-const FEATURES = [
-  "Voice AI-bot – kunder taler direkte med AI'en",
-  "Besvarer spørgsmål og håndterer bookinger",
-  "Bookinger går direkte i din kalender",
-  "24/7 tilgængelig på din hjemmeside",
-  "Betal kun for aktiv tale – ingen timeløn",
-  "Åben 24/7, 365 dage om året – altid klar",
-  "Håndterer kunder selv når du er optaget",
-];
+function featuresFor(t: (key: string) => string): string[] {
+  return [
+    t("agent.embedCode.feature1"),
+    t("agent.embedCode.feature2"),
+    t("agent.embedCode.feature3"),
+    t("agent.embedCode.feature4"),
+    t("agent.embedCode.feature5"),
+    t("agent.embedCode.feature6"),
+    t("agent.embedCode.feature7"),
+  ];
+}
 
 interface EmbedCodeTabProps {
   widget: WidgetWithExtras;
@@ -22,6 +25,8 @@ interface EmbedCodeTabProps {
 }
 
 export function EmbedCodeTab({ widget, unlocked, trialDaysRemaining, pkg }: EmbedCodeTabProps) {
+  const { t } = useTranslation();
+  const FEATURES = featuresFor(t);
   const [copied, setCopied] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -44,7 +49,7 @@ export function EmbedCodeTab({ widget, unlocked, trialDaysRemaining, pkg }: Embe
 
     if (!res.ok) {
       setCheckingOut(false);
-      setCheckoutError("Betaling er ikke sat op endnu. Kontakt os på hej@aibooking.dk for at komme i gang.");
+      setCheckoutError(t("agent.embedCode.checkoutError"));
       return;
     }
 
@@ -61,21 +66,21 @@ export function EmbedCodeTab({ widget, unlocked, trialDaysRemaining, pkg }: Embe
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mx-auto max-w-md text-center">
-          <h2 className="text-lg font-semibold text-slate-900">Lås widget-koden op</h2>
+          <h2 className="text-lg font-semibold text-slate-900">{t("agent.embedCode.unlockTitle")}</h2>
           <p className="mt-2 text-sm text-slate-500">
             {trialDaysRemaining > 0
-              ? `${trialDaysRemaining} dages gratis prøveperiode tilbage.`
-              : "Jeres gratis prøveperiode er slut, og der er ikke flere minutter tilbage."}{" "}
-            Bestil en pakke for at hente den rigtige indlejrings-kode og gå live.
+              ? t("agent.embedCode.trialRemaining", { days: trialDaysRemaining })
+              : t("agent.embedCode.trialExpired")}{" "}
+            {t("agent.embedCode.orderPackageInstruction")}
           </p>
 
           <div className="mt-6 rounded-xl border border-slate-200 p-5 text-left">
             <p className="text-3xl font-bold text-slate-900">
               {monthlyPrice} {currency}
-              <span className="text-base font-medium text-slate-500"> /md</span>
+              <span className="text-base font-medium text-slate-500"> {t("agent.embedCode.perMonthSuffix")}</span>
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              Inkluderer {includedMinutes} minutters taletid (ca. {overagePrice} {currency}/minut)
+              {t("agent.embedCode.includedMinutes", { minutes: includedMinutes, overagePrice, currency })}
             </p>
 
             <ul className="mt-4 space-y-2">
@@ -87,12 +92,12 @@ export function EmbedCodeTab({ widget, unlocked, trialDaysRemaining, pkg }: Embe
               ))}
               <li className="flex items-start gap-2 text-sm text-slate-700">
                 <span className="mt-0.5 text-emerald-600">✓</span>
-                <span>{includedMinutes} minutters taletid inkluderet</span>
+                <span>{t("agent.embedCode.includedMinutesFeature", { minutes: includedMinutes })}</span>
               </li>
             </ul>
 
             <p className="mt-4 text-xs text-slate-400">
-              Pakken fornyes automatisk når de {includedMinutes} minutter er brugt.
+              {t("agent.embedCode.renewalNote", { minutes: includedMinutes })}
             </p>
           </div>
 
@@ -104,7 +109,7 @@ export function EmbedCodeTab({ widget, unlocked, trialDaysRemaining, pkg }: Embe
             disabled={checkingOut}
             className="mt-6 w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
-            {checkingOut ? "Åbner betaling…" : "Bestil nu"}
+            {checkingOut ? t("agent.embedCode.openingCheckout") : t("agent.embedCode.orderNow")}
           </button>
         </div>
       </div>
@@ -114,15 +119,18 @@ export function EmbedCodeTab({ widget, unlocked, trialDaysRemaining, pkg }: Embe
   return (
     <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Indsæt på jeres hjemmeside</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          {t("agent.embedCode.pasteOnSiteTitle")}
+        </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Indsæt denne kode lige før <code>&lt;/body&gt;</code> på jeres side.
+          {t("agent.embedCode.pasteInstructionBefore")} <code>&lt;/body&gt;</code>{" "}
+          {t("agent.embedCode.pasteInstructionAfter")}
         </p>
       </div>
 
       {trialDaysRemaining > 0 ? (
         <p className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">
-          {trialDaysRemaining} dages gratis prøveperiode tilbage.
+          {t("agent.embedCode.trialRemaining", { days: trialDaysRemaining })}
         </p>
       ) : null}
 
@@ -135,12 +143,12 @@ export function EmbedCodeTab({ widget, unlocked, trialDaysRemaining, pkg }: Embe
           onClick={handleCopy}
           className="absolute right-3 top-3 rounded-md bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20"
         >
-          {copied ? "Kopieret!" : "Kopiér"}
+          {copied ? t("agent.embedCode.copied") : t("agent.embedCode.copy")}
         </button>
       </div>
 
       <p className="text-sm text-slate-500">
-        Del-link (til test eller sociale medier):{" "}
+        {t("agent.embedCode.shareLinkLabel")}{" "}
         <a href={widget.shareUrl} target="_blank" rel="noreferrer" className="font-medium text-brand-600">
           {widget.shareUrl}
         </a>

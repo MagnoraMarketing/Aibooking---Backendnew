@@ -1,25 +1,52 @@
 import "server-only";
-import { getSummarizationModelName } from "@/lib/settings/platform";
+import { getVapiVoiceTemplateAssistantId, type VapiVoiceGender } from "@/lib/settings/platform";
 import { vapiFetch } from "./client";
 
-// Used whenever a widget doesn't have its own opening_message yet (e.g. a
-// freshly created agent) — same role as DEFAULT_REALTIME_INSTRUCTIONS in
-// lib/realtime/index.ts's caller, but Vapi calls it firstMessage rather
-// than instructions.
-export const DEFAULT_VAPI_FIRST_MESSAGE = "Hej, hvordan kan jeg hjælpe dig?";
+export type { VapiVoiceGender };
 
 export interface VapiAssistantParams {
   name: string;
   systemPrompt: string;
   firstMessage: string;
+  // "male"/"female" picks up the voice from the matching admin-configured
+  // template assistant (see resolveVoiceConfig below); null/undefined falls
+  // back to the platform's original fixed voice.
+  voiceGender?: VapiVoiceGender | null;
 }
 
-// Same Claude model the rest of the app treats as "the" canonical Anthropic
-// model for behind-the-scenes calls not tied to a specific widget's own LLM
-// choice (see getSummarizationModelName's own doc comment) — reused here
-// rather than inventing a second notion of "default model".
+// Fixed to a fast/cheap Claude model rather than getSummarizationModelName
+// (tuned for background summarization quality, not per-turn voice latency)
+// — every Vapi widget agent uses this, regardless of the customer's own
+// choices, since a realtime voice call has no room for a slower model.
+const VAPI_ASSISTANT_MODEL = "claude-haiku-4-5-20251001";
+
 async function resolveModelName(): Promise<string> {
-  return getSummarizationModelName();
+  return VAPI_ASSISTANT_MODEL;
+}
+
+const FALLBACK_VOICE = { provider: "vapi", version: 2, voiceId: "Elliot" };
+
+// Clones the `voice` block from a master-admin-configured "template"
+// assistant (one for "male", one for "female") rather than storing voice
+// settings ourselves — the admin builds/tunes each template directly in
+// Vapi's own dashboard, and we just mirror whatever it's currently set to.
+// Best-effort: no template configured yet, or Vapi is unreachable, falls
+// back to the platform's original fixed voice rather than failing the
+// caller's create/update.
+async function resolveVoiceConfig(voiceGender: VapiVoiceGender | null | undefined): Promise<Record<string, unknown>> {
+  if (!voiceGender) return FALLBACK_VOICE;
+
+  const templateAssistantId = await getVapiVoiceTemplateAssistantId(voiceGender);
+  if (!templateAssistantId) return FALLBACK_VOICE;
+
+  try {
+    const response = await vapiFetch(`/assistant/${encodeURIComponent(templateAssistantId)}`, { method: "GET" });
+    const data = (await response.json()) as { voice?: Record<string, unknown> };
+    return data.voice ?? FALLBACK_VOICE;
+  } catch (err) {
+    console.error(`Failed to read Vapi ${voiceGender} voice template (${templateAssistantId}):`, err);
+    return FALLBACK_VOICE;
+  }
 }
 
 // Without this, Vapi has nowhere to send call events (transcripts,
@@ -36,10 +63,10 @@ function webhookConfig(): { serverUrl: string; serverUrlSecret: string } | Recor
   return { serverUrl: `${appUrl}/api/webhooks/vapi`, serverUrlSecret: secret };
 }
 
-// Fixed transcriber/voice combination, matching how this account's
-// hand-configured Vapi assistants are already set up (Soniox STT RT v5,
-// Vapi's own "Elliot" voice) — not per-widget configurable yet.
-function buildAssistantBody(params: VapiAssistantParams, modelName: string) {
+// Transcriber is still fixed (Soniox STT RT v5) — voice now comes from
+// resolveVoiceConfig, cloned from whichever male/female template the
+// customer's widget is set to (see VapiAssistantParams.voiceGender).
+async function buildAssistantBody(params: VapiAssistantParams, modelName: string) {
   return {
     name: params.name,
     firstMessage: params.firstMessage,
@@ -57,11 +84,7 @@ function buildAssistantBody(params: VapiAssistantParams, modelName: string) {
       provider: "soniox",
       model: "stt-rt-v5",
     },
-    voice: {
-      provider: "vapi",
-      version: 2,
-      voiceId: "Elliot",
-    },
+    voice: await resolveVoiceConfig(params.voiceGender),
     ...webhookConfig(),
   };
 }
@@ -70,7 +93,7 @@ export async function createVapiAssistant(params: VapiAssistantParams): Promise<
   const modelName = await resolveModelName();
   const response = await vapiFetch("/assistant", {
     method: "POST",
-    body: JSON.stringify(buildAssistantBody(params, modelName)),
+    body: JSON.stringify(await buildAssistantBody(params, modelName)),
   });
   const data = (await response.json()) as { id: string };
   return { id: data.id };
@@ -80,6 +103,6 @@ export async function updateVapiAssistant(assistantId: string, params: VapiAssis
   const modelName = await resolveModelName();
   await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, {
     method: "PATCH",
-    body: JSON.stringify(buildAssistantBody(params, modelName)),
+    body: JSON.stringify(await buildAssistantBody(params, modelName)),
   });
 }

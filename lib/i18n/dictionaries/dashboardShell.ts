@@ -1,0 +1,65 @@
+import type { Namespace } from "./types";
+
+// components/dashboard/header.tsx + app/dashboard/layout.tsx — the chrome
+// wrapping every Dashboard page.
+export const dashboardShell: Namespace = {
+  "nav.gettingStarted": {
+    da: "Getting Started",
+    en: "Getting Started",
+    es: "Primeros pasos",
+    fr: "Prise en main",
+    pt: "Primeiros passos",
+    de: "Erste Schritte",
+  },
+  "nav.dashboard": { da: "Dashboard", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel", de: "Dashboard" },
+  "nav.widgetAgents": {
+    da: "Widget Agents",
+    en: "Widget Agents",
+    es: "Agentes de widget",
+    fr: "Agents widget",
+    pt: "Agentes de widget",
+    de: "Widget-Agenten",
+  },
+  "nav.inbound": { da: "Inbound", en: "Inbound", es: "Entrantes", fr: "Entrant", pt: "Recebidas", de: "Eingehend" },
+  "nav.outbound": { da: "Outbound", en: "Outbound", es: "Salientes", fr: "Sortant", pt: "Efetuadas", de: "Ausgehend" },
+  "nav.knowledgeBase": {
+    da: "Knowledge Base",
+    en: "Knowledge Base",
+    es: "Base de conocimiento",
+    fr: "Base de connaissances",
+    pt: "Base de conhecimento",
+    de: "Wissensdatenbank",
+  },
+  "nav.analytics": { da: "Analytics", en: "Analytics", es: "Analítica", fr: "Statistiques", pt: "Análises", de: "Analysen" },
+  "nav.integrations": {
+    da: "Integrations",
+    en: "Integrations",
+    es: "Integraciones",
+    fr: "Intégrations",
+    pt: "Integrações",
+    de: "Integrationen",
+  },
+  "nav.billing": { da: "Billing", en: "Billing", es: "Facturación", fr: "Facturation", pt: "Faturamento", de: "Abrechnung" },
+  "nav.agency": { da: "Agency", en: "Agency", es: "Agencia", fr: "Agence", pt: "Agência", de: "Agentur" },
+  openMenu: { da: "Åbn menu", en: "Open menu", es: "Abrir menú", fr: "Ouvrir le menu", pt: "Abrir menu", de: "Menü öffnen" },
+  notifications: {
+    da: "Notifikationer",
+    en: "Notifications",
+    es: "Notificaciones",
+    fr: "Notifications",
+    pt: "Notificações",
+    de: "Benachrichtigungen",
+  },
+  credits: { da: "Credits", en: "Credits", es: "Créditos", fr: "Crédits", pt: "Créditos", de: "Guthaben" },
+  defaultUserLabel: { da: "Bruger", en: "User", es: "Usuario", fr: "Utilisateur", pt: "Usuário", de: "Benutzer" },
+  profile: { da: "Profil", en: "Profile", es: "Perfil", fr: "Profil", pt: "Perfil", de: "Profil" },
+  logout: { da: "Log ud", en: "Log out", es: "Cerrar sesión", fr: "Se déconnecter", pt: "Sair", de: "Abmelden" },
+  loggingOut: {
+    da: "Logger ud…",
+    en: "Logging out…",
+    es: "Cerrando sesión…",
+    fr: "Déconnexion…",
+    pt: "Saindo…",
+    de: "Wird abgemeldet…",
+  },
+};

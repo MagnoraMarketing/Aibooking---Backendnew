@@ -3,6 +3,7 @@ import { getAdminClient } from "@/lib/database/admin";
 import { grantCredits } from "@/lib/credits/ledger";
 import { generatePublicWidgetId } from "@/lib/widgets/public-id";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
+import { sendCustomerInviteEmail } from "@/lib/email/invite";
 import type { Customer, LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 
 export interface OnboardCustomerParams {
@@ -105,16 +106,16 @@ export async function onboardCustomer(params: OnboardCustomerParams): Promise<On
 
   let invitationSent = false;
   if (params.sendInvitation !== false) {
-    const { data: invite, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-      params.email,
-      { data: { full_name: params.name } }
-    );
+    const invite = await sendCustomerInviteEmail({
+      supabase,
+      email: params.email,
+      recipientName: params.name,
+      companyName: params.businessName ?? params.name,
+    });
 
-    if (inviteError || !invite?.user) {
-      console.error("Failed to send customer invitation:", inviteError?.message);
-    } else {
+    if (invite) {
       await supabase.from("profiles").insert({
-        id: invite.user.id,
+        id: invite.userId,
         role: "CUSTOMER_ADMIN",
         customer_id: customer.id,
         full_name: params.name,

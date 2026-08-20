@@ -5,6 +5,7 @@ import { fetchCalcomEventTypes, type CalcomEventType } from "@/lib/calendar";
 import { CalendarIntegrationsManager } from "@/components/dashboard/calendar-integrations-manager";
 import { IntegrationsHero, IntegrationCategories } from "@/components/dashboard/integrations-showcase";
 import type { Widget } from "@/types/database";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export interface CalendarConnectionSummary {
 
 export default async function IntegrationsPage() {
   const ctx = await requireCustomerAdminForPage();
+  const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
@@ -74,8 +76,8 @@ export default async function IntegrationsPage() {
 
   return (
     <div className="space-y-16">
-      <IntegrationsHero />
-      <IntegrationCategories />
+      <IntegrationsHero locale={locale} />
+      <IntegrationCategories locale={locale} />
       <CalendarIntegrationsManager
         widgets={widgets ?? []}
         initialConnections={connections}

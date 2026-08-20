@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 import type { WidgetWithExtras } from "./agent-configurator";
 import { AgentCreationWizard } from "./agent-creation-wizard";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface AgentsManagerProps {
   initialWidgets: Widget[];
@@ -20,11 +21,6 @@ interface AgentsManagerProps {
   agentType: "widget" | "phone";
 }
 
-const HEADING_BY_TYPE = {
-  widget: { title: "Widget Agents", subtitle: "Administrer og opret jeres AI-widget-agenter", listTitle: "Dine widget-agenter" },
-  phone: { title: "Telefon-agenter", subtitle: "Administrer og opret jeres inbound/outbound AI-agenter", listTitle: "Dine telefon-agenter" },
-} as const;
-
 export function AgentsManager({
   initialWidgets,
   llmModels,
@@ -34,6 +30,19 @@ export function AgentsManager({
   pkg,
   agentType,
 }: AgentsManagerProps) {
+  const { t } = useTranslation();
+  const HEADING_BY_TYPE = {
+    widget: {
+      title: t("dashboardPages.agents-manager.widgetTitle"),
+      subtitle: t("dashboardPages.agents-manager.widgetSubtitle"),
+      listTitle: t("dashboardPages.agents-manager.widgetListTitle"),
+    },
+    phone: {
+      title: t("dashboardPages.agents-manager.phoneTitle"),
+      subtitle: t("dashboardPages.agents-manager.phoneSubtitle"),
+      listTitle: t("dashboardPages.agents-manager.phoneListTitle"),
+    },
+  } as const;
   const [widgets, setWidgets] = useState(initialWidgets);
   const [showWizard, setShowWizard] = useState(initialWidgets.length === 0);
   const [search, setSearch] = useState("");
@@ -82,7 +91,7 @@ export function AgentsManager({
             onClick={() => setShowWizard(true)}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
-            + Ny agent
+            {t("dashboardPages.agents-manager.newAgent")}
           </button>
         ) : null}
       </div>
@@ -105,13 +114,13 @@ export function AgentsManager({
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Søg efter agent-navn…"
+          placeholder={t("dashboardPages.agents-manager.searchPlaceholder")}
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
         />
 
         {filteredWidgets.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            Ingen agenter fundet.
+            {t("dashboardPages.agents-manager.noAgentsFound")}
           </div>
         ) : (
           <ul className="space-y-3">
@@ -123,12 +132,16 @@ export function AgentsManager({
                 <Link href={`/dashboard/agent/${widget.id}`} className="flex-1">
                   <p className="text-sm font-semibold text-slate-800">{widget.name}</p>
                   <p className="text-xs text-slate-500">
-                    Oprettet {new Date(widget.created_at).toLocaleDateString("da-DK")}
+                    {t("dashboardPages.agents-manager.createdOn", {
+                      date: new Date(widget.created_at).toLocaleDateString("da-DK"),
+                    })}
                   </p>
                 </Link>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-medium text-slate-500">
-                    {widget.status === "active" ? "Aktiv" : "Sat på pause"}
+                    {widget.status === "active"
+                      ? t("dashboardPages.shared.statusActive")
+                      : t("dashboardPages.shared.widgetStatusPaused")}
                   </span>
                   <button
                     type="button"

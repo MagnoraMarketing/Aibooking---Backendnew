@@ -1,11 +1,14 @@
 import { requireMasterAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { AdminPhoneNumbersTable, type AdminPhoneNumberRow } from "@/components/admin/phone-numbers-table";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
+import { translate } from "@/lib/i18n/dictionaries";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPhoneNumbersPage() {
-  await requireMasterAdminForPage();
+  const ctx = await requireMasterAdminForPage();
+  const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
   const supabase = getAdminClient();
 
   const { data } = await supabase
@@ -22,9 +25,9 @@ export default async function AdminPhoneNumbersPage() {
     purchaseStatus: row.purchase_status,
     failureReason: row.failure_reason,
     monthlyPriceDkk: row.monthly_price_dkk,
-    customerName: row.customers?.name ?? "Ukendt kunde",
+    customerName: row.customers?.name ?? translate(locale, "adminPages.phoneNumbers.unknownCustomer"),
     customerEmail: row.customers?.email ?? "",
-    widgetName: row.widgets?.name ?? "Ukendt agent",
+    widgetName: row.widgets?.name ?? translate(locale, "adminPages.phoneNumbers.unknownAgent"),
     createdAt: row.created_at,
   }));
 

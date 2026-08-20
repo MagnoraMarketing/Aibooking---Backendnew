@@ -6,6 +6,8 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { SessionsTable, type SessionRow } from "@/components/dashboard/sessions-table";
 import { AppointmentsList } from "@/components/dashboard/appointments-list";
 import type { Appointment, Conversation, Widget } from "@/types/database";
+import { translate } from "@/lib/i18n/dictionaries";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +54,8 @@ const ICONS = {
 
 export default async function DashboardPage() {
   const ctx = await requireCustomerAdminForPage();
+  const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
+  const t = (key: string) => translate(locale, key);
   const customerId = ctx.profile.customer_id!;
   const supabase = getAdminClient();
 
@@ -99,7 +103,7 @@ export default async function DashboardPage() {
 
   const sessions: SessionRow[] = conversations.map((conversation) => ({
     id: conversation.id,
-    widgetName: widgetsById.get(conversation.widget_id)?.name ?? "Ukendt widget",
+    widgetName: widgetsById.get(conversation.widget_id)?.name ?? t("dashboardPages.shared.unknownWidget"),
     startedAt: conversation.started_at,
     status: conversation.status,
     minutesUsed: minutesByConversation.get(conversation.id) ?? 0,
@@ -121,16 +125,28 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-500">Følg jeres AI-widgets&apos; performance</p>
+        <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.dashboard.title")}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.dashboard.subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Samtaler i alt" value={String(economics.totalConversations)} icon={ICONS.conversations} />
-        <StatCard label="Aktive widgets" value={String(activeWidgetsCount)} icon={ICONS.widgets} />
-        <StatCard label="Minutter brugt" value={economics.minutesUsed.toFixed(2)} icon={ICONS.minutesUsed} />
         <StatCard
-          label="Minutter tilbage"
+          label={t("dashboardPages.dashboard.statTotalConversations")}
+          value={String(economics.totalConversations)}
+          icon={ICONS.conversations}
+        />
+        <StatCard
+          label={t("dashboardPages.dashboard.statActiveWidgets")}
+          value={String(activeWidgetsCount)}
+          icon={ICONS.widgets}
+        />
+        <StatCard
+          label={t("dashboardPages.dashboard.statMinutesUsed")}
+          value={economics.minutesUsed.toFixed(2)}
+          icon={ICONS.minutesUsed}
+        />
+        <StatCard
+          label={t("dashboardPages.dashboard.statMinutesRemaining")}
           value={economics.minutesRemaining.toFixed(2)}
           icon={ICONS.minutesRemaining}
         />
@@ -139,46 +155,46 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">Voice Widget</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{t("dashboardPages.dashboard.voiceWidgetHeading")}</h2>
             <Link href="/dashboard/agent" className="text-xs font-medium text-brand-600 hover:text-brand-700">
-              Se agenter →
+              {t("dashboardPages.dashboard.seeAgents")}
             </Link>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-3 text-center">
             <div>
               <p className="text-lg font-semibold text-slate-900">{usageByType.widget.activeAgents}</p>
-              <p className="text-[11px] text-slate-500">Aktive agenter</p>
+              <p className="text-[11px] text-slate-500">{t("dashboardPages.dashboard.activeAgents")}</p>
             </div>
             <div>
               <p className="text-lg font-semibold text-slate-900">{usageByType.widget.totalConversations}</p>
-              <p className="text-[11px] text-slate-500">Samtaler</p>
+              <p className="text-[11px] text-slate-500">{t("dashboardPages.dashboard.conversations")}</p>
             </div>
             <div>
               <p className="text-lg font-semibold text-slate-900">{usageByType.widget.minutesUsed.toFixed(1)}</p>
-              <p className="text-[11px] text-slate-500">Minutter</p>
+              <p className="text-[11px] text-slate-500">{t("dashboardPages.dashboard.minutes")}</p>
             </div>
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">Telefon (Inbound/Outbound)</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{t("dashboardPages.dashboard.phoneHeading")}</h2>
             <Link href="/dashboard/inbound" className="text-xs font-medium text-brand-600 hover:text-brand-700">
-              Se agenter →
+              {t("dashboardPages.dashboard.seeAgents")}
             </Link>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-3 text-center">
             <div>
               <p className="text-lg font-semibold text-slate-900">{usageByType.phone.activeAgents}</p>
-              <p className="text-[11px] text-slate-500">Aktive agenter</p>
+              <p className="text-[11px] text-slate-500">{t("dashboardPages.dashboard.activeAgents")}</p>
             </div>
             <div>
               <p className="text-lg font-semibold text-slate-900">{usageByType.phone.totalConversations}</p>
-              <p className="text-[11px] text-slate-500">Opkald</p>
+              <p className="text-[11px] text-slate-500">{t("dashboardPages.dashboard.calls")}</p>
             </div>
             <div>
               <p className="text-lg font-semibold text-slate-900">{usageByType.phone.minutesUsed.toFixed(1)}</p>
-              <p className="text-[11px] text-slate-500">Minutter</p>
+              <p className="text-[11px] text-slate-500">{t("dashboardPages.dashboard.minutes")}</p>
             </div>
           </div>
         </div>
@@ -186,16 +202,18 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-slate-900">Seneste samtaler</h2>
+          <h2 className="text-lg font-semibold text-slate-900">{t("dashboardPages.dashboard.recentConversationsHeading")}</h2>
           <SessionsTable sessions={sessions} />
         </div>
 
         <div className="space-y-6">
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-slate-900">Senest brugte widgets</h2>
+            <h2 className="text-lg font-semibold text-slate-900">
+              {t("dashboardPages.dashboard.recentlyUsedWidgetsHeading")}
+            </h2>
             <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
               {recentlyUsedWidgets.length === 0 ? (
-                <p className="p-3 text-sm text-slate-500">Ingen widgets brugt endnu.</p>
+                <p className="p-3 text-sm text-slate-500">{t("dashboardPages.dashboard.noWidgetsUsedYet")}</p>
               ) : (
                 <ul className="space-y-1">
                   {recentlyUsedWidgets.map((widget) => (
@@ -214,8 +232,8 @@ export default async function DashboardPage() {
           </div>
 
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-slate-900">Bookinger</h2>
-            <AppointmentsList appointments={appointmentsData ?? []} />
+            <h2 className="text-lg font-semibold text-slate-900">{t("dashboardPages.dashboard.bookingsHeading")}</h2>
+            <AppointmentsList appointments={appointmentsData ?? []} locale={locale} />
           </div>
         </div>
       </div>

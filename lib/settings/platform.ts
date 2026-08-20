@@ -80,3 +80,34 @@ export async function setKnowledgeBaseSecondsPer1000Chars(seconds: number): Prom
 
   if (error) throw new Error(`Failed to update knowledge base pricing: ${error.message}`);
 }
+
+export type VapiVoiceGender = "male" | "female";
+
+function vapiVoiceTemplateKey(gender: VapiVoiceGender): string {
+  return `vapi_${gender}_voice_template_assistant_id`;
+}
+
+// Two hand-configured Vapi assistants (one male voice, one female voice),
+// set by a master admin, that widget assistants clone their `voice` config
+// from — see resolveVoiceConfig in lib/vapi/assistants.ts. Never exposed to
+// customers: they only ever pick "Mand"/"Dame", not a raw Vapi id.
+export async function getVapiVoiceTemplateAssistantId(gender: VapiVoiceGender): Promise<string | null> {
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from("platform_settings")
+    .select("value")
+    .eq("key", vapiVoiceTemplateKey(gender))
+    .maybeSingle();
+
+  if (!data || typeof data.value !== "string" || !data.value) return null;
+  return data.value;
+}
+
+export async function setVapiVoiceTemplateAssistantId(gender: VapiVoiceGender, assistantId: string | null): Promise<void> {
+  const supabase = getAdminClient();
+  const { error } = await supabase
+    .from("platform_settings")
+    .upsert({ key: vapiVoiceTemplateKey(gender), value: assistantId });
+
+  if (error) throw new Error(`Failed to update Vapi ${gender} voice template: ${error.message}`);
+}
