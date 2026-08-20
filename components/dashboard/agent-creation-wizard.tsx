@@ -12,7 +12,6 @@ import { EmbedCodeTab } from "./agent-tabs/embed-code";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
 type AgentType = "widget" | "phone";
-type WidgetEngine = "vapi" | "twilio_relay";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -31,33 +30,6 @@ function typeOptionsFor(t: Translate): {
       value: "phone",
       title: t("agent.wizard.type.phoneTitle"),
       description: t("agent.wizard.type.phoneDescription"),
-    },
-  ];
-}
-
-// Two ways to power a Voice Widget's realtime call — Vapi is the
-// established, recommended default; Twilio Relay runs over the platform's
-// own Twilio ConversationRelay integration instead (see
-// 0024_twilio_conversation_relay.sql), newer and worth offering but not yet
-// the default.
-function widgetEngineOptionsFor(t: Translate): {
-  value: WidgetEngine;
-  title: string;
-  description: string;
-  provider: "vapi" | "twilio_relay";
-}[] {
-  return [
-    {
-      value: "vapi",
-      title: t("agent.wizard.engine.vapiTitle"),
-      description: t("agent.wizard.engine.vapiDescription"),
-      provider: "vapi",
-    },
-    {
-      value: "twilio_relay",
-      title: t("agent.wizard.engine.twilioTitle"),
-      description: t("agent.wizard.engine.twilioDescription"),
-      provider: "twilio_relay",
     },
   ];
 }
@@ -139,13 +111,11 @@ export function AgentCreationWizard({
 
   const [name, setName] = useState("");
   const [agentType, setAgentType] = useState<AgentType | null>(fixedType ?? null);
-  const [widgetEngine, setWidgetEngine] = useState<WidgetEngine>("vapi");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const steps = stepsFor(agentType, t);
   const typeOptions = typeOptionsFor(t);
-  const widgetEngineOptions = widgetEngineOptionsFor(t);
 
   const savePatch: SavePatch = async (patch) => {
     if (!widget) return false;
@@ -169,7 +139,10 @@ export function AgentCreationWizard({
       setError(t("agent.wizard.errorTypeRequired"));
       return;
     }
-    const provider = agentType === "phone" ? "anthropic" : widgetEngine;
+    // Voice Widgets only ever run on the Vapi engine — Twilio Relay is an
+    // incomplete beta path (no working TTS/voice yet) and was previously
+    // offered as a picker choice here even though it doesn't actually work.
+    const provider = agentType === "phone" ? "anthropic" : "vapi";
     const selectedModelId = llmModels.find((m) => m.provider === provider)?.id ?? null;
     if (!selectedModelId) {
       setError(t("agent.wizard.errorNoModel"));
@@ -256,29 +229,6 @@ export function AgentCreationWizard({
             </div>
           )}
 
-          {agentType === "widget" ? (
-            <div>
-              <p className="mb-2 text-sm font-medium text-slate-700">Hvilken voice-motor?</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {widgetEngineOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setWidgetEngine(option.value)}
-                    className={`rounded-xl border p-4 text-left transition ${
-                      widgetEngine === option.value
-                        ? "border-brand-500 ring-1 ring-brand-500"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-slate-800">{option.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">{option.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
           <div className="flex gap-3">
@@ -287,7 +237,7 @@ export function AgentCreationWizard({
               onClick={onCancel}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Annuller
+              {t("common.cancel")}
             </button>
             <button
               type="button"
