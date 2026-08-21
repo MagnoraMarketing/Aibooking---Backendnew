@@ -1,6 +1,7 @@
 import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { OutboundManager } from "@/components/dashboard/outbound-manager";
+import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
 import type { Widget } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 
@@ -31,7 +32,7 @@ export default async function OutboundPage() {
       .returns<Widget[]>(),
     supabase
       .from("phone_numbers")
-      .select("*")
+      .select(PHONE_NUMBER_CLIENT_COLUMNS)
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false })
       .returns<PhoneNumberRow[]>(),

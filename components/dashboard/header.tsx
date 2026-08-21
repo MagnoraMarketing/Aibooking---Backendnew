@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: "Widget Agents", href: "/dashboard/agent" },
   { label: "Inbound", href: "/dashboard/inbound" },
   { label: "Outbound", href: "/dashboard/outbound" },
+  { label: "Dialer", href: "/dashboard/dialer" },
   { label: "Knowledge Base", href: "/dashboard/knowledge-base" },
   { label: "Analytics", href: "/dashboard/analytics" },
   { label: "Integrations", href: "/dashboard/integrations" },

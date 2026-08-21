@@ -21,6 +21,13 @@ export function twilioWebhookUrls() {
     // lib/twilio/voice-token.ts) — Twilio hits this when the browser Voice
     // SDK places its call, not tied to any customer subaccount/number.
     relayStart: `${base}/api/telephony/twilio/voice/relay-start`,
+    // The manual dialer's per-customer TwiML Application Voice Request URL
+    // (see lib/twilio/dialer.ts) — unlike relayStart, this one is scoped to
+    // a customer's own subaccount, so a `?customerId=` query string is
+    // appended by callers to identify which subaccount's credentials to
+    // validate the request signature against.
+    dialerStart: `${base}/api/telephony/twilio/voice/dialer-start`,
+    dialerStatus: `${base}/api/telephony/twilio/voice/dialer-status`,
   };
 }
 
