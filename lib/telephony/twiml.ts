@@ -48,6 +48,20 @@ export function twimlResponseHeaders(): Record<string, string> {
   return { "Content-Type": "text/xml; charset=utf-8" };
 }
 
+// <Dial> — bridges a call straight to a phone number using a given caller
+// ID, no AI/ConversationRelay involved. Used by the manual dialer
+// (app/api/telephony/twilio/voice/dialer-start): the browser leg placed via
+// the Twilio Voice SDK IS the conversation, this just connects it to the
+// lead. `statusCallbackUrl` gets the dialed leg's own initiated/ringing/
+// answered/completed events (app/api/telephony/twilio/voice/dialer-status).
+export function buildDialResponse(params: { to: string; callerId: string; statusCallbackUrl: string }): string {
+  return `${XML_HEADER}<Response><Dial callerId="${escapeXml(params.callerId)}"><Number statusCallback="${escapeXml(
+    params.statusCallbackUrl
+  )}" statusCallbackEvent="initiated ringing answered completed" statusCallbackMethod="POST">${escapeXml(
+    params.to
+  )}</Number></Dial></Response>`;
+}
+
 // <Connect><ConversationRelay> — routes a call (here, the browser Voice SDK
 // call placed against the platform TwiML App, see relay-start's route) into
 // Twilio's own STT/TTS relay, which then opens a WebSocket to `wsUrl`

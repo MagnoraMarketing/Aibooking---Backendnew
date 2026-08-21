@@ -305,3 +305,39 @@ export interface StripeEventRow {
   payload: Record<string, unknown>;
   processed_at: string;
 }
+
+// Manual dialer (see 0025_manual_dialer.sql, lib/twilio/dialer.ts) — a
+// customer-uploaded lead list they call through one-by-one from the
+// browser, as themselves.
+export interface LeadList {
+  id: string;
+  customer_id: string;
+  name: string;
+  created_at: string;
+}
+
+export type LeadStatus = "pending" | "calling" | "called";
+export type LeadDisposition =
+  | "booked"
+  | "interested"
+  | "not_interested"
+  | "no_answer"
+  | "voicemail"
+  | "wrong_number"
+  | "call_back";
+
+export interface Lead {
+  id: string;
+  list_id: string;
+  customer_id: string;
+  phone_number: string;
+  contact_name: string | null;
+  company: string | null;
+  notes: string | null;
+  status: LeadStatus;
+  disposition: LeadDisposition | null;
+  call_sid: string | null;
+  duration_seconds: number | null;
+  called_at: string | null;
+  created_at: string;
+}
