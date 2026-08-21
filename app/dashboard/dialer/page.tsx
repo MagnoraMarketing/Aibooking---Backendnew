@@ -1,6 +1,7 @@
 import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { DialerManager } from "@/components/dashboard/dialer-manager";
+import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export default async function DialerPage() {
     // launch route already makes for Twilio-direct calls.
     supabase
       .from("phone_numbers")
-      .select("*")
+      .select(PHONE_NUMBER_CLIENT_COLUMNS)
       .eq("customer_id", customerId)
       .eq("source", "platform_twilio")
       .eq("purchase_status", "active")

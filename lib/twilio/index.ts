@@ -16,3 +16,4 @@ export { createTwilioOutboundCall, type CreateTwilioOutboundCallParams } from ".
 export { validateTwilioSignature, formDataToParams } from "./signature";
 export { createVoiceAccessToken } from "./voice-token";
 export { getOrCreateDialerApp, createDialerAccessToken, type DialerAppCredentials } from "./dialer";
+export { getTwilioCallMinutesSummary, type TwilioCallMinutesSummary } from "./usage";
