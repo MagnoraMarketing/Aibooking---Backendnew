@@ -30,30 +30,8 @@ const TYPE_OPTIONS: {
   },
 ];
 
-// Two ways to power a Voice Widget's realtime call — Vapi is the
-// established, recommended default; Twilio Relay runs over the platform's
-// own Twilio ConversationRelay integration instead (see
-// 0024_twilio_conversation_relay.sql), newer and worth offering but not yet
-// the default.
-const WIDGET_ENGINE_OPTIONS: {
-  value: WidgetEngine;
-  title: string;
-  description: string;
-  provider: "vapi" | "twilio_relay";
-}[] = [
-  {
-    value: "vapi",
-    title: "Vapi (anbefalet)",
-    description: "Afprøvet i produktion — hurtigst opsætning.",
-    provider: "vapi",
-  },
-  {
-    value: "twilio_relay",
-    title: "Twilio Relay (beta)",
-    description: "Kører over jeres egen Twilio-infrastruktur — nyere, kan have færre stemmemuligheder.",
-    provider: "twilio_relay",
-  },
-];
+// Vapi is the only voice widget engine currently offered to customers.
+// Twilio Relay support remains in code but is not exposed in the UI.
 
 function stepsFor(agentType: AgentType | null) {
   const lastStep = agentType === "phone" ? "Telefonnummer" : "Embed-kode";
@@ -242,28 +220,6 @@ export function AgentCreationWizard({
             </div>
           )}
 
-          {agentType === "widget" ? (
-            <div>
-              <p className="mb-2 text-sm font-medium text-slate-700">Hvilken voice-motor?</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {WIDGET_ENGINE_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setWidgetEngine(option.value)}
-                    className={`rounded-xl border p-4 text-left transition ${
-                      widgetEngine === option.value
-                        ? "border-brand-500 ring-1 ring-brand-500"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-slate-800">{option.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">{option.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
