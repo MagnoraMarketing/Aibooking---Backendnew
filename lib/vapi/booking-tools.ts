@@ -1,7 +1,14 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { decryptSecret } from "@/lib/security";
-import { fetchCalcomAvailability, createCalcomBooking } from "@/lib/calendar";
+import {
+  fetchCalcomAvailability,
+  createCalcomBooking,
+  fetchCalcomEventTypes,
+  findUpcomingCalcomBooking,
+  rescheduleCalcomBooking,
+  cancelCalcomBooking,
+} from "@/lib/calendar";
 
 // The booking tools the Vapi assistant may call mid-call. They run here,
 // server-side, for one reason: Cal.com credentials must never reach Vapi or
@@ -148,12 +155,16 @@ export async function createBooking(
       email: customerEmail,
     });
 
+    // The uid is what lets Cal.com's webhooks find this row again when the
+    // booking is later moved or cancelled — including from outside our agent.
     await supabase.from("appointments").insert({
       customer_id: ctx.customerId,
       widget_id: ctx.widgetId,
       customer_name: customerName,
       appointment_time: startTime,
       status: "booked",
+      calcom_booking_uid: booking.uid || null,
+      calcom_booking_id: booking.id ?? null,
     });
 
     return `Tiden er booket. Bekræft ${startTime} (${calendar.timezone}) over for kunden og nævn at der er sendt en bekræftelse på email.`;
@@ -175,6 +186,142 @@ export async function createBooking(
   }
 }
 
+// Lists what the business actually offers, so the agent picks a real service
+// and its real duration instead of improvising one.
+export async function getEventTypes(ctx: BookingToolContext): Promise<string> {
+  const calendar = await getCalendarDetails(ctx);
+  if (!calendar) return NO_BOOKING;
+
+  try {
+    const eventTypes = await fetchCalcomEventTypes(calendar.apiKey);
+    if (eventTypes.length === 0) {
+      return "Der er ingen ydelser opsat i kalenderen endnu, så du kan ikke booke.";
+    }
+    const described = eventTypes
+      .map((eventType) =>
+        eventType.lengthMinutes
+          ? `${eventType.title} (${eventType.lengthMinutes} min.)`
+          : eventType.title
+      )
+      .join(", ");
+    return `Virksomhedens ydelser: ${described}.`;
+  } catch (err) {
+    console.error("get_event_types failed:", err);
+    return "Ydelserne kunne ikke hentes lige nu.";
+  }
+}
+
+// The caller's own next appointment, matched on the email they booked with.
+// Every reschedule/cancel goes through this first: the agent must never act
+// on a booking it hasn't actually found.
+export async function getBooking(
+  input: { customer_email?: string },
+  ctx: BookingToolContext
+): Promise<string> {
+  const calendar = await getCalendarDetails(ctx);
+  if (!calendar) return NO_BOOKING;
+
+  const email = input.customer_email?.trim();
+  if (!email) return "Spørg kunden om den email de booked med, for at finde tiden.";
+
+  try {
+    const booking = await findUpcomingCalcomBooking({ apiKey: calendar.apiKey, attendeeEmail: email });
+    if (!booking) {
+      return `Der blev ikke fundet nogen kommende tid på ${email}. Bekræft emailen med kunden.`;
+    }
+    return `Fundet: "${booking.title}" den ${booking.startTime} (${calendar.timezone}). Bekræft med kunden at det er den rigtige tid.`;
+  } catch (err) {
+    console.error("get_booking failed:", err);
+    return "Tiden kunne ikke slås op lige nu. Sig det ærligt til kunden.";
+  }
+}
+
+export async function rescheduleBooking(
+  input: { customer_email?: string; new_start_time?: string },
+  ctx: BookingToolContext
+): Promise<string> {
+  const calendar = await getCalendarDetails(ctx);
+  if (!calendar) return NO_BOOKING;
+
+  const email = input.customer_email?.trim();
+  const newStart = input.new_start_time?.trim();
+  if (!email || !newStart) {
+    return "Der mangler oplysninger. Spørg om kundens email og det nye ønskede tidspunkt.";
+  }
+  if (Number.isNaN(new Date(newStart).getTime())) {
+    return "Det nye tidspunkt blev ikke forstået. Bekræft tidspunktet med kunden og prøv igen.";
+  }
+
+  const supabase = getAdminClient();
+
+  try {
+    const booking = await findUpcomingCalcomBooking({ apiKey: calendar.apiKey, attendeeEmail: email });
+    if (!booking) {
+      return `Der blev ikke fundet nogen kommende tid på ${email}, så der er ikke flyttet noget.`;
+    }
+
+    // The old booking is moved, never left behind and duplicated by a fresh
+    // create — the calendar keeps one appointment, with one id.
+    const updated = await rescheduleCalcomBooking({
+      apiKey: calendar.apiKey,
+      booking,
+      newStart,
+    });
+
+    // Same Cal.com booking, new time — update the row we already have rather
+    // than logging a second appointment for one appointment.
+    await supabase
+      .from("appointments")
+      .update({ appointment_time: updated.startTime, status: "booked" })
+      .eq("customer_id", ctx.customerId)
+      .eq("calcom_booking_uid", booking.uid);
+
+    // Cal.com's PATCH doesn't reliably email the attendee (cal.diy#14485), so
+    // the new time has to be said on the call — that's the caller's receipt.
+    return `Tiden er flyttet til ${updated.startTime} (${calendar.timezone}). Sig det nye tidspunkt højt til kunden, så de har det.`;
+  } catch (err) {
+    console.error("reschedule_booking failed:", err);
+    return "Tiden kunne IKKE flyttes, og den oprindelige tid står stadig. Sig det ærligt til kunden.";
+  }
+}
+
+export async function cancelBooking(
+  input: { customer_email?: string; reason?: string },
+  ctx: BookingToolContext
+): Promise<string> {
+  const calendar = await getCalendarDetails(ctx);
+  if (!calendar) return NO_BOOKING;
+
+  const email = input.customer_email?.trim();
+  if (!email) return "Spørg kunden om den email de booked med, for at finde tiden der skal aflyses.";
+
+  const supabase = getAdminClient();
+
+  try {
+    const booking = await findUpcomingCalcomBooking({ apiKey: calendar.apiKey, attendeeEmail: email });
+    if (!booking) {
+      return `Der blev ikke fundet nogen kommende tid på ${email}, så der er ikke aflyst noget.`;
+    }
+
+    await cancelCalcomBooking({
+      apiKey: calendar.apiKey,
+      bookingId: booking.id,
+      reason: input.reason?.trim() || "Aflyst af kunden via telefon",
+    });
+
+    await supabase
+      .from("appointments")
+      .update({ status: "cancelled" })
+      .eq("customer_id", ctx.customerId)
+      .eq("calcom_booking_uid", booking.uid);
+
+    return `Tiden den ${booking.startTime} (${calendar.timezone}) er aflyst. Bekræft aflysningen over for kunden.`;
+  } catch (err) {
+    console.error("cancel_booking failed:", err);
+    return "Tiden kunne IKKE aflyses, og den står stadig i kalenderen. Sig det ærligt til kunden.";
+  }
+}
+
 // Dispatches one Vapi tool call. Unknown names return a spoken-safe string
 // rather than throwing, so one bad tool name can't kill the whole call.
 export async function executeBookingTool(
@@ -182,14 +329,23 @@ export async function executeBookingTool(
   args: Record<string, unknown>,
   ctx: BookingToolContext
 ): Promise<string> {
-  if (name === "check_availability") {
-    return checkAvailability(args as { date?: string }, ctx);
+  switch (name) {
+    case "get_event_types":
+      return getEventTypes(ctx);
+    case "check_availability":
+      return checkAvailability(args as { date?: string }, ctx);
+    case "create_booking":
+      return createBooking(
+        args as { start_time?: string; customer_name?: string; customer_email?: string },
+        ctx
+      );
+    case "get_booking":
+      return getBooking(args as { customer_email?: string }, ctx);
+    case "reschedule_booking":
+      return rescheduleBooking(args as { customer_email?: string; new_start_time?: string }, ctx);
+    case "cancel_booking":
+      return cancelBooking(args as { customer_email?: string; reason?: string }, ctx);
+    default:
+      return "Den funktion findes ikke.";
   }
-  if (name === "create_booking") {
-    return createBooking(
-      args as { start_time?: string; customer_name?: string; customer_email?: string },
-      ctx
-    );
-  }
-  return "Den funktion findes ikke.";
 }

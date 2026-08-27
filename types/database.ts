@@ -180,7 +180,7 @@ export interface ConversationSummary {
   created_at: string;
 }
 
-export type AppointmentStatus = "booked" | "failed";
+export type AppointmentStatus = "booked" | "failed" | "rescheduled" | "cancelled";
 
 export interface Appointment {
   id: string;
@@ -190,6 +190,8 @@ export interface Appointment {
   customer_name: string | null;
   appointment_time: string;
   status: AppointmentStatus;
+  calcom_booking_uid: string | null;
+  calcom_booking_id: number | null;
   created_at: string;
 }
 

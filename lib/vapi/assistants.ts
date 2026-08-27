@@ -83,6 +83,65 @@ function buildBookingTools() {
         },
       },
     },
+    {
+      type: "function",
+      function: {
+        name: "get_event_types",
+        description:
+          "Viser hvilke ydelser virksomheden kan bookes til, og hvor lang tid hver tager. Brug den hvis du er i tvivl om hvad kunden kan bestille — opfind aldrig en ydelse.",
+        parameters: { type: "object", properties: {} },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_booking",
+        description:
+          "Finder kundens eksisterende tid ud fra deres email. Skal altid kaldes før du flytter eller aflyser noget, så du ved hvilken tid der er tale om.",
+        parameters: {
+          type: "object",
+          properties: {
+            customer_email: { type: "string", description: "Den email kunden booked med." },
+          },
+          required: ["customer_email"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "reschedule_booking",
+        description:
+          "Flytter kundens eksisterende tid til et nyt tidspunkt. Brug kun et tidspunkt check_availability lige har bekræftet ledigt, og først når kunden har sagt ja til det. Sig altid det nye tidspunkt højt bagefter.",
+        parameters: {
+          type: "object",
+          properties: {
+            customer_email: { type: "string", description: "Den email kunden booked med." },
+            new_start_time: {
+              type: "string",
+              description: "Det nye starttidspunkt i ISO 8601 med tidszone.",
+            },
+          },
+          required: ["customer_email", "new_start_time"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "cancel_booking",
+        description:
+          "Aflyser kundens eksisterende tid. Bekræft altid med kunden hvilken tid der aflyses, før du kalder denne.",
+        parameters: {
+          type: "object",
+          properties: {
+            customer_email: { type: "string", description: "Den email kunden booked med." },
+            reason: { type: "string", description: "Kundens grund til aflysningen, hvis oplyst." },
+          },
+          required: ["customer_email"],
+        },
+      },
+    },
   ];
 }
 
