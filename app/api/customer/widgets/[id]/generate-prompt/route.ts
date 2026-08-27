@@ -3,7 +3,7 @@ import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, requireParam, generatePromptInputSchema } from "@/lib/security";
 import { resolveLLMProvider } from "@/lib/llm";
-import { getSummarizationModelName } from "@/lib/settings/platform";
+import { getPromptDraftingModelName } from "@/lib/settings/platform";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -48,7 +48,7 @@ export const POST = withErrorHandling(async (request, { params }) => {
     .join("\n");
 
   const provider = resolveLLMProvider("anthropic");
-  const model = await getSummarizationModelName();
+  const model = await getPromptDraftingModelName();
 
   const result = await provider.generateReply({
     model,

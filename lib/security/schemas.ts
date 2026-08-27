@@ -287,3 +287,21 @@ export const purchasePhoneNumberInputSchema = z.object({
 export const checkoutRequestSchema = z.object({
   packageId: z.string().uuid().optional(),
 });
+
+// ---------------------------------------------------------------------------
+// Booking setup (see 0025_free_trial_and_booking.sql) — the customer asks for
+// booking from the dashboard, our team does the Cal.com/calendar work and
+// marks it done, which is what flips widgets.booking_enabled.
+// ---------------------------------------------------------------------------
+export const bookingSetupRequestInputSchema = z.object({
+  notes: z.string().trim().max(2000).optional(),
+});
+
+export const bookingSetupStatusSchema = z.enum(["pending", "in_progress", "completed", "cancelled"]);
+
+export const updateBookingSetupRequestSchema = z.object({
+  id: z.string().uuid(),
+  status: bookingSetupStatusSchema,
+  notes: z.string().trim().max(2000).optional(),
+  assignedTo: z.string().uuid().nullish(),
+});

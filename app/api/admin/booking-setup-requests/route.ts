@@ -1,92 +1,92 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireMasterAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
-import { readJsonBody, withErrorHandling, writeAuditLog } from "@/lib/security";
+import {
+  readJsonBody,
+  withErrorHandling,
+  writeAuditLog,
+  bookingSetupStatusSchema,
+  updateBookingSetupRequestSchema,
+} from "@/lib/security";
+import { syncWidgetToVapiAssistant } from "@/lib/vapi";
 import { ApiError } from "@/types/errors";
-import { z } from "zod";
 
+// Every route here is per-request (auth cookies, live DB reads) —
+// never statically optimized/cached.
 export const dynamic = "force-dynamic";
 
-const updateSetupRequestSchema = z.object({
-  status: z.enum(["pending", "in_progress", "completed", "cancelled"]),
-  notes: z.string().optional(),
-  assignedTo: z.string().uuid().optional(),
-});
-
 export const GET = withErrorHandling(async (request) => {
-  await requireAdmin();
+  await requireMasterAdmin();
   const supabase = getAdminClient();
-  const url = new URL(request.url);
-  const status = url.searchParams.get("status");
 
-  let query = supabase.from("booking_setup_requests").select("*").order("created_at", { ascending: false });
+  const statusParam = new URL(request.url).searchParams.get("status");
+  const status = statusParam ? bookingSetupStatusSchema.safeParse(statusParam) : null;
+  if (status && !status.success) throw ApiError.badRequest("Ugyldig status");
 
-  if (status) {
-    query = query.eq("status", status);
-  }
+  let query = supabase
+    .from("booking_setup_requests")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (status?.success) query = query.eq("status", status.data);
 
   const { data, error } = await query;
   if (error) throw error;
 
-  return NextResponse.json({ requests: data });
+  return NextResponse.json({ requests: data ?? [] });
 });
 
+// Completing a setup request is what actually turns booking on: it flips
+// widgets.booking_enabled and re-syncs the Vapi assistant so it gains the
+// booking tools. Cancelling reverses both, so an agent can never keep
+// offering bookings after its setup was pulled.
 export const PATCH = withErrorHandling(async (request) => {
-  const ctx = await requireAdmin();
-  const body = await readJsonBody(request, z.object({ id: z.string().uuid(), ...updateSetupRequestSchema.shape }));
+  const ctx = await requireMasterAdmin();
+  const body = await readJsonBody(request, updateBookingSetupRequestSchema);
   const supabase = getAdminClient();
 
-  // Mark request as started if transitioning to in_progress
   const now = new Date().toISOString();
-  const updateData: Record<string, unknown> = {
-    status: body.status,
-    updated_at: now,
-  };
-
+  const patch: Record<string, unknown> = { status: body.status };
+  if (body.notes !== undefined) patch.notes = body.notes;
   if (body.status === "in_progress") {
-    updateData.started_at = now;
-    updateData.assigned_to = body.assignedTo || ctx.userId;
-  } else if (body.status === "completed") {
-    updateData.completed_at = now;
+    patch.started_at = now;
+    patch.assigned_to = body.assignedTo ?? ctx.userId;
   }
+  if (body.status === "completed") patch.completed_at = now;
 
-  if (body.notes) {
-    updateData.notes = body.notes;
-  }
-
-  const { data: request: setupRequest, error } = await supabase
+  const { data: setupRequest, error } = await supabase
     .from("booking_setup_requests")
-    .update(updateData)
+    .update(patch)
     .eq("id", body.id)
     .select("*")
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
+  if (!setupRequest) throw ApiError.notFound("Booking setup request not found");
 
-  // If completed, update widget settings
-  if (body.status === "completed") {
-    await supabase
-      .from("widget_settings")
-      .update({
-        booking_setup_status: "completed",
-        booking_setup_completed_at: now,
-      })
-      .eq("widget_id", setupRequest.widget_id);
+  if (body.status === "completed" || body.status === "cancelled") {
+    const bookingEnabled = body.status === "completed";
 
-    await supabase
+    const { data: widget, error: widgetError } = await supabase
       .from("widgets")
-      .update({ booking_enabled: true })
-      .eq("id", setupRequest.widget_id);
-  }
+      .update({ booking_enabled: bookingEnabled })
+      .eq("id", setupRequest.widget_id)
+      .select("*")
+      .maybeSingle();
+    if (widgetError) throw widgetError;
 
-  if (body.status === "failed" || body.status === "cancelled") {
-    await supabase
-      .from("widget_settings")
-      .update({
-        booking_setup_status: "failed",
-        booking_setup_error: body.notes || null,
-      })
-      .eq("widget_id", setupRequest.widget_id);
+    if (widget) {
+      const { data: settings } = await supabase
+        .from("widget_settings")
+        .select("extra")
+        .eq("widget_id", widget.id)
+        .maybeSingle();
+
+      // Best-effort, like every other caller of this helper: a Vapi hiccup
+      // shouldn't roll back the status the team just set. The next save of
+      // the agent re-syncs it.
+      await syncWidgetToVapiAssistant(widget, (settings?.extra as Record<string, unknown>) ?? {});
+    }
   }
 
   await writeAuditLog({
@@ -96,7 +96,7 @@ export const PATCH = withErrorHandling(async (request) => {
     action: "booking_setup.updated",
     entityType: "widget",
     entityId: setupRequest.widget_id,
-    metadata: { request_id: setupRequest.id, status: body.status },
+    metadata: { requestId: setupRequest.id, status: body.status },
   });
 
   return NextResponse.json({ request: setupRequest });

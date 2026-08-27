@@ -43,6 +43,26 @@ export async function getSummarizationModelName(): Promise<string> {
   return data.value;
 }
 
+const FALLBACK_PROMPT_DRAFTING_MODEL = "claude-haiku-4-5";
+
+// Drafting a starting system prompt in the agent wizard ("Generér prompt").
+// Deliberately its own setting rather than reusing the summarization model:
+// that one also decides which model every Vapi assistant runs on (see
+// lib/vapi/assistants.ts), and the model that drafts a one-off text field
+// shouldn't be tied to the model that handles live calls. Haiku 4.5 is the
+// cheap end of the range and plenty for a draft the customer then edits.
+export async function getPromptDraftingModelName(): Promise<string> {
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from("platform_settings")
+    .select("value")
+    .eq("key", "prompt_drafting_model_name")
+    .maybeSingle();
+
+  if (!data || typeof data.value !== "string") return FALLBACK_PROMPT_DRAFTING_MODEL;
+  return data.value;
+}
+
 export async function setSummarizationModelName(modelName: string): Promise<void> {
   const supabase = getAdminClient();
   const { error } = await supabase

@@ -1,5 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireCredentialEnv } from "@/lib/security/env";
 import type {
   LLMGenerateParams,
   LLMGenerateResult,
@@ -17,8 +18,15 @@ let client: Anthropic | null = null;
 // generateReply below.
 export function getAnthropicClient(): Anthropic {
   if (client) return client;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("Missing required environment variable: ANTHROPIC_API_KEY");
+  // requireCredentialEnv rather than a bare process.env read: a plain Error
+  // here reaches the browser as "Something went wrong" (errorResponse masks
+  // non-ApiError throws), which is exactly the unhelpful failure the "Generér
+  // prompt" button showed when the key was missing. This says what to fix,
+  // and also catches a key pasted into Vercel with line breaks in it.
+  const apiKey = requireCredentialEnv(
+    "ANTHROPIC_API_KEY",
+    "AI-funktionerne er ikke konfigureret endnu (mangler ANTHROPIC_API_KEY i miljøvariablerne på Vercel)."
+  );
   client = new Anthropic({ apiKey });
   return client;
 }

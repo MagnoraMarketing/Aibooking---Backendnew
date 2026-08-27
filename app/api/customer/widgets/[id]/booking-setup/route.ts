@@ -1,63 +1,84 @@
 import { NextResponse } from "next/server";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
-import { readJsonBody, withErrorHandling, writeAuditLog } from "@/lib/security";
+import {
+  readJsonBody,
+  withErrorHandling,
+  writeAuditLog,
+  requireParam,
+  bookingSetupRequestInputSchema,
+} from "@/lib/security";
 import { ApiError } from "@/types/errors";
-import { z } from "zod";
 
+// Every route here is per-request (auth cookies, live DB reads) —
+// never statically optimized/cached.
 export const dynamic = "force-dynamic";
 
-const bookingSetupRequestSchema = z.object({
-  description: z.string().optional(),
-});
+// Booking is an opt-in extra: the customer asks for it here, our team does
+// the Cal.com and calendar work, and completing the request is what switches
+// widgets.booking_enabled on (see the admin route). Nothing the customer can
+// do from this endpoint enables booking by itself.
 
-export const POST = withErrorHandling(async (request, { params }) => {
-  const ctx = await requireCustomerAdmin();
-  const widgetId = params.id as string;
-  const body = await readJsonBody(request, bookingSetupRequestSchema);
+async function requireOwnedWidget(widgetId: string, customerId: string): Promise<void> {
   const supabase = getAdminClient();
-  const customerId = ctx.profile.customer_id!;
-
-  // Verify widget belongs to customer
-  const { data: widget, error: widgetError } = await supabase
+  const { data: widget, error } = await supabase
     .from("widgets")
     .select("id, customer_id")
     .eq("id", widgetId)
     .maybeSingle();
 
-  if (widgetError) throw widgetError;
-  if (!widget || widget.customer_id !== customerId) {
-    throw ApiError.notFound("Widget not found");
-  }
+  if (error) throw error;
+  // Same 404-for-someone-else's-widget shape the other customer routes use —
+  // never confirm that an id exists under a different customer.
+  if (!widget || widget.customer_id !== customerId) throw ApiError.notFound("Widget not found");
+}
 
-  // Create or update booking setup request
-  const { data: request: setupRequest, error: requestError } = await supabase
+export const GET = withErrorHandling(async (_request, { params }) => {
+  const ctx = await requireCustomerAdmin();
+  const widgetId = requireParam(params, "id");
+  const customerId = ctx.profile.customer_id!;
+  await requireOwnedWidget(widgetId, customerId);
+
+  const supabase = getAdminClient();
+  const { data: setupRequest, error } = await supabase
+    .from("booking_setup_requests")
+    .select("id, status, notes, started_at, completed_at, created_at")
+    .eq("widget_id", widgetId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return NextResponse.json({ request: setupRequest });
+});
+
+export const POST = withErrorHandling(async (request, { params }) => {
+  const ctx = await requireCustomerAdmin();
+  const widgetId = requireParam(params, "id");
+  const body = await readJsonBody(request, bookingSetupRequestInputSchema);
+  const customerId = ctx.profile.customer_id!;
+  await requireOwnedWidget(widgetId, customerId);
+
+  const supabase = getAdminClient();
+
+  // One open job per widget (booking_setup_requests has a unique widget_id),
+  // so asking twice updates the existing request rather than queueing a
+  // duplicate for the team.
+  const { data: setupRequest, error } = await supabase
     .from("booking_setup_requests")
     .upsert(
       {
         customer_id: customerId,
         widget_id: widgetId,
         status: "pending",
-        request_details: body.description ? { description: body.description } : null,
+        request_details: body.notes ? { notes: body.notes } : {},
         created_by: ctx.userId,
       },
       { onConflict: "widget_id" }
     )
-    .select("*")
+    .select("id, status, notes, started_at, completed_at, created_at")
     .single();
 
-  if (requestError) throw requestError;
-
-  // Update widget to mark booking as requested
-  const { error: updateError } = await supabase
-    .from("widget_settings")
-    .update({
-      booking_setup_status: "pending",
-      booking_setup_started_at: new Date().toISOString(),
-    })
-    .eq("widget_id", widgetId);
-
-  if (updateError) throw updateError;
+  if (error) throw error;
 
   await writeAuditLog({
     actorId: ctx.userId,
@@ -66,43 +87,8 @@ export const POST = withErrorHandling(async (request, { params }) => {
     action: "booking_setup.requested",
     entityType: "widget",
     entityId: widgetId,
-    metadata: { request_id: setupRequest.id },
+    metadata: { requestId: setupRequest.id },
   });
 
-  return NextResponse.json(
-    {
-      request: setupRequest,
-      message: "Booking setup anmodning sendt. Vi kontakter jer inden for 24 timer for at fuldføre opsætningen.",
-    },
-    { status: 201 }
-  );
-});
-
-export const GET = withErrorHandling(async (request, { params }) => {
-  const ctx = await requireCustomerAdmin();
-  const widgetId = params.id as string;
-  const supabase = getAdminClient();
-  const customerId = ctx.profile.customer_id!;
-
-  // Verify widget belongs to customer
-  const { data: widget, error: widgetError } = await supabase
-    .from("widgets")
-    .select("id, customer_id")
-    .eq("id", widgetId)
-    .maybeSingle();
-
-  if (widgetError) throw widgetError;
-  if (!widget || widget.customer_id !== customerId) {
-    throw ApiError.notFound("Widget not found");
-  }
-
-  const { data: setupRequest, error } = await supabase
-    .from("booking_setup_requests")
-    .select("*")
-    .eq("widget_id", widgetId)
-    .maybeSingle();
-
-  if (error) throw error;
-
-  return NextResponse.json({ request: setupRequest });
+  return NextResponse.json({ request: setupRequest }, { status: 201 });
 });
