@@ -25,6 +25,23 @@ alter table public.widgets
 comment on column public.widgets.booking_enabled is
   'Effective booking feature flag: gates the Vapi booking tools and the Cal.com tool handler.';
 
+-- The flag defaults to false, but booking was already live for one group:
+-- provider='anthropic' agents (phone and text) book through
+-- lib/conversation/calendar-tools.ts, which until now started the moment a
+-- Cal.com calendar was connected. Those agents are switched on here so the
+-- new gate changes nothing for anyone already taking bookings — without this
+-- backfill, every existing booking setup would silently stop working the
+-- moment this migration ran.
+update public.widgets w
+set booking_enabled = true
+where exists (
+  select 1
+  from public.calendar_connections c
+  where c.widget_id = w.id
+    and c.provider = 'calcom'
+    and c.status = 'connected'
+);
+
 -- ---------------------------------------------------------------------------
 -- booking_setup_requests: one open setup job per widget. The customer asks
 -- for booking from the dashboard; our team does the Cal.com/calendar work
