@@ -10,6 +10,7 @@ import { TestAgentTab } from "./agent-tabs/test-agent";
 import { CustomizeWidgetTab } from "./agent-tabs/customize-widget";
 import { EmbedCodeTab } from "./agent-tabs/embed-code";
 import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
+import { BookingTab } from "./agent-tabs/booking-tab";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
 export interface WidgetExtra {
@@ -35,7 +36,7 @@ export interface WidgetWithExtras extends Widget {
 
 export type SavePatch = (patch: Record<string, unknown>) => Promise<boolean>;
 
-type TabKey = "prompt" | "settings" | "knowledge" | "customize" | "test" | "embed" | "phone";
+type TabKey = "prompt" | "settings" | "knowledge" | "booking" | "customize" | "test" | "embed" | "phone";
 
 // Which tabs make sense depends on what the agent is for — chosen once at
 // creation (see agent-creation-wizard.tsx's Voice Widget / Telefon type
@@ -49,6 +50,7 @@ function tabsFor(isPhoneType: boolean): { key: TabKey; label: string }[] {
     { key: "prompt", label: "Prompt Lab" },
     { key: "settings", label: "Settings" },
     { key: "knowledge", label: "Knowledge Base" },
+    { key: "booking", label: "Booking" },
   ];
   if (!isPhoneType) tabs.push({ key: "customize", label: "Customise Widget" });
   tabs.push({ key: "test", label: "Test Agent" });
@@ -123,6 +125,7 @@ export function AgentConfigurator({
       {activeTab === "settings" ? (
         <SettingsTab widget={widget} voiceModels={voiceModels} savePatch={savePatch} />
       ) : null}
+      {activeTab === "booking" ? <BookingTab widget={widget} /> : null}
       {activeTab === "knowledge" ? (
         <KnowledgeBaseTab
           widget={widget}

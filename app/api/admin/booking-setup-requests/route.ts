@@ -45,6 +45,35 @@ export const PATCH = withErrorHandling(async (request) => {
   const body = await readJsonBody(request, updateBookingSetupRequestSchema);
   const supabase = getAdminClient();
 
+  // Completing is what switches booking on for the customer's agent, so it
+  // requires a calendar that actually works. Without this an agent would tell
+  // callers it can book and then fail on every single attempt. Enforced here
+  // and not only in the admin table's disabled button — a guard that lives
+  // solely in the UI is not a guard.
+  if (body.status === "completed") {
+    const { data: pending } = await supabase
+      .from("booking_setup_requests")
+      .select("widget_id")
+      .eq("id", body.id)
+      .maybeSingle();
+
+    if (!pending) throw ApiError.notFound("Booking setup request not found");
+
+    const { data: connection } = await supabase
+      .from("calendar_connections")
+      .select("id")
+      .eq("widget_id", pending.widget_id)
+      .eq("provider", "calcom")
+      .eq("status", "connected")
+      .maybeSingle();
+
+    if (!connection) {
+      throw ApiError.badRequest(
+        "Kunden har ingen forbundet Cal.com-kalender endnu — forbind kalenderen før opsætningen markeres færdig."
+      );
+    }
+  }
+
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = { status: body.status };
   if (body.notes !== undefined) patch.notes = body.notes;
