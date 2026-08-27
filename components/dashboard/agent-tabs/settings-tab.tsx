@@ -1,44 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { LLMModel, VoiceModel } from "@/types/database";
+import { useState } from "react";
+import type { VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 import { ComingSoonField } from "../coming-soon-field";
 import { ToggleSwitch } from "../toggle-switch";
 
 interface SettingsTabProps {
   widget: WidgetWithExtras;
-  llmModels: LLMModel[];
   voiceModels: VoiceModel[];
   savePatch: SavePatch;
 }
 
-export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: SettingsTabProps) {
+// Voice and language only. Which engine runs the call, and the assistant id
+// that engine knows the agent by, are ours to manage — the customer bought an
+// AI receptionist, not a stack to configure, and exposing the picker also let
+// them move a widget onto an engine its assistant was never provisioned for.
+// Both are still set server-side on create and kept in sync on every save.
+export function SettingsTab({ widget, voiceModels, savePatch }: SettingsTabProps) {
   const [voiceModelId, setVoiceModelId] = useState(widget.voice_model_id ?? "");
-  const [llmModelId, setLlmModelId] = useState(widget.llm_model_id ?? "");
   const [language, setLanguage] = useState(widget.language);
-  const [vapiAssistantId, setVapiAssistantId] = useState(widget.extra.vapiAssistantId ?? "");
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
-
-  // Picks up an id auto-provisioned server-side after save (e.g. the model
-  // was just switched to Vapi and the backend created the assistant) —
-  // the input's initial value only reflects widget.extra at first render.
-  useEffect(() => {
-    setVapiAssistantId(widget.extra.vapiAssistantId ?? "");
-  }, [widget.extra.vapiAssistantId]);
-
-  const selectedModel = llmModels.find((model) => model.id === llmModelId);
-  const isVapiModel = selectedModel?.provider === "vapi";
 
   async function handleSave() {
     setSaving(true);
     setStatus("idle");
     const ok = await savePatch({
       voiceModelId: voiceModelId || null,
-      llmModelId: llmModelId || null,
       language,
-      extra: { vapiAssistantId: vapiAssistantId.trim() || null },
     });
     setSaving(false);
     setStatus(ok ? "saved" : "error");
@@ -67,27 +57,6 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
             ))}
           </select>
         </div>
-
-        <div>
-          <label htmlFor="llm-model" className="mb-1 block text-sm font-medium text-slate-700">
-            Model
-          </label>
-          <select
-            id="llm-model"
-            value={llmModelId}
-            onChange={(e) => setLlmModelId(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          >
-            <option value="">Ingen valgt</option>
-            {llmModels.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.display_name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Vapi Assistant ID is stored internally but hidden from customer UI */}
 
         <div>
           <label htmlFor="language" className="mb-1 block text-sm font-medium text-slate-700">

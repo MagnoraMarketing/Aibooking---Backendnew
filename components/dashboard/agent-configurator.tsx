@@ -121,7 +121,7 @@ export function AgentConfigurator({
 
       {activeTab === "prompt" ? <PromptLabTab widget={widget} savePatch={savePatch} /> : null}
       {activeTab === "settings" ? (
-        <SettingsTab widget={widget} llmModels={llmModels} voiceModels={voiceModels} savePatch={savePatch} />
+        <SettingsTab widget={widget} voiceModels={voiceModels} savePatch={savePatch} />
       ) : null}
       {activeTab === "knowledge" ? (
         <KnowledgeBaseTab

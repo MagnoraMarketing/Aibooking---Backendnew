@@ -11,7 +11,6 @@ import { EmbedCodeTab } from "./agent-tabs/embed-code";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
 type AgentType = "widget" | "phone";
-type WidgetEngine = "vapi" | "twilio_relay";
 
 const TYPE_OPTIONS: {
   value: AgentType;
@@ -30,30 +29,14 @@ const TYPE_OPTIONS: {
   },
 ];
 
-// Two ways to power a Voice Widget's realtime call — Vapi is the
-// established, recommended default; Twilio Relay runs over the platform's
-// own Twilio ConversationRelay integration instead (see
-// 0024_twilio_conversation_relay.sql), newer and worth offering but not yet
-// the default.
-const WIDGET_ENGINE_OPTIONS: {
-  value: WidgetEngine;
-  title: string;
-  description: string;
-  provider: "vapi" | "twilio_relay";
-}[] = [
-  {
-    value: "vapi",
-    title: "Vapi (anbefalet)",
-    description: "Afprøvet i produktion — hurtigst opsætning.",
-    provider: "vapi",
-  },
-  {
-    value: "twilio_relay",
-    title: "Twilio Relay (beta)",
-    description: "Kører over jeres egen Twilio-infrastruktur — nyere, kan have færre stemmemuligheder.",
-    provider: "twilio_relay",
-  },
-];
+// Which engine powers a Voice Widget's realtime call is ours to decide, not
+// the customer's: AI Booking is the product, and the engine behind it is an
+// implementation detail they shouldn't have to hold an opinion about (nor be
+// stranded by if we ever swap it). Widgets are created on this provider and
+// the picker that used to sit in step 1 is gone. The Twilio ConversationRelay
+// path (0024_twilio_conversation_relay.sql) still exists server-side for
+// phone agents — it just isn't a choice presented here.
+const WIDGET_LLM_PROVIDER = "vapi";
 
 function stepsFor(agentType: AgentType | null) {
   const lastStep = agentType === "phone" ? "Telefonnummer" : "Embed-kode";
@@ -125,7 +108,6 @@ export function AgentCreationWizard({
 
   const [name, setName] = useState("");
   const [agentType, setAgentType] = useState<AgentType | null>(fixedType ?? null);
-  const [widgetEngine, setWidgetEngine] = useState<WidgetEngine>("vapi");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,10 +135,10 @@ export function AgentCreationWizard({
       setError("Vælg om agenten er en Voice Widget eller til Telefon.");
       return;
     }
-    const provider = agentType === "phone" ? "anthropic" : widgetEngine;
+    const provider = agentType === "phone" ? "anthropic" : WIDGET_LLM_PROVIDER;
     const selectedModelId = llmModels.find((m) => m.provider === provider)?.id ?? null;
     if (!selectedModelId) {
-      setError("Ingen model tilgængelig for den valgte type endnu. Kontakt support.");
+      setError("Stemmeagenten kan ikke oprettes lige nu. Kontakt support.");
       return;
     }
 
@@ -241,29 +223,6 @@ export function AgentCreationWizard({
               </p>
             </div>
           )}
-
-          {agentType === "widget" ? (
-            <div>
-              <p className="mb-2 text-sm font-medium text-slate-700">Hvilken voice-motor?</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {WIDGET_ENGINE_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setWidgetEngine(option.value)}
-                    className={`rounded-xl border p-4 text-left transition ${
-                      widgetEngine === option.value
-                        ? "border-brand-500 ring-1 ring-brand-500"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-slate-800">{option.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">{option.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
