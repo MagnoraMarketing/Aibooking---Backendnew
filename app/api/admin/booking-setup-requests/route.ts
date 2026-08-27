@@ -54,7 +54,7 @@ export const PATCH = withErrorHandling(async (request) => {
     updateData.notes = body.notes;
   }
 
-  const { data: request: setupRequest, error } = await supabase
+  const { data: setupRequest, error } = await supabase
     .from("booking_setup_requests")
     .update(updateData)
     .eq("id", body.id)

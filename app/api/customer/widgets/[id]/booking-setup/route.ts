@@ -31,7 +31,7 @@ export const POST = withErrorHandling(async (request, { params }) => {
   }
 
   // Create or update booking setup request
-  const { data: request: setupRequest, error: requestError } = await supabase
+  const { data: setupRequest, error: requestError } = await supabase
     .from("booking_setup_requests")
     .upsert(
       {
