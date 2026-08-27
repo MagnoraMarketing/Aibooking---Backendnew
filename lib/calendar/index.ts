@@ -5,10 +5,15 @@ export {
   fetchCalcomMe,
   fetchCalcomAvailability,
   createCalcomBooking,
+  fetchCalcomEventTypesOAuth,
+  fetchCalcomAvailabilityOAuth,
+  createCalcomBookingOAuth,
   type CalcomEventType,
   type CalcomAccount,
   type CalcomSlot,
   type CalcomBookingResult,
 } from "./calcom";
-export { buildOAuthState, parseOAuthState, cookieNameForProvider } from "./oauth-state";
+export { buildCalcomAuthUrl, exchangeCalcomCode, refreshCalcomToken } from "./calcom-oauth";
+export { buildOAuthState, parseOAuthState, cookieNameForProvider, hashOAuthState } from "./oauth-state";
+export { getCalcomTokens, type CalcomTokens } from "./calcom-token";
 export type { OAuthTokenResult } from "./types";

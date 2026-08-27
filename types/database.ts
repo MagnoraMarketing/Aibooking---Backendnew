@@ -332,3 +332,27 @@ export interface BookingSetupRequest {
   created_at: string;
   updated_at: string;
 }
+
+export interface CalcomConnection {
+  id: string;
+  customer_id: string;
+  calcom_user_id: string;
+  calcom_username: string;
+  calcom_email: string;
+  access_token: string;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  scope: string | null;
+  calcom_event_type_id: string | null;
+  calcom_event_type_name: string | null;
+  timezone: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalcomOAuthState {
+  state_hash: string;
+  customer_id: string;
+  expires_at: string;
+  created_at: string;
+}

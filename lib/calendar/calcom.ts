@@ -1,7 +1,8 @@
 import "server-only";
 import { ApiError } from "@/types/errors";
 
-const CALCOM_API_BASE = "https://api.cal.com/v1";
+const CALCOM_API_BASE_V1 = "https://api.cal.com/v1";
+const CALCOM_API_BASE_V2 = "https://api.cal.com/v2";
 
 export interface CalcomEventType {
   id: number;
@@ -10,7 +11,7 @@ export interface CalcomEventType {
 
 async function calcomFetch(path: string, apiKey: string, init: RequestInit = {}): Promise<Response> {
   const separator = path.includes("?") ? "&" : "?";
-  const response = await fetch(`${CALCOM_API_BASE}${path}${separator}apiKey=${encodeURIComponent(apiKey)}`, init);
+  const response = await fetch(`${CALCOM_API_BASE_V1}${path}${separator}apiKey=${encodeURIComponent(apiKey)}`, init);
 
   if (response.status === 401 || response.status === 403) {
     throw ApiError.badRequest("Ugyldig Cal.com API-nøgle.");
@@ -18,6 +19,28 @@ async function calcomFetch(path: string, apiKey: string, init: RequestInit = {})
   if (!response.ok) {
     const body = await response.text().catch(() => "");
     throw ApiError.internal(`Cal.com afviste anmodningen (${response.status}): ${body || "ingen detaljer"}`);
+  }
+  return response;
+}
+
+// OAuth-based fetch using Bearer token
+async function calcomOAuthFetch(path: string, accessToken: string, init: RequestInit = {}): Promise<Response> {
+  const url = `${CALCOM_API_BASE_V2}${path}`;
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      ...init.headers,
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    throw new Error("Cal.com authentication failed");
+  }
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw ApiError.internal(`Cal.com API error (${response.status}): ${body || "no details"}`);
   }
   return response;
 }
@@ -114,4 +137,82 @@ export async function createCalcomBooking(params: {
 
   const data = (await response.json()) as { id: number; uid: string; status: string };
   return { id: data.id, uid: data.uid, status: data.status };
+}
+
+// OAuth-based event types retrieval (v2 API)
+export async function fetchCalcomEventTypesOAuth(accessToken: string): Promise<CalcomEventType[]> {
+  const response = await calcomOAuthFetch("/event-types", accessToken);
+  const data = (await response.json()) as { data?: Array<{ id: number; title: string }> };
+
+  if (!data.data) {
+    return [];
+  }
+
+  return data.data.map((eventType) => ({
+    id: eventType.id,
+    title: eventType.title,
+  }));
+}
+
+// OAuth-based availability retrieval (v2 API)
+export async function fetchCalcomAvailabilityOAuth(params: {
+  accessToken: string;
+  eventTypeId: number;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+}): Promise<CalcomSlot[]> {
+  const query = new URLSearchParams({
+    eventTypeId: String(params.eventTypeId),
+    startTime: params.startTime,
+    endTime: params.endTime,
+    timeZone: params.timezone,
+  });
+
+  const response = await calcomOAuthFetch(`/availability?${query.toString()}`, params.accessToken);
+  const data = (await response.json()) as { data?: { slots?: Record<string, CalcomSlot[]> } };
+
+  if (!data.data?.slots) {
+    return [];
+  }
+
+  return Object.values(data.data.slots).flat();
+}
+
+// OAuth-based booking creation (v2 API)
+export async function createCalcomBookingOAuth(params: {
+  accessToken: string;
+  eventTypeId: number;
+  start: string;
+  timezone: string;
+  name: string;
+  email: string;
+  notes?: string;
+}): Promise<CalcomBookingResult> {
+  const response = await calcomOAuthFetch("/bookings", params.accessToken, {
+    method: "POST",
+    body: JSON.stringify({
+      eventTypeId: params.eventTypeId,
+      start: params.start,
+      timeZone: params.timezone,
+      language: "da",
+      responses: {
+        name: params.name,
+        email: params.email,
+        notes: params.notes ?? "",
+      },
+    }),
+  });
+
+  const data = (await response.json()) as { data?: { id: number; uid: string; status: string } };
+
+  if (!data.data) {
+    throw new Error("Invalid booking response from Cal.com");
+  }
+
+  return {
+    id: data.data.id,
+    uid: data.data.uid,
+    status: data.data.status,
+  };
 }
