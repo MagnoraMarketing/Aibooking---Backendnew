@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { getAdminClient } from "@/lib/database/admin";
-import { withErrorHandling, requireParam } from "@/lib/security";
+import { withErrorHandling, requireCredentialEnv } from "@/lib/security";
 import { ApiError } from "@/types/errors";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +13,7 @@ function validateCalcomWebhookSignature(payload: string, signature: string, secr
 
 // Handles Cal.com webhook events (booking created, cancelled, rescheduled, etc.)
 export const POST = withErrorHandling(async (request) => {
-  const webhookSecret = process.env.CALCOM_WEBHOOK_SECRET;
-  requireParam(webhookSecret, "CALCOM_WEBHOOK_SECRET");
+  const webhookSecret = requireCredentialEnv("CALCOM_WEBHOOK_SECRET", "Cal.com webhook secret er påkrævet.");
 
   const signature = request.headers.get("x-cal-signature");
   if (!signature) {

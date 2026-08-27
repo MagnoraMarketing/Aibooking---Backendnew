@@ -50,10 +50,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     let result: string;
 
     if (tool === "check_availability") {
-      result = await checkAvailability(input as { date?: string } | undefined, ctx);
+      result = await checkAvailability((input as { date?: string }) || {}, ctx);
     } else if (tool === "create_booking") {
       result = await createBooking(
-        input as { start_time?: string; customer_name?: string; customer_email?: string } | undefined,
+        (input as { start_time?: string; customer_name?: string; customer_email?: string }) || {},
         ctx
       );
     } else {

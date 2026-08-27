@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireMasterAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog } from "@/lib/security";
 import { ApiError } from "@/types/errors";
@@ -14,7 +14,7 @@ const updateSetupRequestSchema = z.object({
 });
 
 export const GET = withErrorHandling(async (request) => {
-  await requireAdmin();
+  await requireMasterAdmin();
   const supabase = getAdminClient();
   const url = new URL(request.url);
   const status = url.searchParams.get("status");
@@ -32,7 +32,7 @@ export const GET = withErrorHandling(async (request) => {
 });
 
 export const PATCH = withErrorHandling(async (request) => {
-  const ctx = await requireAdmin();
+  const ctx = await requireMasterAdmin();
   const body = await readJsonBody(request, z.object({ id: z.string().uuid(), ...updateSetupRequestSchema.shape }));
   const supabase = getAdminClient();
 
@@ -79,7 +79,7 @@ export const PATCH = withErrorHandling(async (request) => {
       .eq("id", setupRequest.widget_id);
   }
 
-  if (body.status === "failed" || body.status === "cancelled") {
+  if (body.status === "cancelled") {
     await supabase
       .from("widget_settings")
       .update({

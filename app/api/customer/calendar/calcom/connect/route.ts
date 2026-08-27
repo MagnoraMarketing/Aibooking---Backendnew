@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // Generates a CSRF state, stores it in the database, and redirects to Cal.com.
 export const GET = withErrorHandling(async (request) => {
   const ctx = await requireCustomerAdmin();
-  requireCredentialEnv("CALCOM_CLIENT_ID");
+  requireCredentialEnv("CALCOM_CLIENT_ID", "Cal.com OAuth er ikke konfigureret. Sæt CALCOM_CLIENT_ID.");
 
   const state = randomUUID();
   const stateHash = hashOAuthState(state);
