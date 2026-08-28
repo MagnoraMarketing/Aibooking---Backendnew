@@ -345,7 +345,7 @@ export interface CalcomConnection {
   scope: string | null;
   calcom_event_type_id: string | null;
   calcom_event_type_name: string | null;
-  timezone: string;
+  timezone: string | null;
   created_at: string;
   updated_at: string;
 }

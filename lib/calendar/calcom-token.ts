@@ -2,6 +2,7 @@ import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { decryptSecret, encryptSecret } from "@/lib/security/crypto";
 import { refreshCalcomToken } from "./calcom-oauth";
+import { fetchCalcomTimezoneOAuth } from "./calcom";
 import { ApiError } from "@/types/errors";
 
 export interface CalcomTokens {
@@ -15,8 +16,40 @@ export interface CalcomTokens {
   defaultEventTypeId: number | null;
 }
 
-// Cal.com's own default when a connection predates the timezone column.
+// Used only when Cal.com won't tell us the account's timezone — a connection
+// with a null timezone is retried on the next call rather than pinned to this.
 const FALLBACK_TIMEZONE = "Europe/Copenhagen";
+
+// A connection stored before the callback kept the account's timezone has a
+// null in the column (see migration 0028). Ask Cal.com for the real one and
+// store it, so the backfill costs one extra request per connection, once.
+async function resolveTimezone(
+  customerId: string,
+  stored: string | null,
+  accessToken: string
+): Promise<string> {
+  if (stored) return stored;
+
+  let timezone: string | null = null;
+  try {
+    timezone = await fetchCalcomTimezoneOAuth(accessToken);
+  } catch (err) {
+    console.error("Cal.com timezone lookup failed:", err);
+  }
+
+  // Leave the column null on a failure so the next call tries again instead of
+  // pinning the connection to a guess.
+  if (!timezone) return FALLBACK_TIMEZONE;
+
+  const { error } = await getAdminClient()
+    .from("calcom_connections")
+    .update({ timezone })
+    .eq("customer_id", customerId);
+
+  if (error) console.error("Failed to store Cal.com timezone:", error);
+
+  return timezone;
+}
 
 // Cal.com event type ids are numeric but stored as text on the connection.
 function parseEventTypeId(value: string | null): number | null {
@@ -42,7 +75,6 @@ export async function getCalcomTokens(customerId: string): Promise<CalcomTokens>
   }
 
   const accessToken = decryptSecret(connection.access_token);
-  const timezone = connection.timezone || FALLBACK_TIMEZONE;
   const defaultEventTypeId = parseEventTypeId(connection.calcom_event_type_id);
 
   // Check if token needs refresh
@@ -75,7 +107,8 @@ export async function getCalcomTokens(customerId: string): Promise<CalcomTokens>
     return {
       accessToken: newTokens.accessToken,
       refreshToken: newTokens.newRefreshToken ? refreshToken : null,
-      timezone,
+      // Resolved with the refreshed token — the expired one would be rejected.
+      timezone: await resolveTimezone(customerId, connection.timezone, newTokens.accessToken),
       defaultEventTypeId,
     };
   }
@@ -83,7 +116,7 @@ export async function getCalcomTokens(customerId: string): Promise<CalcomTokens>
   return {
     accessToken,
     refreshToken: connection.refresh_token ? decryptSecret(connection.refresh_token) : null,
-    timezone,
+    timezone: await resolveTimezone(customerId, connection.timezone, accessToken),
     defaultEventTypeId,
   };
 }
