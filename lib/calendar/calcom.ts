@@ -154,6 +154,14 @@ export async function fetchCalcomEventTypesOAuth(accessToken: string): Promise<C
   }));
 }
 
+// The connected account's own timezone. Read on connect, and again for a
+// connection stored before the callback started keeping it.
+export async function fetchCalcomTimezoneOAuth(accessToken: string): Promise<string | null> {
+  const response = await calcomOAuthFetch("/me", accessToken);
+  const data = (await response.json()) as { data?: { timeZone?: string } };
+  return data.data?.timeZone ?? null;
+}
+
 // OAuth-based availability retrieval (v2 API)
 export async function fetchCalcomAvailabilityOAuth(params: {
   accessToken: string;
