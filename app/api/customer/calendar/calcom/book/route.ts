@@ -4,6 +4,7 @@ import { withErrorHandling, readJsonBody } from "@/lib/security";
 import { getCalcomTokens, createCalcomBookingOAuth } from "@/lib/calendar";
 import { getAdminClient } from "@/lib/database/admin";
 import { z } from "zod";
+import { ApiError } from "@/types/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ const bookingSchema = z.object({
   name: z.string().trim().min(1).max(200),
   email: z.string().trim().email().max(320),
   startTime: z.string().datetime(),
-  eventTypeId: z.coerce.number().int().positive(),
+  eventTypeId: z.coerce.number().int().positive().optional(),
   notes: z.string().trim().max(1000).optional(),
 });
 
@@ -21,17 +22,26 @@ export const POST = withErrorHandling(async (request) => {
   const customerId = ctx.profile.customer_id!;
   const body = await readJsonBody(request, bookingSchema);
 
-  const { accessToken } = await getCalcomTokens(customerId);
+  const { accessToken, timezone, defaultEventTypeId } = await getCalcomTokens(customerId);
+
+  // Fall back to the event type selected on the connection when the caller
+  // doesn't name one.
+  const eventTypeId = body.eventTypeId ?? defaultEventTypeId;
+  if (!eventTypeId) {
+    throw ApiError.badRequest(
+      "eventTypeId er påkrævet — vælg en standard begivenhedstype på Cal.com-forbindelsen"
+    );
+  }
 
   // Create booking in Cal.com
   const booking = await createCalcomBookingOAuth({
     accessToken,
-    eventTypeId: body.eventTypeId,
+    eventTypeId,
     start: body.startTime,
     name: body.name,
     email: body.email,
     notes: body.notes,
-    timezone: "Europe/Copenhagen", // TODO: Get from connection
+    timezone,
   });
 
   // Record in AIbooking appointments table for dashboard visibility

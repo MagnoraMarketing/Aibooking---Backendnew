@@ -34,7 +34,7 @@ export function buildCalcomAuthUrl(state: string): string {
   return `${AUTH_URL}?${params.toString()}`;
 }
 
-export async function exchangeCalcomCode(code: string): Promise<OAuthTokenResult & { userId: number; username: string; email: string }> {
+export async function exchangeCalcomCode(code: string): Promise<OAuthTokenResult & { userId: number; username: string; email: string; timezone: string | null }> {
   const { clientId, clientSecret } = getCredentials();
 
   const tokenResponse = await fetch(TOKEN_URL, {
@@ -106,6 +106,7 @@ export async function exchangeCalcomCode(code: string): Promise<OAuthTokenResult
     userId,
     username,
     email,
+    timezone,
   };
 }
 
