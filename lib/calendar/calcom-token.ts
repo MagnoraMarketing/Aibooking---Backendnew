@@ -7,6 +7,22 @@ import { ApiError } from "@/types/errors";
 export interface CalcomTokens {
   accessToken: string;
   refreshToken: string | null;
+  // The customer's own timezone, used for every availability and booking call
+  // so slots are quoted in the calendar owner's local time rather than a
+  // hardcoded one.
+  timezone: string;
+  // Event type bookings default to when the caller doesn't name one.
+  defaultEventTypeId: number | null;
+}
+
+// Cal.com's own default when a connection predates the timezone column.
+const FALLBACK_TIMEZONE = "Europe/Copenhagen";
+
+// Cal.com event type ids are numeric but stored as text on the connection.
+function parseEventTypeId(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 // Retrieves and validates Cal.com tokens for a customer, refreshing if expired.
@@ -16,7 +32,7 @@ export async function getCalcomTokens(customerId: string): Promise<CalcomTokens>
 
   const { data: connection, error } = await supabase
     .from("calcom_connections")
-    .select("access_token, refresh_token, token_expires_at")
+    .select("access_token, refresh_token, token_expires_at, timezone, calcom_event_type_id")
     .eq("customer_id", customerId)
     .maybeSingle();
 
@@ -26,6 +42,8 @@ export async function getCalcomTokens(customerId: string): Promise<CalcomTokens>
   }
 
   const accessToken = decryptSecret(connection.access_token);
+  const timezone = connection.timezone || FALLBACK_TIMEZONE;
+  const defaultEventTypeId = parseEventTypeId(connection.calcom_event_type_id);
 
   // Check if token needs refresh
   if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date()) {
@@ -57,11 +75,15 @@ export async function getCalcomTokens(customerId: string): Promise<CalcomTokens>
     return {
       accessToken: newTokens.accessToken,
       refreshToken: newTokens.newRefreshToken ? refreshToken : null,
+      timezone,
+      defaultEventTypeId,
     };
   }
 
   return {
     accessToken,
     refreshToken: connection.refresh_token ? decryptSecret(connection.refresh_token) : null,
+    timezone,
+    defaultEventTypeId,
   };
 }
