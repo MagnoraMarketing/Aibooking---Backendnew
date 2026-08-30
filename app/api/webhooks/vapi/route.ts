@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/database/admin";
 import { deductPhoneCallCost } from "@/lib/credits";
+import { executeBookingTool, resolveToolContext } from "@/lib/vapi/booking-tools";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -98,10 +99,89 @@ async function recordAndBillCall(supabase: SupabaseAdmin, message: Record<string
   });
 }
 
+// Spoken back to the caller when a tool can't run at all. Deliberately says
+// nothing happened rather than staying vague — the agent must never be able
+// to read a failure as a completed booking.
+const FAILED_TOOL_RESULT =
+  "Handlingen kunne ikke gennemføres, og der blev ikke booket noget. Sig det ærligt til kunden og tilbyd at vende tilbage.";
+
+interface VapiToolCall {
+  id?: string;
+  function?: { name?: string; arguments?: unknown };
+  // Older deliveries put the name/arguments directly on the call.
+  name?: string;
+  arguments?: unknown;
+}
+
+// Vapi sends arguments as an object, but has historically sent a JSON string
+// for some models — accept both rather than dropping the call.
+function parseToolArguments(raw: unknown): Record<string, unknown> {
+  if (typeof raw === "string") {
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  }
+  return raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+}
+
+// Booking tools run here rather than at their own endpoint because this URL
+// *is* the assistant's serverUrl (see lib/vapi/assistants.ts's webhookConfig)
+// — it's where Vapi delivers tool calls, already behind the shared-secret
+// check above. The customer/widget a tool may act on is resolved from the
+// call's assistantId, never from the payload's own fields, so one customer's
+// assistant can't reach another's calendar.
+async function handleToolCalls(message: Record<string, unknown>): Promise<NextResponse> {
+  const call = message.call as { assistantId?: string } | undefined;
+  const assistantId = call?.assistantId;
+
+  const rawCalls = (message.toolCallList ?? message.toolCalls) as VapiToolCall[] | undefined;
+  if (!Array.isArray(rawCalls) || rawCalls.length === 0) {
+    return NextResponse.json({ results: [] });
+  }
+
+  const ctx = assistantId
+    ? await resolveToolContext(assistantId).catch((err) => {
+        console.error("Failed to resolve Vapi tool context:", err);
+        return null;
+      })
+    : null;
+
+  const results = await Promise.all(
+    rawCalls.map(async (toolCall) => {
+      const toolCallId = toolCall.id ?? "";
+      const name = toolCall.function?.name ?? toolCall.name ?? "";
+
+      // An assistant we can't map to a widget gets a spoken-safe refusal, not
+      // a guess — the alternative would be acting without knowing whose
+      // calendar we're touching.
+      if (!ctx) {
+        return { toolCallId, result: FAILED_TOOL_RESULT };
+      }
+
+      const args = parseToolArguments(toolCall.function?.arguments ?? toolCall.arguments);
+      try {
+        return { toolCallId, result: await executeBookingTool(name, args, ctx) };
+      } catch (err) {
+        // Nothing thrown here may escape: an unhandled rejection would make
+        // this a 500, and Vapi would be left mid-call with no tool result at
+        // all. A wrong-but-honest answer beats a dead call.
+        console.error(`Vapi tool ${name} threw:`, err);
+        return { toolCallId, result: FAILED_TOOL_RESULT };
+      }
+    })
+  );
+
+  return NextResponse.json({ results });
+}
+
 // Vapi fires many event types per call (status-update, transcript chunks,
-// end-of-call-report, etc.) — every delivery is logged to vapi_events for
-// audit/debugging (see 0011_vapi_model.sql), and end-of-call-report
-// specifically also drives billing (recordAndBillCall above).
+// end-of-call-report, tool-calls, etc.) — every delivery is logged to
+// vapi_events for audit/debugging (see 0011_vapi_model.sql), and
+// end-of-call-report specifically also drives billing (recordAndBillCall
+// above).
 export async function POST(request: Request): Promise<NextResponse> {
   const webhookSecret = process.env.VAPI_WEBHOOK_SECRET;
   if (!webhookSecret) {
@@ -128,13 +208,27 @@ export async function POST(request: Request): Promise<NextResponse> {
     payload: message,
   });
 
+  const isToolCall = message.type === "tool-calls";
+
   if (error) {
     console.error("Failed to record vapi event:", error.message);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    // A tool call is the one event where a caller is mid-sentence waiting on
+    // us, so a failed audit write must not take the call down with it: log it
+    // and answer anyway. Every other event type is fire-and-forget, so a 500
+    // there just asks Vapi to redeliver and keeps the audit log complete.
+    if (!isToolCall) {
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    }
   }
 
   if (message.type === "end-of-call-report") {
     await recordAndBillCall(supabase, message);
+  }
+
+  // Unlike every other event, a tool call is synchronous: Vapi is waiting on
+  // this response to continue the conversation, so it must carry the results.
+  if (isToolCall) {
+    return handleToolCalls(message);
   }
 
   return NextResponse.json({ received: true });

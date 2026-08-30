@@ -5,6 +5,10 @@ export {
   fetchCalcomMe,
   fetchCalcomAvailability,
   createCalcomBooking,
+  fetchCalcomBookings,
+  findUpcomingCalcomBooking,
+  rescheduleCalcomBooking,
+  cancelCalcomBooking,
   fetchCalcomEventTypesOAuth,
   fetchCalcomAvailabilityOAuth,
   fetchCalcomTimezoneOAuth,
@@ -13,6 +17,7 @@ export {
   type CalcomAccount,
   type CalcomSlot,
   type CalcomBookingResult,
+  type CalcomBooking,
 } from "./calcom";
 export { buildCalcomAuthUrl, exchangeCalcomCode, refreshCalcomToken } from "./calcom-oauth";
 export { buildOAuthState, parseOAuthState, cookieNameForProvider, hashOAuthState } from "./oauth-state";

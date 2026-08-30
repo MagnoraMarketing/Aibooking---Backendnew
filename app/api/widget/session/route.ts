@@ -13,7 +13,6 @@ import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { createUsageSession, finalizeUsageSession, setUsageSessionDuration } from "@/lib/usage";
 import { createRealtimeClientSecret } from "@/lib/realtime";
 import { getVapiCallConfig } from "@/lib/vapi";
-import { enforceTrialLimit, markUsageAsTrialIfEligible } from "@/lib/trial";
 // Import the specific submodules, not the @/lib/knowledge-base barrel —
 // see lib/knowledge-base/pdf.ts's top comment for why.
 import { formatKnowledgeBaseForPrompt } from "@/lib/knowledge-base/format";
@@ -48,9 +47,10 @@ export const POST = withErrorHandling(async (request) => {
     throw ApiError.badRequest("Widget is not fully configured yet");
   }
 
-  // Enforce free trial limits first, before checking paid credits
-  await enforceTrialLimit(bundle.widget.id);
-
+  // The free 5-minute trial needs no separate gate here: self-signup grants
+  // it as real credit (lib/customers/self-signup.ts + lib/billing/trial.ts),
+  // so it's already spent through this same balance check — server-side, and
+  // unaffected by reloading the page.
   const refill = await checkAndRefillIfNeeded(bundle.customer.id);
   if (refill.balanceSeconds <= 0) {
     throw ApiError.paymentRequired("This assistant is temporarily unavailable — no minutes remaining");
@@ -71,12 +71,6 @@ export const POST = withErrorHandling(async (request) => {
     widgetId: bundle.widget.id,
     conversationId: conversation.id,
   });
-
-  // Mark as trial if free trial is still available
-  const isTrialUsage = await markUsageAsTrialIfEligible(usageSession.id, bundle.widget.id);
-  if (isTrialUsage) {
-    usageSession.is_trial_usage = true;
-  }
 
   if (isRealtime) {
     const knowledgeBase = formatKnowledgeBaseForPrompt(

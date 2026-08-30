@@ -244,8 +244,20 @@ export async function handleConversationTurn(params: HandleTurnParams): Promise<
 // AI can actually check availability and book, not just talk about it.
 // Decrypts the stored key just for this one call; never persisted or
 // returned outside this function.
-async function resolveCalendarToolContext(params: GenerateReplyTextParams): Promise<CalendarToolContext | null> {
+// Exported for tests: this is the gate that decides whether an agent may
+// book at all on this pipeline, and a regression here would silently let one
+// book before its setup was finished.
+export async function resolveCalendarToolContext(
+  params: GenerateReplyTextParams
+): Promise<CalendarToolContext | null> {
   const supabase = getAdminClient();
+
+  // widgets.booking_enabled is the one gate for booking, on this pipeline as
+  // well as on the Vapi one (lib/vapi/booking-tools.ts). Without it here, an
+  // agent would start booking the moment a calendar was connected — before
+  // the setup it belongs to was finished and checked.
+  if (!params.widget.booking_enabled) return null;
+
   const { data: connection } = await supabase
     .from("calendar_connections")
     .select("calcom_api_key, calcom_event_type_id, calcom_timezone")

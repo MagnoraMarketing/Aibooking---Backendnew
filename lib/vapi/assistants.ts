@@ -63,42 +63,110 @@ function webhookConfig(): { serverUrl: string; serverUrlSecret: string } | Recor
   return { serverUrl: `${appUrl}/api/webhooks/vapi`, serverUrlSecret: secret };
 }
 
-// Booking tools for Vapi assistants when calendar integration is available
+// The tools a booking-enabled assistant may call mid-call. They're declared
+// on the model (Vapi's top-level `functions` is the deprecated shape) and
+// execute in app/api/webhooks/vapi — the assistant's serverUrl — so Cal.com
+// credentials stay server-side.
+//
+// The descriptions carry the guardrail that matters most: the agent must not
+// invent a booking. Offering a time it hasn't verified, or confirming one the
+// booking call didn't return, is the single worst failure mode here.
 function buildBookingTools() {
   return [
     {
-      name: "check_availability",
-      description: "Tjek ledige mødetider i kundens kalender. Skal altid bruges før man foreslår en tid.",
-      parameters: {
-        type: "object",
-        properties: {
-          date: {
-            type: "string",
-            description: "Dato i format YYYY-MM-DD (valgfrit, hvis ikke angivet bruges i dag)",
+      type: "function",
+      function: {
+        name: "check_availability",
+        description:
+          "Slår ledige tider op i virksomhedens kalender. Skal altid kaldes før du nævner eller foreslår et tidspunkt — du må aldrig gætte en ledig tid.",
+        parameters: {
+          type: "object",
+          properties: {
+            date: {
+              type: "string",
+              description: "Ønsket dato som YYYY-MM-DD. Udelad for at se de første ledige tider fra i dag.",
+            },
           },
         },
       },
     },
     {
-      name: "create_booking",
-      description: "Book et møde på en specifik tid. Skal kun bruges efter at kunden har bekræftet tidspunktet.",
-      parameters: {
-        type: "object",
-        properties: {
-          start_time: {
-            type: "string",
-            description: "Starttidspunkt i ISO 8601 format (fx 2026-03-15T14:00:00+01:00)",
+      type: "function",
+      function: {
+        name: "create_booking",
+        description:
+          "Opretter bookingen. Kald kun denne med et tidspunkt som check_availability lige har returneret, og først når kunden har sagt ja til netop det tidspunkt. Bekræft aldrig en booking over for kunden før denne funktion har svaret at den lykkedes.",
+        parameters: {
+          type: "object",
+          properties: {
+            start_time: {
+              type: "string",
+              description: "Starttidspunkt i ISO 8601 med tidszone, fx 2026-03-15T14:00:00+01:00.",
+            },
+            customer_name: { type: "string", description: "Kundens fulde navn." },
+            customer_email: { type: "string", description: "Kundens email til bekræftelsen." },
           },
-          customer_name: {
-            type: "string",
-            description: "Kundens fulde navn",
-          },
-          customer_email: {
-            type: "string",
-            description: "Kundens email-adresse",
-          },
+          required: ["start_time", "customer_name", "customer_email"],
         },
-        required: ["start_time", "customer_name", "customer_email"],
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_event_types",
+        description:
+          "Viser hvilke ydelser virksomheden kan bookes til, og hvor lang tid hver tager. Brug den hvis du er i tvivl om hvad kunden kan bestille — opfind aldrig en ydelse.",
+        parameters: { type: "object", properties: {} },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_booking",
+        description:
+          "Finder kundens eksisterende tid ud fra deres email. Skal altid kaldes før du flytter eller aflyser noget, så du ved hvilken tid der er tale om.",
+        parameters: {
+          type: "object",
+          properties: {
+            customer_email: { type: "string", description: "Den email kunden booked med." },
+          },
+          required: ["customer_email"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "reschedule_booking",
+        description:
+          "Flytter kundens eksisterende tid til et nyt tidspunkt. Brug kun et tidspunkt check_availability lige har bekræftet ledigt, og først når kunden har sagt ja til det. Sig altid det nye tidspunkt højt bagefter.",
+        parameters: {
+          type: "object",
+          properties: {
+            customer_email: { type: "string", description: "Den email kunden booked med." },
+            new_start_time: {
+              type: "string",
+              description: "Det nye starttidspunkt i ISO 8601 med tidszone.",
+            },
+          },
+          required: ["customer_email", "new_start_time"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "cancel_booking",
+        description:
+          "Aflyser kundens eksisterende tid. Bekræft altid med kunden hvilken tid der aflyses, før du kalder denne.",
+        parameters: {
+          type: "object",
+          properties: {
+            customer_email: { type: "string", description: "Den email kunden booked med." },
+            reason: { type: "string", description: "Kundens grund til aflysningen, hvis oplyst." },
+          },
+          required: ["customer_email"],
+        },
       },
     },
   ];
@@ -114,14 +182,21 @@ async function buildAssistantBody(
   modelName: string,
   includeBookingTools: boolean = false
 ) {
-  const body: Record<string, unknown> = {
+  const model: Record<string, unknown> = {
+    provider: "anthropic",
+    model: modelName,
+    messages: [{ role: "system", content: params.systemPrompt }],
+  };
+
+  // Sent as an empty list when booking is off, not omitted — a PATCH that
+  // leaves the key out would let tools linger on an assistant whose booking
+  // was switched back off.
+  model.tools = includeBookingTools ? buildBookingTools() : [];
+
+  return {
     name: params.name,
     firstMessage: params.firstMessage,
-    model: {
-      provider: "anthropic",
-      model: modelName,
-      messages: [{ role: "system", content: params.systemPrompt }],
-    },
+    model,
     // `languageHints` was removed live from a production 400: "transcriber
     // .property languageHints should not exist" — Vapi's current API
     // rejects it for the soniox/stt-rt-v5 transcriber, even though it's
@@ -134,28 +209,29 @@ async function buildAssistantBody(
     voice: await resolveVoiceConfig(params.voiceGender),
     ...webhookConfig(),
   };
-
-  if (includeBookingTools) {
-    body.functions = buildBookingTools();
-  }
-
-  return body;
 }
 
-export async function createVapiAssistant(params: VapiAssistantParams, includeBookingTools?: boolean): Promise<{ id: string }> {
+export async function createVapiAssistant(
+  params: VapiAssistantParams,
+  includeBookingTools = false
+): Promise<{ id: string }> {
   const modelName = await resolveModelName();
   const response = await vapiFetch("/assistant", {
     method: "POST",
-    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools ?? false)),
+    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools)),
   });
   const data = (await response.json()) as { id: string };
   return { id: data.id };
 }
 
-export async function updateVapiAssistant(assistantId: string, params: VapiAssistantParams, includeBookingTools?: boolean): Promise<void> {
+export async function updateVapiAssistant(
+  assistantId: string,
+  params: VapiAssistantParams,
+  includeBookingTools = false
+): Promise<void> {
   const modelName = await resolveModelName();
   await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, {
     method: "PATCH",
-    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools ?? false)),
+    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools)),
   });
 }

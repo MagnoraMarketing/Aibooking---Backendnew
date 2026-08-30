@@ -34,8 +34,15 @@ function typeOptionsFor(t: Translate): {
   ];
 }
 
-// Vapi is the only voice widget engine currently offered to customers.
-// Twilio Relay support remains in code but is not exposed in the UI.
+// Which engine powers a Voice Widget's realtime call is ours to decide, not
+// the customer's: AI Booking is the product, and the engine behind it is an
+// implementation detail they shouldn't have to hold an opinion about (nor be
+// stranded by if we ever swap it). Widgets are created on this provider and
+// the picker that used to sit in step 1 is gone. The Twilio ConversationRelay
+// path (0024_twilio_conversation_relay.sql) still exists server-side for
+// phone agents — it just isn't a choice presented here, and its TTS/voice
+// side is still incomplete.
+const WIDGET_LLM_PROVIDER = "vapi";
 
 function stepsFor(agentType: AgentType | null, t: Translate) {
   const lastStep = agentType === "phone" ? t("agent.wizard.step.phone") : t("agent.wizard.step.embedCode");
@@ -142,10 +149,7 @@ export function AgentCreationWizard({
       setError(t("agent.wizard.errorTypeRequired"));
       return;
     }
-    // Voice Widgets only ever run on the Vapi engine — Twilio Relay is an
-    // incomplete beta path (no working TTS/voice yet) and was previously
-    // offered as a picker choice here even though it doesn't actually work.
-    const provider = agentType === "phone" ? "anthropic" : "vapi";
+    const provider = agentType === "phone" ? "anthropic" : WIDGET_LLM_PROVIDER;
     const selectedModelId = llmModels.find((m) => m.provider === provider)?.id ?? null;
     if (!selectedModelId) {
       setError(t("agent.wizard.errorNoModel"));

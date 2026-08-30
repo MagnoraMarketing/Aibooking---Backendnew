@@ -7,6 +7,8 @@ const CALCOM_API_BASE_V2 = "https://api.cal.com/v2";
 export interface CalcomEventType {
   id: number;
   title: string;
+  /** Duration in minutes. Null when Cal.com doesn't report one for the type. */
+  lengthMinutes: number | null;
 }
 
 async function calcomFetch(path: string, apiKey: string, init: RequestInit = {}): Promise<Response> {
@@ -51,8 +53,14 @@ async function calcomOAuthFetch(path: string, accessToken: string, init: Request
 // the agent books against.
 export async function fetchCalcomEventTypes(apiKey: string): Promise<CalcomEventType[]> {
   const response = await calcomFetch("/event-types", apiKey);
-  const data = (await response.json()) as { event_types: Array<{ id: number; title: string }> };
-  return data.event_types.map((eventType) => ({ id: eventType.id, title: eventType.title }));
+  const data = (await response.json()) as {
+    event_types: Array<{ id: number; title: string; length?: number | null }>;
+  };
+  return data.event_types.map((eventType) => ({
+    id: eventType.id,
+    title: eventType.title,
+    lengthMinutes: typeof eventType.length === "number" ? eventType.length : null,
+  }));
 }
 
 export interface CalcomAccount {
@@ -139,10 +147,127 @@ export async function createCalcomBooking(params: {
   return { id: data.id, uid: data.uid, status: data.status };
 }
 
+export interface CalcomBooking {
+  id: number;
+  uid: string;
+  title: string;
+  startTime: string; // ISO 8601
+  endTime: string; // ISO 8601
+  status: string | null;
+  attendeeEmails: string[];
+}
+
+// Cal.com's v1 list response has drifted between shapes over time (see
+// calcom/cal.com#18422), and individual bookings don't always carry
+// `attendees` or `status`. Everything optional is parsed defensively so a
+// missing field degrades the result instead of throwing mid-call.
+function parseBooking(raw: Record<string, unknown>): CalcomBooking | null {
+  const id = typeof raw.id === "number" ? raw.id : null;
+  const startTime = typeof raw.startTime === "string" ? raw.startTime : null;
+  if (id === null || !startTime) return null;
+
+  const attendees = Array.isArray(raw.attendees) ? raw.attendees : [];
+  const attendeeEmails = attendees
+    .map((attendee) => (attendee as { email?: unknown } | null)?.email)
+    .filter((email): email is string => typeof email === "string");
+
+  return {
+    id,
+    uid: typeof raw.uid === "string" ? raw.uid : "",
+    title: typeof raw.title === "string" ? raw.title : "",
+    startTime,
+    endTime: typeof raw.endTime === "string" ? raw.endTime : startTime,
+    status: typeof raw.status === "string" ? raw.status : null,
+    attendeeEmails,
+  };
+}
+
+function isCancelled(booking: CalcomBooking): boolean {
+  return (booking.status ?? "").toLowerCase() === "cancelled";
+}
+
+export async function fetchCalcomBookings(apiKey: string): Promise<CalcomBooking[]> {
+  const response = await calcomFetch("/bookings", apiKey);
+  const data = (await response.json()) as { bookings?: unknown };
+  const rows = Array.isArray(data.bookings) ? data.bookings : [];
+  return rows
+    .map((row) => parseBooking(row as Record<string, unknown>))
+    .filter((booking): booking is CalcomBooking => booking !== null);
+}
+
+// Finds the caller's own next appointment. Filtering happens here rather
+// than via query params because v1's supported filters are inconsistent, and
+// because the match has to be on attendee email — that's the only thing a
+// voice caller can actually tell us. Cancelled and past bookings are never
+// returned, so "move my appointment" can't land on last month's.
+export async function findUpcomingCalcomBooking(params: {
+  apiKey: string;
+  attendeeEmail: string;
+}): Promise<CalcomBooking | null> {
+  const bookings = await fetchCalcomBookings(params.apiKey);
+  const wanted = params.attendeeEmail.trim().toLowerCase();
+  const now = Date.now();
+
+  const upcoming = bookings
+    .filter((booking) => !isCancelled(booking))
+    .filter((booking) => new Date(booking.startTime).getTime() > now)
+    .filter((booking) => booking.attendeeEmails.some((email) => email.toLowerCase() === wanted))
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+  return upcoming[0] ?? null;
+}
+
+// Moves an existing booking. Two Cal.com v1 quirks shape this:
+//
+//  - endTime must be sent explicitly or the appointment's duration is lost
+//    (calcom/cal.com#21368), so we carry the original duration across rather
+//    than trusting the server to preserve it.
+//  - PATCH does not reliably send the "rescheduled" email or fire
+//    BOOKING_RESCHEDULED (calcom/cal.diy#14485). The agent therefore states
+//    the new time out loud on the call instead of relying on that email.
+export async function rescheduleCalcomBooking(params: {
+  apiKey: string;
+  booking: CalcomBooking;
+  newStart: string; // ISO 8601
+}): Promise<CalcomBooking> {
+  const originalMs =
+    new Date(params.booking.endTime).getTime() - new Date(params.booking.startTime).getTime();
+  const durationMs = originalMs > 0 ? originalMs : 30 * 60 * 1000;
+  const newEnd = new Date(new Date(params.newStart).getTime() + durationMs).toISOString();
+
+  const response = await calcomFetch(`/bookings/${params.booking.id}`, params.apiKey, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ startTime: params.newStart, endTime: newEnd }),
+  });
+
+  const raw = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  const updated = parseBooking((raw.booking as Record<string, unknown>) ?? raw);
+  // Cal.com's PATCH response shape varies; fall back to the values we just
+  // asked for rather than failing a reschedule that actually succeeded.
+  return updated ?? { ...params.booking, startTime: params.newStart, endTime: newEnd };
+}
+
+export async function cancelCalcomBooking(params: {
+  apiKey: string;
+  bookingId: number;
+  reason: string;
+}): Promise<void> {
+  const query = new URLSearchParams({ cancellationReason: params.reason });
+  await calcomFetch(`/bookings/${params.bookingId}/cancel?${query.toString()}`, params.apiKey, {
+    method: "DELETE",
+  });
+}
+
 // OAuth-based event types retrieval (v2 API)
 export async function fetchCalcomEventTypesOAuth(accessToken: string): Promise<CalcomEventType[]> {
   const response = await calcomOAuthFetch("/event-types", accessToken);
-  const data = (await response.json()) as { data?: Array<{ id: number; title: string }> };
+  // v2 reports the duration as lengthInMinutes; v1 called it length, and some
+  // responses carry neither. Read both and fall back to null so a type with no
+  // reported duration still lists instead of throwing.
+  const data = (await response.json()) as {
+    data?: Array<{ id: number; title: string; lengthInMinutes?: number; length?: number }>;
+  };
 
   if (!data.data) {
     return [];
@@ -151,6 +276,7 @@ export async function fetchCalcomEventTypesOAuth(accessToken: string): Promise<C
   return data.data.map((eventType) => ({
     id: eventType.id,
     title: eventType.title,
+    lengthMinutes: eventType.lengthInMinutes ?? eventType.length ?? null,
   }));
 }
 

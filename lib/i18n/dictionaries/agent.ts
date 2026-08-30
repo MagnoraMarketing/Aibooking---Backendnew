@@ -40,6 +40,14 @@ export const agent: Namespace = {
     pt: "Base de conhecimento",
     de: "Wissensdatenbank",
   },
+  "configurator.tab.booking": {
+    da: "Booking",
+    en: "Booking",
+    es: "Reservas",
+    fr: "Réservation",
+    pt: "Agendamento",
+    de: "Buchung",
+  },
   "configurator.tab.customizeWidget": {
     da: "Customise Widget",
     en: "Customise Widget",

@@ -10,7 +10,6 @@ export async function createUsageSession(params: {
   customerId: string;
   widgetId: string;
   conversationId: string;
-  isTrialUsage?: boolean;
 }): Promise<UsageSession> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
@@ -19,7 +18,6 @@ export async function createUsageSession(params: {
       customer_id: params.customerId,
       widget_id: params.widgetId,
       conversation_id: params.conversationId,
-      is_trial_usage: params.isTrialUsage ?? false,
     })
     .select("*")
     .single();
