@@ -7,6 +7,7 @@ export {
   createCalcomBooking,
   fetchCalcomEventTypesOAuth,
   fetchCalcomAvailabilityOAuth,
+  fetchCalcomTimezoneOAuth,
   createCalcomBookingOAuth,
   type CalcomEventType,
   type CalcomAccount,

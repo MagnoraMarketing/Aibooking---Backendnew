@@ -89,7 +89,9 @@ export const GET = withErrorHandling(async (request) => {
       refresh_token: refreshToken ? encryptSecret(refreshToken) : null,
       token_expires_at: tokenResult.expiresAt,
       scope: "profile booking:read booking:write",
-      timezone: "Europe/Copenhagen",
+      // Cal.com reports the account's own timezone; keep the column default
+      // when the userinfo call didn't carry one.
+      ...(tokenResult.timezone ? { timezone: tokenResult.timezone } : {}),
     },
     { onConflict: "customer_id" }
   );

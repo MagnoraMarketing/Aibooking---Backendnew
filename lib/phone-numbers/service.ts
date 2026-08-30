@@ -3,7 +3,7 @@ import { getAdminClient } from "@/lib/database/admin";
 import { getOrCreateSubaccount, purchaseTwilioNumber, releaseTwilioNumber, configureDirectVoiceWebhook } from "@/lib/twilio";
 import { importTwilioPhoneNumber } from "@/lib/vapi";
 import { writeAuditLog } from "@/lib/security/audit";
-import { twilioWebhookUrls } from "@/lib/telephony/urls";
+import { assertTwilioWebhookBaseUrlConfigured, twilioWebhookUrls } from "@/lib/telephony/urls";
 
 // Shared provisioning logic for a platform-bought number, called from two
 // places: the Stripe webhook once payment is confirmed
@@ -52,7 +52,11 @@ export async function provisionPurchasedNumber(phoneNumberRowId: string): Promis
 
     if (isTwilioDirect) {
       // No Vapi assistant involved — point the number straight at our own
-      // TwiML webhooks (see lib/telephony).
+      // TwiML webhooks (see lib/telephony). Checked before the number is
+      // pointed anywhere: registering the localhost fallback on a live
+      // number would fail every call later, with nothing on our side to
+      // show why.
+      assertTwilioWebhookBaseUrlConfigured();
       const urls = twilioWebhookUrls();
       await configureDirectVoiceWebhook(credentials, purchased.sid, {
         voiceUrl: urls.inbound,

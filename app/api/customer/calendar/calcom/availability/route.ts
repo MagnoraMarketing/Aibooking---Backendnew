@@ -31,21 +31,23 @@ export const GET = withErrorHandling(async (request) => {
 
   const { startTime, endTime, eventTypeId } = parsed.data;
 
-  // Get connection to find default event type and timezone
-  const { accessToken } = await getCalcomTokens(customerId);
-  // Note: In a full implementation, we'd fetch connection to get default eventTypeId
-  // For now, eventTypeId must be provided or fetch it
+  // The connection carries the customer's timezone and their default event
+  // type, so a caller only has to name one to override it.
+  const { accessToken, timezone, defaultEventTypeId } = await getCalcomTokens(customerId);
 
-  if (!eventTypeId) {
-    throw ApiError.badRequest("eventTypeId er påkrævet");
+  const resolvedEventTypeId = eventTypeId ?? defaultEventTypeId;
+  if (!resolvedEventTypeId) {
+    throw ApiError.badRequest(
+      "eventTypeId er påkrævet — vælg en standard begivenhedstype på Cal.com-forbindelsen"
+    );
   }
 
   const slots = await fetchCalcomAvailabilityOAuth({
     accessToken,
-    eventTypeId,
+    eventTypeId: resolvedEventTypeId,
     startTime,
     endTime,
-    timezone: "Europe/Copenhagen", // TODO: Get from connection
+    timezone,
   });
 
   return NextResponse.json({ slots });
