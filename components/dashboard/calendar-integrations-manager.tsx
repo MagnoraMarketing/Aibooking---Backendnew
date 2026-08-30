@@ -100,6 +100,7 @@ export function CalendarIntegrationsManager({
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState<{ id: string; ok: boolean; text: string } | null>(null);
   const [changingEventTypeId, setChangingEventTypeId] = useState<string | null>(null);
+  const [changingDurationId, setChangingDurationId] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
   const banner = useMemo(() => {
@@ -195,6 +196,22 @@ export function CalendarIntegrationsManager({
     setConnections((prev) => prev.map((c) => (c.id === connectionId ? connection : c)));
   }
 
+  async function handleChangeDuration(connectionId: string, durationMinutes: number) {
+    setChangingDurationId(connectionId);
+
+    const res = await fetch(`/api/customer/calendar/${connectionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ durationMinutes }),
+    });
+    setChangingDurationId(null);
+
+    if (!res.ok) return;
+
+    const { connection } = await res.json();
+    setConnections((prev) => prev.map((c) => (c.id === connectionId ? connection : c)));
+  }
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -260,8 +277,29 @@ export function CalendarIntegrationsManager({
                     </div>
                     <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">{provider.category}</p>
                     <p className="mt-1 text-xs text-slate-500">{provider.description}</p>
-                    {connection && connection.provider !== "calcom" && connection.external_account_email ? (
-                      <p className="mt-2 text-xs font-medium text-slate-600">{connection.external_account_email}</p>
+                    {connection && connection.provider !== "calcom" ? (
+                      <div className="mt-3 space-y-2.5 border-t border-slate-100 pt-3">
+                        {connection.external_account_email ? (
+                          <p className="text-xs font-medium text-slate-600">{connection.external_account_email}</p>
+                        ) : null}
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                            {t("dashboardPages.calendar-integrations.durationLabel")}
+                          </p>
+                          <select
+                            value={connection.default_duration_minutes}
+                            onChange={(e) => handleChangeDuration(connection.id, Number(e.target.value))}
+                            disabled={changingDurationId === connection.id}
+                            className="mt-0.5 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+                          >
+                            {[15, 30, 45, 60, 90].map((minutes) => (
+                              <option key={minutes} value={minutes}>
+                                {minutes} min.
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
                     ) : null}
 
                     {connection && connection.provider === "calcom" ? (
