@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { key: "dashboardShell.nav.widgetAgents", href: "/dashboard/agent" },
   { key: "dashboardShell.nav.inbound", href: "/dashboard/inbound" },
   { key: "dashboardShell.nav.outbound", href: "/dashboard/outbound" },
+  { key: "dashboardShell.nav.dialer", href: "/dashboard/dialer" },
   { key: "dashboardShell.nav.knowledgeBase", href: "/dashboard/knowledge-base" },
   { key: "dashboardShell.nav.analytics", href: "/dashboard/analytics" },
   { key: "dashboardShell.nav.integrations", href: "/dashboard/integrations" },

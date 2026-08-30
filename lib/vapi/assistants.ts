@@ -63,11 +63,58 @@ function webhookConfig(): { serverUrl: string; serverUrlSecret: string } | Recor
   return { serverUrl: `${appUrl}/api/webhooks/vapi`, serverUrlSecret: secret };
 }
 
+// Booking tools for Vapi assistants when calendar integration is available
+function buildBookingTools() {
+  return [
+    {
+      name: "check_availability",
+      description: "Tjek ledige mødetider i kundens kalender. Skal altid bruges før man foreslår en tid.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: {
+            type: "string",
+            description: "Dato i format YYYY-MM-DD (valgfrit, hvis ikke angivet bruges i dag)",
+          },
+        },
+      },
+    },
+    {
+      name: "create_booking",
+      description: "Book et møde på en specifik tid. Skal kun bruges efter at kunden har bekræftet tidspunktet.",
+      parameters: {
+        type: "object",
+        properties: {
+          start_time: {
+            type: "string",
+            description: "Starttidspunkt i ISO 8601 format (fx 2026-03-15T14:00:00+01:00)",
+          },
+          customer_name: {
+            type: "string",
+            description: "Kundens fulde navn",
+          },
+          customer_email: {
+            type: "string",
+            description: "Kundens email-adresse",
+          },
+        },
+        required: ["start_time", "customer_name", "customer_email"],
+      },
+    },
+  ];
+}
+
 // Transcriber is still fixed (Soniox STT RT v5) — voice now comes from
 // resolveVoiceConfig, cloned from whichever male/female template the
 // customer's widget is set to (see VapiAssistantParams.voiceGender).
-async function buildAssistantBody(params: VapiAssistantParams, modelName: string) {
-  return {
+// Booking tools are attached only for a widget whose calendar is connected
+// and whose booking_enabled gate is on (see lib/vapi/sync.ts).
+async function buildAssistantBody(
+  params: VapiAssistantParams,
+  modelName: string,
+  includeBookingTools: boolean = false
+) {
+  const body: Record<string, unknown> = {
     name: params.name,
     firstMessage: params.firstMessage,
     model: {
@@ -87,22 +134,28 @@ async function buildAssistantBody(params: VapiAssistantParams, modelName: string
     voice: await resolveVoiceConfig(params.voiceGender),
     ...webhookConfig(),
   };
+
+  if (includeBookingTools) {
+    body.functions = buildBookingTools();
+  }
+
+  return body;
 }
 
-export async function createVapiAssistant(params: VapiAssistantParams): Promise<{ id: string }> {
+export async function createVapiAssistant(params: VapiAssistantParams, includeBookingTools?: boolean): Promise<{ id: string }> {
   const modelName = await resolveModelName();
   const response = await vapiFetch("/assistant", {
     method: "POST",
-    body: JSON.stringify(await buildAssistantBody(params, modelName)),
+    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools ?? false)),
   });
   const data = (await response.json()) as { id: string };
   return { id: data.id };
 }
 
-export async function updateVapiAssistant(assistantId: string, params: VapiAssistantParams): Promise<void> {
+export async function updateVapiAssistant(assistantId: string, params: VapiAssistantParams, includeBookingTools?: boolean): Promise<void> {
   const modelName = await resolveModelName();
   await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, {
     method: "PATCH",
-    body: JSON.stringify(await buildAssistantBody(params, modelName)),
+    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools ?? false)),
   });
 }

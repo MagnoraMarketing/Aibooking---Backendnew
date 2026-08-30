@@ -29,6 +29,9 @@ export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<st
 
   if (llmModel?.provider !== "vapi") return;
 
+  // Check if booking is enabled to include booking tools
+  const includeBookingTools = widget.booking_enabled ?? false;
+
   const knowledgeBase = formatKnowledgeBaseForPrompt(
     (extra.knowledgeBase as KnowledgeBaseSource[] | undefined) ?? []
   );
@@ -41,12 +44,16 @@ export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<st
   const voiceGender = (extra.voiceGender as VapiVoiceGender | null | undefined) ?? null;
 
   try {
-    await updateVapiAssistant(vapiAssistantId, {
-      name: widget.name,
-      systemPrompt,
-      firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
-      voiceGender,
-    });
+    await updateVapiAssistant(
+      vapiAssistantId,
+      {
+        name: widget.name,
+        systemPrompt,
+        firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
+        voiceGender,
+      },
+      includeBookingTools
+    );
   } catch (err) {
     console.error("Failed to sync widget to Vapi assistant:", err);
   }

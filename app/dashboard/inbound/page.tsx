@@ -2,6 +2,7 @@ import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { InboundManager } from "@/components/dashboard/inbound-manager";
 import { AgentsManager } from "@/components/dashboard/agents-manager";
+import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
 import type { Customer, LLMModel, PhoneNumber, VoiceModel, Widget } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export default async function InboundPage() {
       .returns<Widget[]>(),
     supabase
       .from("phone_numbers")
-      .select("*")
+      .select(PHONE_NUMBER_CLIENT_COLUMNS)
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false })
       .returns<PhoneNumberRow[]>(),

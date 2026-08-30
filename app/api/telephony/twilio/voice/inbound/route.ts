@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAdminClient } from "@/lib/database/admin";
 import { getWidgetBundleById } from "@/lib/widgets";
-import { createUsageSession } from "@/lib/usage";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { validateTwilioSignature, formDataToParams } from "@/lib/twilio";
 import { resolveTwilioDirectNumber } from "@/lib/telephony/resolve";
+import { startOrResumePhoneCallSession } from "@/lib/telephony/session";
 import { twilioWebhookUrls, toTwilioLanguage } from "@/lib/telephony/urls";
 import { buildGatherResponse, buildSayAndHangupResponse, twimlResponseHeaders } from "@/lib/telephony/twiml";
 import { defaultGreeting, noSpeechHeardText } from "@/lib/i18n/agent-content";
@@ -63,29 +62,18 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const supabase = getAdminClient();
-  const { data: conversation, error } = await supabase
-    .from("conversations")
-    .insert({
-      widget_id: bundle.widget.id,
-      customer_id: bundle.customer.id,
-      status: "active",
-      channel: "phone",
-      twilio_call_sid: callSid,
-    })
-    .select("*")
-    .single();
+  // Idempotent on CallSid — Twilio retries this webhook, and a retry must
+  // continue the same call rather than collide with the row the first
+  // attempt already wrote (see lib/telephony/session.ts).
+  const session = await startOrResumePhoneCallSession({
+    callSid,
+    widgetId: bundle.widget.id,
+    customerId: bundle.customer.id,
+  });
 
-  if (error || !conversation) {
-    console.error("Failed to create phone conversation:", error);
+  if (!session) {
     return xml(buildSayAndHangupResponse({ sayText: "Der opstod en teknisk fejl. Farvel." }));
   }
-
-  await createUsageSession({
-    customerId: bundle.customer.id,
-    widgetId: bundle.widget.id,
-    conversationId: conversation.id,
-  });
 
   const language = toTwilioLanguage(bundle.widget.language);
   const opening = bundle.widget.opening_message ?? defaultGreeting(bundle.widget.language);

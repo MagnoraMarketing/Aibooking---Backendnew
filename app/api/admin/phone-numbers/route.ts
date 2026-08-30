@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireMasterAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling } from "@/lib/security";
+import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export const GET = withErrorHandling(async () => {
 
   const { data, error } = await supabase
     .from("phone_numbers")
-    .select("*, customers(name, email), widgets(name)")
+    .select(`${PHONE_NUMBER_CLIENT_COLUMNS}, customers(name, email), widgets(name)`)
     .order("created_at", { ascending: false });
 
   if (error) throw error;

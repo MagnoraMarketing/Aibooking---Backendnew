@@ -22,6 +22,7 @@ export const dashboardShell: Namespace = {
   },
   "nav.inbound": { da: "Inbound", en: "Inbound", es: "Entrantes", fr: "Entrant", pt: "Recebidas", de: "Eingehend" },
   "nav.outbound": { da: "Outbound", en: "Outbound", es: "Salientes", fr: "Sortant", pt: "Efetuadas", de: "Ausgehend" },
+  "nav.dialer": { da: "Dialer", en: "Dialer", es: "Marcador", fr: "Numéroteur", pt: "Discador", de: "Dialer" },
   "nav.knowledgeBase": {
     da: "Knowledge Base",
     en: "Knowledge Base",

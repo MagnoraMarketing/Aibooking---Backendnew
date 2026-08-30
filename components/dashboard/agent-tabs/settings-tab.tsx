@@ -112,6 +112,8 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
           </select>
         </div>
 
+        {/* Vapi Assistant ID is stored internally but hidden from customer UI */}
+
         <div>
           <label htmlFor="language" className="mb-1 block text-sm font-medium text-slate-700">
             {t("agent.settings.languageLabel")}

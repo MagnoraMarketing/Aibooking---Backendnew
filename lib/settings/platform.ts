@@ -25,7 +25,7 @@ export async function setDefaultSystemPrompt(prompt: string): Promise<void> {
   if (error) throw new Error(`Failed to update default system prompt: ${error.message}`);
 }
 
-const FALLBACK_SUMMARIZATION_MODEL = "claude-sonnet-5";
+const FALLBACK_SUMMARIZATION_MODEL = "claude-3-5-sonnet-20241022";
 
 // Rolling conversation summaries (see lib/llm/context-builder.ts) always use
 // this model, regardless of which model the widget itself talks to — keeps

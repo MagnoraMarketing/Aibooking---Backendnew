@@ -1,6 +1,10 @@
 import { requireMasterAdminForPage } from "@/lib/auth";
-import { getVapiVoiceTemplateAssistantId } from "@/lib/settings/platform";
+import {
+  getDefaultSystemPrompt,
+  getVapiVoiceTemplateAssistantId,
+} from "@/lib/settings/platform";
 import { VapiVoiceTemplatesSettings } from "@/components/admin/vapi-voice-templates-settings";
+import { DefaultPromptSettings } from "@/components/admin/default-prompt-settings";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 import { translate } from "@/lib/i18n/dictionaries";
 
@@ -10,9 +14,14 @@ export default async function AdminSettingsPage() {
   const ctx = await requireMasterAdminForPage();
   const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
 
-  const [maleAssistantId, femaleAssistantId] = await Promise.all([
+  // Read the settings straight from the database rather than fetching this
+  // app's own /api/admin/settings/default-prompt: that route sits behind
+  // requireMasterAdmin, and a server-side fetch carries no auth cookies, so
+  // it would answer 401 and this page would throw instead of rendering.
+  const [maleAssistantId, femaleAssistantId, defaultPrompt] = await Promise.all([
     getVapiVoiceTemplateAssistantId("male"),
     getVapiVoiceTemplateAssistantId("female"),
+    getDefaultSystemPrompt(),
   ]);
 
   return (
@@ -25,6 +34,7 @@ export default async function AdminSettingsPage() {
         initialMaleAssistantId={maleAssistantId}
         initialFemaleAssistantId={femaleAssistantId}
       />
+      <DefaultPromptSettings initialPrompt={defaultPrompt} />
     </div>
   );
 }

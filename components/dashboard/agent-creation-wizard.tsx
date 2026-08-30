@@ -34,6 +34,9 @@ function typeOptionsFor(t: Translate): {
   ];
 }
 
+// Vapi is the only voice widget engine currently offered to customers.
+// Twilio Relay support remains in code but is not exposed in the UI.
+
 function stepsFor(agentType: AgentType | null, t: Translate) {
   const lastStep = agentType === "phone" ? t("agent.wizard.step.phone") : t("agent.wizard.step.embedCode");
   return [

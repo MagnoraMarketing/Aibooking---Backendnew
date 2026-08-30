@@ -25,6 +25,9 @@ export function AdminHeader({ userLabel }: { userLabel: string }) {
             <Link href="/admin/settings" className="hover:text-slate-900">
               {t("adminShell.nav.settings")}
             </Link>
+            <Link href="/admin/settings" className="hover:text-slate-900">
+              Indstillinger
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">

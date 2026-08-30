@@ -7,6 +7,7 @@ import type { Widget, PhoneNumberDirection } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import { CallForwardingInstructions } from "./call-forwarding-instructions";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { TwilioBalanceCard } from "./twilio-balance-card";
 
 interface InboundManagerProps {
   widgets: Widget[];
@@ -793,6 +794,9 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 </div>
                 {phoneNumber.purchase_status === "active" ? (
                   <CallForwardingInstructions phoneNumber={phoneNumber.phone_number} />
+                ) : null}
+                {phoneNumber.purchase_status === "active" && phoneNumber.source === "byo_twilio" ? (
+                  <TwilioBalanceCard phoneNumberId={phoneNumber.id} />
                 ) : null}
               </div>
             ))}
