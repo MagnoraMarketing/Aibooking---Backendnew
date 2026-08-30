@@ -1,4 +1,5 @@
 import "server-only";
+import { toTwilioLanguage as resolveTwilioLanguage } from "@/lib/i18n/agent-content";
 
 // A trailing slash on NEXT_PUBLIC_APP_URL would produce "…dk//api/…" here,
 // and Twilio signs the exact string it was configured with — so the double
@@ -72,7 +73,8 @@ export function conversationRelayWebSocketUrl(): string | null {
 }
 
 // Twilio's <Say>/<Gather> `language` attribute wants a BCP-47 tag, not the
-// bare two-letter codes this app stores on widgets.language.
+// bare locale code this app stores on widgets.language — see
+// lib/i18n/agent-content.ts for the full 5-language mapping.
 export function toTwilioLanguage(widgetLanguage: string): string {
-  return widgetLanguage === "en" ? "en-US" : "da-DK";
+  return resolveTwilioLanguage(widgetLanguage);
 }

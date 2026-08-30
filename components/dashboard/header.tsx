@@ -4,20 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { LogoutButton } from "./logout-button";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 const NAV_ITEMS = [
-  { label: "Getting Started", href: "/dashboard/getting-started" },
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Widget Agents", href: "/dashboard/agent" },
-  { label: "Inbound", href: "/dashboard/inbound" },
-  { label: "Outbound", href: "/dashboard/outbound" },
-  { label: "Dialer", href: "/dashboard/dialer" },
-  { label: "Knowledge Base", href: "/dashboard/knowledge-base" },
-  { label: "Analytics", href: "/dashboard/analytics" },
-  { label: "Integrations", href: "/dashboard/integrations" },
-  { label: "Billing", href: "/dashboard/billing" },
-  { label: "Agency", href: "/dashboard/agency" },
-];
+  { key: "dashboardShell.nav.gettingStarted", href: "/dashboard/getting-started" },
+  { key: "dashboardShell.nav.dashboard", href: "/dashboard" },
+  { key: "dashboardShell.nav.widgetAgents", href: "/dashboard/agent" },
+  { key: "dashboardShell.nav.inbound", href: "/dashboard/inbound" },
+  { key: "dashboardShell.nav.outbound", href: "/dashboard/outbound" },
+  { key: "dashboardShell.nav.dialer", href: "/dashboard/dialer" },
+  { key: "dashboardShell.nav.knowledgeBase", href: "/dashboard/knowledge-base" },
+  { key: "dashboardShell.nav.analytics", href: "/dashboard/analytics" },
+  { key: "dashboardShell.nav.integrations", href: "/dashboard/integrations" },
+  { key: "dashboardShell.nav.billing", href: "/dashboard/billing" },
+  { key: "dashboardShell.nav.agency", href: "/dashboard/agency" },
+] as const;
 
 interface HeaderProps {
   customerName: string;
@@ -27,6 +28,7 @@ interface HeaderProps {
 
 export function Header({ customerName, userLabel, minutesRemaining }: HeaderProps) {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -47,7 +49,7 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
         <div className="flex min-w-0 items-center gap-2 sm:gap-6">
           <button
             type="button"
-            aria-label="Åbn menu"
+            aria-label={t("dashboardShell.openMenu")}
             onClick={() => setMobileNavOpen((open) => !open)}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 sm:hidden"
           >
@@ -69,7 +71,7 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
                   isActiveItem(item.href) ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                {item.label}
+                {t(item.key)}
               </Link>
             ))}
           </nav>
@@ -77,12 +79,12 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
 
         <div className="flex shrink-0 items-center gap-3">
           <div className="rounded-full bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700">
-            Credits: {minutesRemaining.toFixed(2)}
+            {t("dashboardShell.credits")}: {minutesRemaining.toFixed(2)}
           </div>
 
           <button
             type="button"
-            aria-label="Notifikationer"
+            aria-label={t("dashboardShell.notifications")}
             className="hidden h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 sm:flex"
           >
             <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor" className="h-5 w-5">
@@ -108,6 +110,13 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
 
             {menuOpen ? (
               <div className="absolute right-0 mt-2 w-48 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                <Link
+                  href="/dashboard/profile"
+                  onClick={() => setMenuOpen(false)}
+                  className="block rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                >
+                  {t("dashboardShell.profile")}
+                </Link>
                 <LogoutButton />
               </div>
             ) : null}
@@ -126,7 +135,7 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
                 isActiveItem(item.href) ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"
               }`}
             >
-              {item.label}
+              {t(item.key)}
             </Link>
           ))}
         </nav>

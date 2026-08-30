@@ -569,9 +569,12 @@
           return openWebRTC(data);
         })
         .catch(function (err) {
+          console.error("[aibooking] Realtime widget failed to start:", err);
           teardownConnection();
           statusEl.textContent =
-            err.status === 402 ? "Ikke flere minutter tilgængelige lige nu." : "Kunne ikke forbinde. Prøv igen.";
+            err.status === 402
+              ? "Ikke flere minutter tilgængelige lige nu."
+              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
         });
     }
 
@@ -790,8 +793,16 @@
           });
         })
         .catch(function (err) {
+          // Anything here happens before call.client.start() is even
+          // reached (session request, SDK script load, or vapiSDK.run()
+          // itself throwing) — always log the real error so a failure is
+          // diagnosable from the browser console instead of just the one
+          // generic status line every failure used to collapse into.
+          console.error("[aibooking] Vapi widget failed to start:", err);
           statusEl.textContent =
-            err.status === 402 ? "Ikke flere minutter tilgængelige lige nu." : "Kunne ikke forbinde. Prøv igen.";
+            err.status === 402
+              ? "Ikke flere minutter tilgængelige lige nu."
+              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
         });
     }
 
@@ -955,8 +966,11 @@
           });
         })
         .catch(function (err) {
+          console.error("[aibooking] Twilio Relay widget failed to start:", err);
           statusEl.textContent =
-            err.status === 402 ? "Ikke flere minutter tilgængelige lige nu." : "Kunne ikke forbinde. Prøv igen.";
+            err.status === 402
+              ? "Ikke flere minutter tilgængelige lige nu."
+              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
         });
     }
 

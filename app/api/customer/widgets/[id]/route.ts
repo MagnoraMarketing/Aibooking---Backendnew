@@ -11,8 +11,9 @@ import {
   requireParam,
 } from "@/lib/security";
 import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
-import { syncWidgetToVapiAssistant, createVapiAssistant, DEFAULT_VAPI_FIRST_MESSAGE } from "@/lib/vapi";
+import { syncWidgetToVapiAssistant, createVapiAssistant, type VapiVoiceGender } from "@/lib/vapi";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
+import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -108,26 +109,33 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   if (data.llm_model_id && !extra.vapiAssistantId) {
     const { data: model } = await supabase.from("llm_models").select("provider").eq("id", data.llm_model_id).maybeSingle();
     if (model?.provider === "vapi") {
+      const voiceGender = (extra.voiceGender as VapiVoiceGender | null | undefined) ?? "female";
+      const basePrompt = data.system_prompt ?? (await getDefaultSystemPrompt());
       const assistant = await createVapiAssistant({
         name: data.name,
-        systemPrompt: data.system_prompt ?? (await getDefaultSystemPrompt()),
-        firstMessage: data.opening_message ?? DEFAULT_VAPI_FIRST_MESSAGE,
+        systemPrompt: withLanguageDirective(basePrompt, data.language),
+        firstMessage: data.opening_message ?? defaultGreeting(data.language),
+        voiceGender,
       });
-      extra = { ...extra, vapiAssistantId: assistant.id };
+      extra = { ...extra, voiceGender, vapiAssistantId: assistant.id };
       await supabase.from("widget_settings").upsert({ widget_id: widgetId, extra });
     }
   }
 
   // Keep the linked Vapi assistant (see lib/vapi/sync.ts) in sync whenever
   // anything it depends on changes — the assistant id itself (just set
-  // above), or the name/prompt/opening message it was created from.
-  // Best-effort: a Vapi hiccup shouldn't block saving the rest of the
-  // widget's settings, unlike creation (app/api/customer/widgets/route.ts),
-  // where an unprovisioned assistant means the agent can never take a call.
+  // above), the name/prompt/opening message it was created from, or the
+  // Mand/Dame voice choice. Best-effort: a Vapi hiccup shouldn't block
+  // saving the rest of the widget's settings, unlike creation
+  // (app/api/customer/widgets/route.ts), where an unprovisioned assistant
+  // means the agent can never take a call.
   const relevantFieldsChanged =
-    widgetFields.name !== undefined || widgetFields.systemPrompt !== undefined || widgetFields.openingMessage !== undefined;
+    widgetFields.name !== undefined ||
+    widgetFields.systemPrompt !== undefined ||
+    widgetFields.openingMessage !== undefined ||
+    widgetFields.language !== undefined;
 
-  if (relevantFieldsChanged || extraUpdate?.vapiAssistantId !== undefined) {
+  if (relevantFieldsChanged || extraUpdate?.vapiAssistantId !== undefined || extraUpdate?.voiceGender !== undefined) {
     await syncWidgetToVapiAssistant(data, extra);
   }
 

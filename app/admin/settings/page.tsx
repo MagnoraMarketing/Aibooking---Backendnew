@@ -1,36 +1,40 @@
-import { Suspense } from "react";
 import { requireMasterAdminForPage } from "@/lib/auth";
+import {
+  getDefaultSystemPrompt,
+  getVapiVoiceTemplateAssistantId,
+} from "@/lib/settings/platform";
+import { VapiVoiceTemplatesSettings } from "@/components/admin/vapi-voice-templates-settings";
 import { DefaultPromptSettings } from "@/components/admin/default-prompt-settings";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
+import { translate } from "@/lib/i18n/dictionaries";
 
 export const dynamic = "force-dynamic";
 
-async function fetchDefaultPrompt(): Promise<string> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const res = await fetch(`${baseUrl}/api/admin/settings/default-prompt`, {
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("Kunne ikke hente standard prompt");
-  const data = (await res.json()) as { prompt: string };
-  return data.prompt;
-}
-
 export default async function AdminSettingsPage() {
-  await requireMasterAdminForPage();
-  const prompt = await fetchDefaultPrompt();
+  const ctx = await requireMasterAdminForPage();
+  const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
+
+  // Read the settings straight from the database rather than fetching this
+  // app's own /api/admin/settings/default-prompt: that route sits behind
+  // requireMasterAdmin, and a server-side fetch carries no auth cookies, so
+  // it would answer 401 and this page would throw instead of rendering.
+  const [maleAssistantId, femaleAssistantId, defaultPrompt] = await Promise.all([
+    getVapiVoiceTemplateAssistantId("male"),
+    getVapiVoiceTemplateAssistantId("female"),
+    getDefaultSystemPrompt(),
+  ]);
 
   return (
-    <div className="max-w-2xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Admin Settings</h1>
-        <p className="text-gray-600 mt-2">Administrer platform-brede indstillinger</p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900">{translate(locale, "adminShell.nav.settings")}</h1>
+        <p className="mt-1 text-sm text-slate-500">{translate(locale, "adminPages.settings.subtitle")}</p>
       </div>
-
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">System Prompts</h2>
-        <Suspense fallback={<div>Indlæser...</div>}>
-          <DefaultPromptSettings initialPrompt={prompt} />
-        </Suspense>
-      </div>
+      <VapiVoiceTemplatesSettings
+        initialMaleAssistantId={maleAssistantId}
+        initialFemaleAssistantId={femaleAssistantId}
+      />
+      <DefaultPromptSettings initialPrompt={defaultPrompt} />
     </div>
   );
 }

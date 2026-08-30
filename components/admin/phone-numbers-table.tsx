@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 export interface AdminPhoneNumberRow {
   id: string;
@@ -17,13 +18,16 @@ export interface AdminPhoneNumberRow {
   createdAt: string;
 }
 
-const STATUS_LABELS: Record<AdminPhoneNumberRow["purchaseStatus"], string> = {
-  pending_payment: "Afventer betaling",
-  payment_confirmed: "Betaling bekræftet",
-  provisioning: "Provisionerer…",
-  active: "Aktiv",
-  failed: "Fejlet",
-  released: "Frigivet",
+// Maps each status/direction to its translation key suffix — the actual
+// label text is looked up via t() inside the component so it reacts to the
+// current locale.
+const STATUS_LABEL_KEYS: Record<AdminPhoneNumberRow["purchaseStatus"], string> = {
+  pending_payment: "adminPages.phoneNumbers.statusPendingPayment",
+  payment_confirmed: "adminPages.phoneNumbers.statusPaymentConfirmed",
+  provisioning: "adminPages.phoneNumbers.statusProvisioning",
+  active: "adminPages.shared.active",
+  failed: "adminPages.phoneNumbers.statusFailed",
+  released: "adminPages.phoneNumbers.statusReleased",
 };
 
 const STATUS_COLORS: Record<AdminPhoneNumberRow["purchaseStatus"], string> = {
@@ -35,13 +39,14 @@ const STATUS_COLORS: Record<AdminPhoneNumberRow["purchaseStatus"], string> = {
   released: "bg-slate-100 text-slate-500",
 };
 
-const DIRECTION_LABELS: Record<AdminPhoneNumberRow["direction"], string> = {
-  inbound: "Inbound",
-  outbound: "Outbound",
-  both: "Inbound + Outbound",
+const DIRECTION_LABEL_KEYS: Record<AdminPhoneNumberRow["direction"], string> = {
+  inbound: "adminPages.phoneNumbers.directionInbound",
+  outbound: "adminPages.phoneNumbers.directionOutbound",
+  both: "adminPages.phoneNumbers.directionBoth",
 };
 
 export function AdminPhoneNumbersTable({ initialRows }: { initialRows: AdminPhoneNumberRow[] }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState(initialRows);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -58,7 +63,7 @@ export function AdminPhoneNumbersTable({ initialRows }: { initialRows: AdminPhon
   }
 
   async function handleRelease(id: string) {
-    if (!confirm("Frigiv dette nummer fra Twilio? Det kan ikke gendannes.")) return;
+    if (!confirm(t("adminPages.phoneNumbers.confirmRelease"))) return;
     setBusyId(id);
     const res = await fetch(`/api/admin/phone-numbers/${id}`, { method: "DELETE" });
     setBusyId(null);
@@ -70,29 +75,29 @@ export function AdminPhoneNumbersTable({ initialRows }: { initialRows: AdminPhon
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Telefonnumre</h1>
-        <p className="mt-1 text-sm text-slate-500">Alle telefonnumre på tværs af kunder.</p>
+        <h1 className="text-2xl font-semibold text-slate-900">{t("adminShell.nav.phoneNumbers")}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t("adminPages.phoneNumbers.subtitle")}</p>
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Nummer</th>
-              <th className="px-4 py-3">Kunde</th>
-              <th className="px-4 py-3">Agent</th>
-              <th className="px-4 py-3">Retning</th>
-              <th className="px-4 py-3">Kilde</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Pris</th>
-              <th className="px-4 py-3">Handlinger</th>
+              <th className="px-4 py-3">{t("adminPages.phoneNumbers.tableNumber")}</th>
+              <th className="px-4 py-3">{t("adminPages.phoneNumbers.tableCustomer")}</th>
+              <th className="px-4 py-3">{t("adminPages.phoneNumbers.tableAgent")}</th>
+              <th className="px-4 py-3">{t("adminPages.phoneNumbers.tableDirection")}</th>
+              <th className="px-4 py-3">{t("adminPages.phoneNumbers.tableSource")}</th>
+              <th className="px-4 py-3">{t("adminPages.shared.statusLabel")}</th>
+              <th className="px-4 py-3">{t("adminPages.phoneNumbers.tablePrice")}</th>
+              <th className="px-4 py-3">{t("adminPages.phoneNumbers.tableActions")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
-                  Ingen telefonnumre endnu.
+                  {t("adminPages.phoneNumbers.empty")}
                 </td>
               </tr>
             ) : (
@@ -107,17 +112,23 @@ export function AdminPhoneNumbersTable({ initialRows }: { initialRows: AdminPhon
                     <span className="block text-xs text-slate-400">{row.customerEmail}</span>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{row.widgetName}</td>
-                  <td className="px-4 py-3 text-slate-600">{DIRECTION_LABELS[row.direction]}</td>
+                  <td className="px-4 py-3 text-slate-600">{t(DIRECTION_LABEL_KEYS[row.direction])}</td>
                   <td className="px-4 py-3 text-slate-600">
-                    {row.source === "platform_twilio" ? "Købt gennem os" : "Eget Twilio"}
+                    {row.source === "platform_twilio"
+                      ? t("adminPages.phoneNumbers.sourcePlatform")
+                      : t("adminPages.phoneNumbers.sourceByo")}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[row.purchaseStatus]}`}>
-                      {STATUS_LABELS[row.purchaseStatus]}
+                      {t(STATUS_LABEL_KEYS[row.purchaseStatus])}
                     </span>
                     {row.failureReason ? <span className="block max-w-xs text-xs text-red-600">{row.failureReason}</span> : null}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{row.monthlyPriceDkk ? `${row.monthlyPriceDkk} DKK/md` : "—"}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {row.monthlyPriceDkk
+                      ? t("adminPages.phoneNumbers.priceMonthly", { price: row.monthlyPriceDkk })
+                      : t("adminPages.phoneNumbers.noPrice")}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       {row.purchaseStatus === "failed" ? (
@@ -127,7 +138,7 @@ export function AdminPhoneNumbersTable({ initialRows }: { initialRows: AdminPhon
                           disabled={busyId === row.id}
                           className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                         >
-                          Prøv igen
+                          {t("adminPages.phoneNumbers.retry")}
                         </button>
                       ) : null}
                       {row.purchaseStatus !== "released" ? (
@@ -137,7 +148,7 @@ export function AdminPhoneNumbersTable({ initialRows }: { initialRows: AdminPhon
                           disabled={busyId === row.id}
                           className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
                         >
-                          Frigiv
+                          {t("adminPages.phoneNumbers.release")}
                         </button>
                       ) : null}
                     </div>

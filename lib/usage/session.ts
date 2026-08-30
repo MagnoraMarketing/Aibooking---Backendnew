@@ -65,11 +65,18 @@ export async function appendTurnUsage(params: {
 // Overwrites the accrued duration with a client-reported value — used for
 // realtime (WebRTC) sessions, where nothing accrues server-side turn by turn
 // the way it does for the text pipeline (see appendTurnUsage above).
+//
+// The caller measures this as elapsed wall-clock time (Date.now() deltas),
+// which is essentially never a whole number of seconds — duration_seconds
+// is an integer column, so writing the raw float made this update fail on
+// almost every call, silently dropping the billed duration entirely.
+// Round up rather than down: a customer should never be billed for less
+// than the second their call actually ran into.
 export async function setUsageSessionDuration(usageSessionId: string, durationSeconds: number): Promise<void> {
   const supabase = getAdminClient();
   const { error } = await supabase
     .from("usage_sessions")
-    .update({ duration_seconds: durationSeconds })
+    .update({ duration_seconds: Math.ceil(durationSeconds) })
     .eq("id", usageSessionId);
 
   if (error) throw new Error(`Failed to set usage session duration: ${error.message}`);

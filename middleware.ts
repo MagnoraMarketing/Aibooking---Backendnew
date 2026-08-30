@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptionsWithName } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { LOCALE_COOKIE, matchLocale } from "@/lib/i18n/locales";
 
 interface CookieToSet {
   name: string;
@@ -17,6 +18,19 @@ interface CookieToSet {
 // dashboard pages independently enforce auth server-side via requireAuth()
 // (see app/dashboard/layout.tsx), so this is a UX nicety on top of that,
 // not the only line of defense.
+// Stamps NEXT_LOCALE from Accept-Language on a visitor's very first request
+// (signup/login, pre-auth — see lib/i18n/get-locale.ts) so the first
+// server-rendered page already matches their browser instead of flashing
+// Danish. A no-op once the cookie exists — a signed-in user's
+// profile.language (set explicitly, possibly overriding this guess) always
+// takes precedence wherever it's read.
+function stampLocaleCookie(request: NextRequest, response: NextResponse): NextResponse {
+  if (request.cookies.get(LOCALE_COOKIE)) return response;
+  const locale = matchLocale(request.headers.get("accept-language"));
+  response.cookies.set(LOCALE_COOKIE, locale, { path: "/", maxAge: 31536000, sameSite: "lax" });
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isProtectedRoute = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
@@ -27,7 +41,7 @@ export async function middleware(request: NextRequest) {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error("[middleware] Missing NEXT_PUBLIC_SUPABASE_URL/ANON_KEY — skipping auth check");
-    return NextResponse.next();
+    return stampLocaleCookie(request, NextResponse.next());
   }
 
   let response = NextResponse.next({ request });
@@ -58,20 +72,20 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("next", pathname);
-      return NextResponse.redirect(url);
+      return stampLocaleCookie(request, NextResponse.redirect(url));
     }
 
     if (isLoginRoute && user) {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       url.search = "";
-      return NextResponse.redirect(url);
+      return stampLocaleCookie(request, NextResponse.redirect(url));
     }
   } catch (err) {
     console.error("[middleware] Supabase auth check failed:", err);
   }
 
-  return response;
+  return stampLocaleCookie(request, response);
 }
 
 export const config = {

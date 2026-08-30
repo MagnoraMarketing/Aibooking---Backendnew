@@ -6,6 +6,7 @@ import { resolveTwilioDirectNumber } from "@/lib/telephony/resolve";
 import { startOrResumePhoneCallSession } from "@/lib/telephony/session";
 import { twilioWebhookUrls, toTwilioLanguage } from "@/lib/telephony/urls";
 import { buildGatherResponse, buildSayAndHangupResponse, twimlResponseHeaders } from "@/lib/telephony/twiml";
+import { defaultGreeting, noSpeechHeardText } from "@/lib/i18n/agent-content";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +76,14 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const language = toTwilioLanguage(bundle.widget.language);
-  const opening = bundle.widget.opening_message ?? "Hej! Hvordan kan jeg hjælpe dig i dag?";
+  const opening = bundle.widget.opening_message ?? defaultGreeting(bundle.widget.language);
 
-  return xml(buildGatherResponse({ sayText: opening, gatherActionUrl: urls.turn, language }));
+  return xml(
+    buildGatherResponse({
+      sayText: opening,
+      gatherActionUrl: urls.turn,
+      language,
+      noInputText: noSpeechHeardText(bundle.widget.language),
+    })
+  );
 }

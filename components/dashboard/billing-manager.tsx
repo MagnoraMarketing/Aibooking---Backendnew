@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Package, Subscription } from "@/types/database";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface BillingManagerProps {
   hasStripeCustomer: boolean;
@@ -19,15 +20,15 @@ function formatCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat("da-DK", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
 }
 
-const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
-  active: "Aktivt",
-  trialing: "Prøveperiode (Stripe)",
-  past_due: "Betaling mangler",
-  canceled: "Opsagt",
-  incomplete: "Ikke fuldført",
-  incomplete_expired: "Udløbet",
-  unpaid: "Ikke betalt",
-  paused: "Sat på pause",
+const SUBSCRIPTION_STATUS_KEYS: Record<string, string> = {
+  active: "dashboardPages.billing.status.active",
+  trialing: "dashboardPages.billing.status.trialing",
+  past_due: "dashboardPages.billing.status.pastDue",
+  canceled: "dashboardPages.billing.status.canceled",
+  incomplete: "dashboardPages.billing.status.incomplete",
+  incomplete_expired: "dashboardPages.billing.status.incompleteExpired",
+  unpaid: "dashboardPages.billing.status.unpaid",
+  paused: "dashboardPages.billing.status.paused",
 };
 
 export function BillingManager({
@@ -40,6 +41,7 @@ export function BillingManager({
   trialDaysRemaining,
   trialMinutes,
 }: BillingManagerProps) {
+  const { t } = useTranslation();
   const searchParams = useSearchParams();
   const checkoutResult = searchParams.get("checkout");
   const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export function BillingManager({
     if (!res.ok) {
       setCheckingOutId(null);
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke åbne betaling. Prøv igen.");
+      setError(data?.error?.message ?? t("dashboardPages.billing.checkoutErrorFallback"));
       return;
     }
 
@@ -80,7 +82,7 @@ export function BillingManager({
     if (!res.ok) {
       setOpeningPortal(false);
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke åbne betalingsportalen.");
+      setError(data?.error?.message ?? t("dashboardPages.billing.portalErrorFallback"));
       return;
     }
 
@@ -91,25 +93,30 @@ export function BillingManager({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Betaling</h1>
-        <p className="mt-1 text-sm text-slate-500">Administrer jeres pakke, forbrug og betalingsmetode.</p>
+        <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.billing.title")}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.billing.subtitle")}</p>
       </div>
 
       {checkoutResult === "success" ? (
         <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          Betaling gennemført — jeres pakke er nu aktiv.
+          {t("dashboardPages.billing.checkoutSuccess")}
         </div>
       ) : checkoutResult === "cancelled" ? (
         <div className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600">
-          Betalingen blev annulleret — der er ikke sket noget.
+          {t("dashboardPages.billing.checkoutCancelled")}
         </div>
       ) : null}
 
       {showTrialBanner ? (
         <div className="rounded-lg bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700">
-          I er i gratis prøveperiode: {trialDaysRemaining} {trialDaysRemaining === 1 ? "dag" : "dage"} tilbage, og{" "}
-          {Math.max(0, balanceMinutes).toFixed(1)} af {trialMinutes} prøve-minutter tilbage. Prøveperioden slutter
-          når enten dagene eller minutterne er brugt op — alt efter hvad der sker først.
+          {t("dashboardPages.billing.trialBanner", {
+            days: trialDaysRemaining,
+            dayWord: t(
+              trialDaysRemaining === 1 ? "dashboardPages.billing.trialDaySingular" : "dashboardPages.billing.trialDayPlural"
+            ),
+            minutes: Math.max(0, balanceMinutes).toFixed(1),
+            total: trialMinutes,
+          })}
         </div>
       ) : null}
 
@@ -117,31 +124,39 @@ export function BillingManager({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nuværende pakke</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t("dashboardPages.billing.currentPackageLabel")}
+          </p>
           {currentPackage ? (
             <>
               <p className="mt-2 text-xl font-semibold text-slate-900">{currentPackage.package_name}</p>
               <p className="mt-1 text-sm text-slate-500">
-                {formatCurrency(currentPackage.monthly_price, currentPackage.currency)} / md ·{" "}
-                {currentPackage.included_minutes} minutter inkluderet
+                {t("dashboardPages.billing.currentPackageSubtitle", {
+                  price: formatCurrency(currentPackage.monthly_price, currentPackage.currency),
+                  minutes: currentPackage.included_minutes,
+                })}
               </p>
               {subscription ? (
                 <p className="mt-2 text-xs font-medium text-slate-500">
-                  Status: {SUBSCRIPTION_STATUS_LABELS[subscription.status] ?? subscription.status}
+                  {t("dashboardPages.billing.statusLabel", {
+                    status: t(SUBSCRIPTION_STATUS_KEYS[subscription.status] ?? "") || subscription.status,
+                  })}
                 </p>
               ) : null}
             </>
           ) : (
-            <p className="mt-2 text-sm text-slate-500">Ingen pakke valgt endnu.</p>
+            <p className="mt-2 text-sm text-slate-500">{t("dashboardPages.billing.noPackageYet")}</p>
           )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resterende saldo</p>
-          <p className="mt-2 text-xl font-semibold text-slate-900">{balanceMinutes.toFixed(1)} minutter</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Ubrugte minutter gemmes i op til 3 måneder, når pakken fornyes automatisk.
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {t("dashboardPages.billing.remainingBalanceLabel")}
           </p>
+          <p className="mt-2 text-xl font-semibold text-slate-900">
+            {t("dashboardPages.billing.balanceValue", { value: balanceMinutes.toFixed(1) })}
+          </p>
+          <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.billing.balanceDescription")}</p>
         </div>
       </div>
 
@@ -152,12 +167,12 @@ export function BillingManager({
           disabled={openingPortal}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
         >
-          {openingPortal ? "Åbner…" : "Administrer betaling / opsig abonnement →"}
+          {openingPortal ? t("dashboardPages.billing.openingPortal") : t("dashboardPages.billing.managePayment")}
         </button>
       ) : null}
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">Pakker</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{t("dashboardPages.billing.packagesHeading")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {availablePackages.map((pkg) => {
             const isCurrent = currentPackage?.id === pkg.id && isActiveSubscription;
@@ -174,10 +189,14 @@ export function BillingManager({
                     {formatCurrency(pkg.monthly_price, pkg.currency)}
                     <span className="text-sm font-medium text-slate-500"> /md</span>
                   </p>
-                  <p className="mt-1 text-sm text-slate-500">{pkg.included_minutes} minutter inkluderet</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {t("dashboardPages.billing.packageIncludedMinutes", { count: pkg.included_minutes })}
+                  </p>
                   {pkg.setup_fee ? (
                     <p className="mt-1 text-xs text-slate-400">
-                      Engangspris på {formatCurrency(pkg.setup_fee, pkg.currency)} for opsætning og onboarding
+                      {t("dashboardPages.billing.setupFee", {
+                        price: formatCurrency(pkg.setup_fee, pkg.currency),
+                      })}
                     </p>
                   ) : null}
                 </div>
@@ -187,7 +206,11 @@ export function BillingManager({
                   disabled={isCurrent || checkingOutId === pkg.id}
                   className="mt-4 w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
                 >
-                  {isCurrent ? "Jeres nuværende pakke" : checkingOutId === pkg.id ? "Åbner betaling…" : "Bestil pakke →"}
+                  {isCurrent
+                    ? t("dashboardPages.billing.currentPlanButton")
+                    : checkingOutId === pkg.id
+                      ? t("dashboardPages.shared.openingCheckout")
+                      : t("dashboardPages.billing.orderPackage")}
                 </button>
               </div>
             );

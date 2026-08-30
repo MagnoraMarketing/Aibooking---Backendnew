@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AdminStatCard } from "./stat-card";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 export interface ClientRow {
   id: string;
@@ -42,6 +43,7 @@ function initials(name: string): string {
 }
 
 export function ClientPortal({ initialClients, stats }: { initialClients: ClientRow[]; stats: AdminStats }) {
+  const { t } = useTranslation();
   const [clients, setClients] = useState(initialClients);
   const [search, setSearch] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
@@ -63,7 +65,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
 
   async function handleCreateClient() {
     if (!newName.trim() || !newEmail.trim()) {
-      setFormError("Udfyld navn og email.");
+      setFormError(t("adminPages.clientPortal.formErrorMissingFields"));
       return;
     }
     setCreating(true);
@@ -78,7 +80,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
     setCreating(false);
 
     if (!res.ok) {
-      setFormError("Kunne ikke oprette kunden. Prøv igen.");
+      setFormError(t("adminPages.clientPortal.formErrorCreateFailed"));
       return;
     }
 
@@ -140,7 +142,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
   }
 
   async function handleDelete(client: ClientRow) {
-    if (!window.confirm(`Slet ${client.name}? Dette deaktiverer kundens konto og widgets.`)) return;
+    if (!window.confirm(t("adminPages.clientPortal.confirmDelete", { name: client.name }))) return;
     setBusyId(client.id);
 
     const res = await fetch(`/api/admin/customers/${client.id}`, { method: "DELETE" });
@@ -154,27 +156,36 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Client Portal</h1>
-        <p className="mt-1 text-sm text-slate-500">Overblik over kunder, omsætning og forbrug</p>
+        <h1 className="text-2xl font-semibold text-slate-900">{t("adminPages.clientPortal.title")}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t("adminPages.clientPortal.subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <AdminStatCard label="Kunder i alt" value={String(stats.totalClients)} />
-        <AdminStatCard label="Nye kunder (30 dage)" value={String(stats.newClients30d)} />
-        <AdminStatCard label="Omsætning (MRR)" value={formatCurrency(stats.mrr, stats.currency)} />
-        <AdminStatCard label="Estimeret overskud" value={formatCurrency(stats.grossMargin, stats.currency)} />
-        <AdminStatCard label="Credits tilbage i alt" value={`${stats.totalMinutesRemaining.toFixed(0)} min`} />
-        <AdminStatCard label="Agenter i alt" value={String(stats.totalAgents)} />
+        <AdminStatCard label={t("adminPages.clientPortal.statTotalClients")} value={String(stats.totalClients)} />
+        <AdminStatCard
+          label={t("adminPages.clientPortal.statNewClients30d")}
+          value={String(stats.newClients30d)}
+        />
+        <AdminStatCard label={t("adminPages.clientPortal.statMrr")} value={formatCurrency(stats.mrr, stats.currency)} />
+        <AdminStatCard
+          label={t("adminPages.clientPortal.statGrossMargin")}
+          value={formatCurrency(stats.grossMargin, stats.currency)}
+        />
+        <AdminStatCard
+          label={t("adminPages.clientPortal.statCreditsRemainingTotal")}
+          value={`${stats.totalMinutesRemaining.toFixed(0)} ${t("adminPages.shared.minutesUnit")}`}
+        />
+        <AdminStatCard label={t("adminPages.clientPortal.statTotalAgents")} value={String(stats.totalAgents)} />
       </div>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">Kunder</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{t("adminShell.nav.customers")}</h2>
         <button
           type="button"
           onClick={() => setShowAddForm((v) => !v)}
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
-          + Tilføj kunde
+          {t("adminPages.clientPortal.addClient")}
         </button>
       </div>
 
@@ -183,7 +194,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="new-client-name" className="mb-1 block text-sm font-medium text-slate-700">
-                Navn / virksomhed
+                {t("adminPages.clientPortal.formNameLabel")}
               </label>
               <input
                 id="new-client-name"
@@ -194,7 +205,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
             </div>
             <div>
               <label htmlFor="new-client-email" className="mb-1 block text-sm font-medium text-slate-700">
-                Email
+                {t("auth.signup.email")}
               </label>
               <input
                 id="new-client-email"
@@ -213,14 +224,14 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
               disabled={creating}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {creating ? "Opretter…" : "Opret kunde"}
+              {creating ? t("auth.signup.submitting") : t("adminPages.clientPortal.formSubmitCreate")}
             </button>
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Annuller
+              {t("common.cancel")}
             </button>
           </div>
         </div>
@@ -229,14 +240,14 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Søg kunder på navn eller email…"
+        placeholder={t("adminPages.clientPortal.searchPlaceholder")}
         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
       />
 
       <div className="space-y-4">
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            Ingen kunder fundet.
+            {t("adminPages.clientPortal.noClientsFound")}
           </div>
         ) : (
           filtered.map((client) => (
@@ -254,7 +265,9 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
                 <div className="flex items-center gap-3">
                   {client.creditPricePerMinute !== null ? (
                     <span className="text-xs text-slate-500">
-                      Overpris: {formatCurrency(client.creditPricePerMinute, client.currency)}/min
+                      {t("adminPages.clientPortal.overpricePerMinute", {
+                        price: formatCurrency(client.creditPricePerMinute, client.currency),
+                      })}
                     </span>
                   ) : null}
                   <span
@@ -262,7 +275,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
                       client.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
                     }`}
                   >
-                    {client.status === "active" ? "Aktiv" : "Inaktiv"}
+                    {client.status === "active" ? t("adminPages.shared.active") : t("adminPages.shared.inactive")}
                   </span>
                   <button
                     type="button"
@@ -285,21 +298,25 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
 
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <div>
-                  <p className="text-xs text-slate-500">Credits tilbage</p>
-                  <p className="text-sm font-semibold text-slate-800">{client.minutesRemaining.toFixed(0)} min</p>
+                  <p className="text-xs text-slate-500">{t("adminPages.shared.creditsRemaining")}</p>
+                  <p className="text-sm font-semibold text-slate-800">
+                    {client.minutesRemaining.toFixed(0)} {t("adminPages.shared.minutesUnit")}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Minutter brugt</p>
-                  <p className="text-sm font-semibold text-slate-800">{client.minutesUsed.toFixed(0)} min</p>
+                  <p className="text-xs text-slate-500">{t("adminPages.clientPortal.minutesUsed")}</p>
+                  <p className="text-sm font-semibold text-slate-800">
+                    {client.minutesUsed.toFixed(0)} {t("adminPages.shared.minutesUnit")}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Aktive agenter</p>
+                  <p className="text-xs text-slate-500">{t("adminPages.clientPortal.activeAgents")}</p>
                   <p className="text-sm font-semibold text-slate-800">
                     {client.activeAgents} / {client.totalAgents}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Oprettet</p>
+                  <p className="text-xs text-slate-500">{t("adminPages.clientPortal.createdAt")}</p>
                   <p className="text-sm font-semibold text-slate-800">
                     {new Date(client.createdAt).toLocaleDateString("da-DK")}
                   </p>
@@ -309,7 +326,9 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
               {creditPromptFor?.id === client.id ? (
                 <div className="mt-4 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <span className="text-sm text-slate-600">
-                    {creditPromptFor.direction === "add" ? "Tilføj" : "Fjern"} minutter:
+                    {creditPromptFor.direction === "add"
+                      ? t("adminPages.clientPortal.addMinutesLabel")
+                      : t("adminPages.clientPortal.removeMinutesLabel")}
                   </span>
                   <input
                     type="number"
@@ -325,7 +344,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
                     disabled={busyId === client.id}
                     className="rounded-lg bg-brand-600 px-3 py-1 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
                   >
-                    Bekræft
+                    {t("adminPages.clientPortal.confirm")}
                   </button>
                   <button
                     type="button"
@@ -335,7 +354,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
                     }}
                     className="rounded-lg border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-white"
                   >
-                    Annuller
+                    {t("common.cancel")}
                   </button>
                 </div>
               ) : null}
@@ -345,43 +364,43 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
                   href={`/admin/customers/${client.id}`}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-center text-sm font-medium text-brand-700 hover:bg-brand-50"
                 >
-                  Se konto
+                  {t("adminPages.clientPortal.viewAccount")}
                 </Link>
                 <Link
                   href={`/admin/customers/${client.id}`}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  Administrer agenter
+                  {t("adminPages.clientPortal.manageAgents")}
                 </Link>
                 <button
                   type="button"
                   onClick={() => setCreditPromptFor({ id: client.id, direction: "add" })}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
                 >
-                  Tilføj credits
+                  {t("adminPages.clientPortal.addCredits")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setCreditPromptFor({ id: client.id, direction: "remove" })}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50"
                 >
-                  Fjern credits
+                  {t("adminPages.clientPortal.removeCredits")}
                 </button>
                 <button
                   type="button"
                   disabled
-                  title="Kommer snart — priser sættes i dag pr. pakke, ikke pr. kunde"
+                  title={t("adminPages.clientPortal.updatePriceTooltip")}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400"
                 >
-                  Opdater pris
+                  {t("adminPages.clientPortal.updatePrice")}
                 </button>
                 <button
                   type="button"
                   disabled
-                  title="Kommer snart"
+                  title={t("adminPages.clientPortal.permissionsTooltip")}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400"
                 >
-                  Rettigheder
+                  {t("adminPages.clientPortal.permissions")}
                 </button>
                 <button
                   type="button"
@@ -389,7 +408,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
                   disabled={busyId === client.id}
                   className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
                 >
-                  Slet
+                  {t("common.delete")}
                 </button>
               </div>
             </div>
