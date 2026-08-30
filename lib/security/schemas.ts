@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LOCALES } from "@/lib/i18n/locales";
 
 // ---------------------------------------------------------------------------
 // Admin: customers
@@ -20,7 +21,15 @@ export const signupSchema = z.object({
   companyName: z.string().trim().min(1).max(200),
   email: z.string().trim().email().max(320),
   password: z.string().min(8).max(200),
-  language: z.enum(["da", "en"]).default("da"),
+  language: z.enum(LOCALES).default("da"),
+});
+
+// ---------------------------------------------------------------------------
+// Profile: Dashboard/Admin UI language (see lib/i18n) — every signed-in
+// user, either role, can change their own.
+// ---------------------------------------------------------------------------
+export const profileLanguageInputSchema = z.object({
+  language: z.enum(LOCALES),
 });
 
 export const updateCustomerSchema = z.object({
@@ -140,8 +149,22 @@ export const widgetExtraSettingsSchema = z
     // assistant is a separate resource in Vapi, unlike the shared
     // llm_models row that just marks the widget as using Vapi at all.
     vapiAssistantId: z.string().trim().min(1).max(200).nullable(),
+    // Which admin-configured Vapi voice template ("Mand"/"Dame") the
+    // widget's own assistant clones its voice from — see
+    // resolveVoiceConfig in lib/vapi/assistants.ts. The raw template ids
+    // themselves are never sent to the customer-facing UI.
+    voiceGender: z.enum(["male", "female"]).nullable(),
   })
   .partial();
+
+// ---------------------------------------------------------------------------
+// Admin: Vapi voice templates ("Mand"/"Dame") — see
+// lib/settings/platform.ts's getVapiVoiceTemplateAssistantId.
+// ---------------------------------------------------------------------------
+export const vapiVoiceTemplatesInputSchema = z.object({
+  maleAssistantId: z.string().trim().min(1).max(200).nullable().optional(),
+  femaleAssistantId: z.string().trim().min(1).max(200).nullable().optional(),
+});
 
 // ---------------------------------------------------------------------------
 // Widget (public, end-user facing)
@@ -264,6 +287,22 @@ export const calcomUpdateEventTypeSchema = z.object({
   eventTypeId: z.number().int().positive(),
 });
 
+// Cal.com OAuth booking request
+export const calcomOAuthBookingSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().email().max(320),
+  startTime: z.string().datetime(),
+  eventTypeId: z.coerce.number().int().positive(),
+  notes: z.string().trim().max(1000).optional(),
+});
+
+// Cal.com availability query
+export const calcomAvailabilityQuerySchema = z.object({
+  startTime: z.string().datetime(),
+  endTime: z.string().datetime(),
+  eventTypeId: z.coerce.number().int().positive().optional(),
+});
+
 // ---------------------------------------------------------------------------
 // Phone numbers purchased through us (see 0015_platform_phone_numbers.sql
 // and lib/twilio) — search available Danish Twilio numbers, then buy one.
@@ -282,6 +321,38 @@ export const purchasePhoneNumberInputSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Manual dialer (see 0029_manual_dialer.sql, lib/twilio/dialer.ts) — a
+// customer calling an uploaded lead list from the browser, as themselves.
+// Capped generously higher than outboundCampaignInputSchema's 100: leads
+// here are dialed one at a time by a human, not fired concurrently, so
+// there's no per-request fan-out to bound — the practical limit is
+// MAX_REQUEST_BODY_BYTES.
+// ---------------------------------------------------------------------------
+export const leadListInputSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  leads: z
+    .array(
+      z.object({
+        phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
+        name: z.string().trim().max(200).optional(),
+        company: z.string().trim().max(200).optional(),
+      })
+    )
+    .min(1)
+    .max(500),
+});
+
+export const leadUpdateSchema = z.object({
+  status: z.enum(["pending", "calling", "called"]).optional(),
+  disposition: z
+    .enum(["booked", "interested", "not_interested", "no_answer", "voicemail", "wrong_number", "call_back"])
+    .nullable()
+    .optional(),
+  notes: z.string().trim().max(2000).nullable().optional(),
+  callSid: z.string().trim().max(100).nullable().optional(),
+});
+
+// ---------------------------------------------------------------------------
 // Billing
 // ---------------------------------------------------------------------------
 export const checkoutRequestSchema = z.object({
@@ -289,7 +360,7 @@ export const checkoutRequestSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Booking setup (see 0025_free_trial_and_booking.sql) — the customer asks for
+// Booking setup (see 0030_optional_booking.sql) — the customer asks for
 // booking from the dashboard, our team does the Cal.com/calendar work and
 // marks it done, which is what flips widgets.booking_enabled.
 // ---------------------------------------------------------------------------

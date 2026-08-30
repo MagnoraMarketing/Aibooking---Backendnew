@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireMasterAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling, writeAuditLog, requireParam } from "@/lib/security";
-import { provisionPurchasedNumber } from "@/lib/phone-numbers";
+import { provisionPurchasedNumber, PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
 import { ApiError } from "@/types/errors";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export const POST = withErrorHandling(async (_request, { params }) => {
 
   const { data: updated, error: refetchError } = await supabase
     .from("phone_numbers")
-    .select("*")
+    .select(PHONE_NUMBER_CLIENT_COLUMNS)
     .eq("id", phoneNumberId)
     .single();
   if (refetchError) throw refetchError;

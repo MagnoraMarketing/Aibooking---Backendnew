@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { escapeXml, buildGatherResponse, buildSayAndHangupResponse, buildConversationRelayResponse } from "@/lib/telephony/twiml";
+import {
+  escapeXml,
+  buildGatherResponse,
+  buildSayAndHangupResponse,
+  buildConversationRelayResponse,
+  buildDialResponse,
+} from "@/lib/telephony/twiml";
 
 describe("escapeXml", () => {
   it("escapes all five XML special characters", () => {
@@ -84,5 +90,30 @@ describe("buildConversationRelayResponse", () => {
       parameters: {},
     });
     expect(xml).not.toContain("<Parameter");
+  });
+});
+
+describe("buildDialResponse", () => {
+  it("dials the lead's number with the given caller ID and status callback", () => {
+    const xml = buildDialResponse({
+      to: "+4512345678",
+      callerId: "+4587654321",
+      statusCallbackUrl: "https://x.test/dialer-status?customerId=c1&leadId=l1",
+    });
+    expect(xml).toContain('<Dial callerId="+4587654321">');
+    expect(xml).toContain(
+      '<Number statusCallback="https://x.test/dialer-status?customerId=c1&amp;leadId=l1" statusCallbackEvent="initiated ringing answered completed" statusCallbackMethod="POST">+4512345678</Number>'
+    );
+    expect(xml).toContain("</Dial></Response>");
+  });
+
+  it("escapes special characters in the caller ID and status callback URL", () => {
+    const xml = buildDialResponse({
+      to: "+4512345678",
+      callerId: '+45"&<>',
+      statusCallbackUrl: "https://x.test/dialer-status?a=1&b=2",
+    });
+    expect(xml).toContain('callerId="+45&quot;&amp;&lt;&gt;"');
+    expect(xml).toContain('statusCallback="https://x.test/dialer-status?a=1&amp;b=2"');
   });
 });

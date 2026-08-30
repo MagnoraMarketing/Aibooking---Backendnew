@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { WidgetWithExtras } from "../agent-configurator";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 // Lets Cal.com be set up during agent creation itself, not just from the
 // separate Integrations page — same POST /api/customer/calendar/calcom
@@ -11,6 +12,7 @@ import type { WidgetWithExtras } from "../agent-configurator";
 // "Spring over" leaves the agent bookable via the widget/phone only, no
 // calendar wired up yet.
 export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtras; onNext: () => void }) {
+  const { t } = useTranslation();
   const [apiKey, setApiKey] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
 
   async function handleConnect() {
     if (!apiKey.trim()) {
-      setError("Indsæt jeres Cal.com API-nøgle.");
+      setError(t("agent.wizardCalendar.errorApiKeyRequired"));
       return;
     }
     setConnecting(true);
@@ -34,7 +36,7 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke forbinde Cal.com.");
+      setError(data?.error?.message ?? t("agent.wizardCalendar.errorConnectFailed"));
       return;
     }
 
@@ -44,21 +46,20 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
   return (
     <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Kalender</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Forbind Cal.com, så agenten kan tjekke ledige tider og booke møder direkte under samtalen — kan tilføjes
-          senere under Integrationer, hvis I springer det over nu.
-        </p>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          {t("agent.wizardCalendar.title")}
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">{t("agent.wizardCalendar.description")}</p>
       </div>
 
       {connected ? (
         <div className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          Cal.com forbundet. I kan vælge event-type og teste forbindelsen under Integrationer.
+          {t("agent.wizardCalendar.connectedMessage")}
         </div>
       ) : (
         <div>
           <label htmlFor="wizard-calcom-key" className="mb-1 block text-sm font-medium text-slate-700">
-            Cal.com API-nøgle
+            {t("agent.wizardCalendar.apiKeyLabel")}
           </label>
           <input
             id="wizard-calcom-key"
@@ -68,9 +69,7 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
             placeholder="cal_live_xxxxxxxxxxxx"
             className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
-          <p className="mt-1 text-xs text-slate-500">
-            Findes under Cal.com → Settings → Developer → API keys.
-          </p>
+          <p className="mt-1 text-xs text-slate-500">{t("agent.wizardCalendar.apiKeyHelp")}</p>
         </div>
       )}
 
@@ -82,7 +81,7 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
           onClick={onNext}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
-          {connected ? "Næste →" : "Spring over"}
+          {connected ? t("agent.wizard.nextArrow") : t("common.skip")}
         </button>
         {!connected ? (
           <button
@@ -91,7 +90,7 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
             disabled={connecting}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
-            {connecting ? "Forbinder…" : "Forbind Cal.com →"}
+            {connecting ? t("agent.wizardCalendar.connecting") : t("agent.wizardCalendar.connectButton")}
           </button>
         ) : null}
       </div>

@@ -9,7 +9,7 @@ import {
   rateLimit,
   getClientIp,
 } from "@/lib/security";
-import { provisionPurchasedNumber } from "@/lib/phone-numbers";
+import { provisionPurchasedNumber, PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
 import { ApiError } from "@/types/errors";
 
 export const dynamic = "force-dynamic";
@@ -89,7 +89,7 @@ export const POST = withErrorHandling(async (request) => {
 
   const { data: phoneNumber, error: refetchError } = await supabase
     .from("phone_numbers")
-    .select("*")
+    .select(PHONE_NUMBER_CLIENT_COLUMNS)
     .eq("id", phoneNumberRow.id)
     .single();
   if (refetchError) throw refetchError;

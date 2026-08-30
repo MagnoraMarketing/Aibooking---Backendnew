@@ -4,7 +4,8 @@ import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, importPhoneNumberInputSchema } from "@/lib/security";
 import { importTwilioPhoneNumber } from "@/lib/vapi";
 import { findIncomingPhoneNumberSid, configureDirectVoiceWebhook } from "@/lib/twilio";
-import { twilioWebhookUrls } from "@/lib/telephony/urls";
+import { assertTwilioWebhookBaseUrlConfigured, twilioWebhookUrls } from "@/lib/telephony/urls";
+import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -17,7 +18,7 @@ export const GET = withErrorHandling(async () => {
 
   const { data, error } = await supabase
     .from("phone_numbers")
-    .select("*")
+    .select(PHONE_NUMBER_CLIENT_COLUMNS)
     .eq("customer_id", ctx.profile.customer_id!)
     .order("created_at", { ascending: false });
 
@@ -69,6 +70,10 @@ export const POST = withErrorHandling(async (request) => {
     const sid = await findIncomingPhoneNumberSid(credentials, body.twilioPhoneNumber);
     if (!sid) throw ApiError.badRequest("Nummeret blev ikke fundet på denne Twilio-konto.");
 
+    // Checked before the number is pointed anywhere — see the same guard in
+    // lib/phone-numbers/service.ts.
+    assertTwilioWebhookBaseUrlConfigured();
+
     const urls = twilioWebhookUrls();
     await configureDirectVoiceWebhook(credentials, sid, {
       voiceUrl: urls.inbound,
@@ -103,7 +108,11 @@ export const POST = withErrorHandling(async (request) => {
     Object.assign(insertRow, { vapi_phone_number_id: imported.id, phone_number: imported.number });
   }
 
-  const { data: phoneNumber, error } = await supabase.from("phone_numbers").insert(insertRow).select("*").single();
+  const { data: phoneNumber, error } = await supabase
+    .from("phone_numbers")
+    .insert(insertRow)
+    .select(PHONE_NUMBER_CLIENT_COLUMNS)
+    .single();
 
   if (error) throw error;
 

@@ -3,23 +3,31 @@
 import { useState } from "react";
 import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 import { ToggleSwitch } from "../toggle-switch";
+import { useTranslation } from "@/components/i18n/language-provider";
 
-const THEMES = [
-  { name: "Ocean Blue", description: "Rolig og professionel", primary: "#2563eb", secondary: "#1e3a8a" },
-  { name: "Forest Green", description: "Naturlig og afbalanceret", primary: "#16a34a", secondary: "#14532d" },
-  { name: "Sunset Orange", description: "Varm og energisk", primary: "#ea580c", secondary: "#7c2d12" },
-  { name: "Summer Yellow", description: "Lys og glad", primary: "#eab308", secondary: "#713f12" },
-  { name: "Royal Purple", description: "Kreativ og luksuriøs", primary: "#9333ea", secondary: "#581c87" },
-] as const;
+function themesFor(t: (key: string) => string) {
+  return [
+    { name: "Ocean Blue", description: t("agent.customize.themeOceanDescription"), primary: "#2563eb", secondary: "#1e3a8a" },
+    { name: "Forest Green", description: t("agent.customize.themeForestDescription"), primary: "#16a34a", secondary: "#14532d" },
+    { name: "Sunset Orange", description: t("agent.customize.themeSunsetDescription"), primary: "#ea580c", secondary: "#7c2d12" },
+    { name: "Summer Yellow", description: t("agent.customize.themeSummerDescription"), primary: "#eab308", secondary: "#713f12" },
+    { name: "Royal Purple", description: t("agent.customize.themeRoyalDescription"), primary: "#9333ea", secondary: "#581c87" },
+  ] as const;
+}
 
-const POSITIONS = [
-  { value: "bottom-left", label: "Nederst venstre" },
-  { value: "bottom-right", label: "Nederst højre" },
-  { value: "top-left", label: "Øverst venstre" },
-  { value: "top-right", label: "Øverst højre" },
-] as const;
+function positionsFor(t: (key: string) => string) {
+  return [
+    { value: "bottom-left", label: t("agent.customize.positionBottomLeft") },
+    { value: "bottom-right", label: t("agent.customize.positionBottomRight") },
+    { value: "top-left", label: t("agent.customize.positionTopLeft") },
+    { value: "top-right", label: t("agent.customize.positionTopRight") },
+  ] as const;
+}
 
 export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithExtras; savePatch: SavePatch }) {
+  const { t } = useTranslation();
+  const THEMES = themesFor(t);
+  const POSITIONS = positionsFor(t);
   const [businessName, setBusinessName] = useState(widget.business_name ?? "");
   const [tagline, setTagline] = useState(widget.extra.tagline ?? "");
   const [logoUrl, setLogoUrl] = useState(widget.logo_url ?? "");
@@ -58,45 +66,45 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
       <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div>
           <label htmlFor="bot-name" className="mb-1 block text-sm font-medium text-slate-700">
-            Bottens navn
+            {t("agent.customize.botNameLabel")}
           </label>
           <input
             id="bot-name"
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
-            placeholder="Fx AIbooking Assistent"
+            placeholder={t("agent.customize.botNamePlaceholder")}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
         </div>
 
         <div>
           <label htmlFor="tagline" className="mb-1 block text-sm font-medium text-slate-700">
-            Tagline
+            {t("agent.customize.taglineLabel")}
           </label>
           <input
             id="tagline"
             value={tagline}
             onChange={(e) => setTagline(e.target.value)}
-            placeholder="Fx Din digitale receptionist"
+            placeholder={t("agent.customize.taglinePlaceholder")}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
         </div>
 
         <div>
           <label htmlFor="logo-url" className="mb-1 block text-sm font-medium text-slate-700">
-            Logo-URL
+            {t("agent.customize.logoUrlLabel")}
           </label>
           <input
             id="logo-url"
             value={logoUrl}
             onChange={(e) => setLogoUrl(e.target.value)}
-            placeholder="https://…"
+            placeholder={t("agent.customize.logoUrlPlaceholder")}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-medium text-slate-700">Vælg tema</p>
+          <p className="mb-2 text-sm font-medium text-slate-700">{t("agent.customize.chooseThemeLabel")}</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {THEMES.map((theme) => {
               const isSelected = primaryColor === theme.primary && secondaryColor === theme.secondary;
@@ -115,14 +123,16 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
                 >
                   <p className="text-sm font-semibold text-slate-800">{theme.name}</p>
                   <p className="text-xs text-slate-500">{theme.description}</p>
-                  {isSelected ? <p className="mt-1 text-xs font-medium text-brand-600">✓ Valgt</p> : null}
+                  {isSelected ? (
+                    <p className="mt-1 text-xs font-medium text-brand-600">{t("agent.customize.selectedBadge")}</p>
+                  ) : null}
                 </button>
               );
             })}
           </div>
           <div className="mt-3 flex items-center gap-4">
             <label className="flex items-center gap-2 text-sm text-slate-600">
-              Primær
+              {t("agent.customize.primaryColorLabel")}
               <input
                 type="color"
                 value={primaryColor}
@@ -131,7 +141,7 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
               />
             </label>
             <label className="flex items-center gap-2 text-sm text-slate-600">
-              Sekundær
+              {t("agent.customize.secondaryColorLabel")}
               <input
                 type="color"
                 value={secondaryColor}
@@ -143,7 +153,7 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-medium text-slate-700">Widget-placering</p>
+          <p className="mb-2 text-sm font-medium text-slate-700">{t("agent.customize.widgetPlacementLabel")}</p>
           <div className="grid grid-cols-2 gap-3 sm:w-64">
             {POSITIONS.map((p) => (
               <button
@@ -164,7 +174,7 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
 
         <div>
           <label htmlFor="widget-size" className="mb-1 block text-sm font-medium text-slate-700">
-            Størrelse
+            {t("agent.customize.sizeLabel")}
           </label>
           <select
             id="widget-size"
@@ -172,74 +182,73 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
             onChange={(e) => setWidgetSize(e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 sm:w-64"
           >
-            <option value="small">Lille</option>
-            <option value="medium">Mellem</option>
-            <option value="large">Stor</option>
+            <option value="small">{t("agent.customize.sizeSmall")}</option>
+            <option value="medium">{t("agent.customize.sizeMedium")}</option>
+            <option value="large">{t("agent.customize.sizeLarge")}</option>
           </select>
         </div>
       </div>
 
       <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Indstillinger</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          {t("agent.customize.settingsTitle")}
+        </h2>
         <ToggleSwitch
-          label="Vis AIbooking.dk-branding"
+          label={t("agent.customize.showBrandingLabel")}
           checked={showBranding}
           onChange={setShowBranding}
         />
         <ToggleSwitch
-          label="Transskription"
-          description="Gem tekst-transskription af samtaler."
+          label={t("agent.customize.transcriptionLabel")}
+          description={t("agent.customize.transcriptionDescription")}
           checked={extra.transcriptionEnabled ?? true}
           onChange={(v) => setExtraFlag("transcriptionEnabled", v)}
         />
         <ToggleSwitch
-          label="Tekst-chat"
-          description="Tillad kunder at skrive i stedet for at tale."
+          label={t("agent.customize.chatLabel")}
+          description={t("agent.customize.chatDescription")}
           checked={extra.chatEnabled ?? true}
           onChange={(v) => setExtraFlag("chatEnabled", v)}
         />
         <ToggleSwitch
-          label="Autostart"
-          description="Åbn widgetten automatisk når siden indlæses."
+          label={t("agent.customize.autostartLabel")}
+          description={t("agent.customize.autostartDescription")}
           checked={extra.autostart ?? false}
           onChange={(v) => setExtraFlag("autostart", v)}
         />
         <ToggleSwitch
-          label="Mute ved minimering"
+          label={t("agent.customize.muteOnMinimizeLabel")}
           checked={extra.muteOnMinimize ?? false}
           onChange={(v) => setExtraFlag("muteOnMinimize", v)}
         />
         <ToggleSwitch
-          label="Mute ved faneskift"
+          label={t("agent.customize.muteOnTabChangeLabel")}
           checked={extra.muteOnTabChange ?? false}
           onChange={(v) => setExtraFlag("muteOnTabChange", v)}
         />
         <ToggleSwitch
-          label="Vis lead-formular"
+          label={t("agent.customize.showLeadFormLabel")}
           checked={extra.showLeadForm ?? false}
           onChange={(v) => setExtraFlag("showLeadForm", v)}
         />
         <ToggleSwitch
-          label="Glødende ikon"
+          label={t("agent.customize.glowingIconLabel")}
           checked={extra.isGlowing ?? false}
           onChange={(v) => setExtraFlag("isGlowing", v)}
         />
         <ToggleSwitch
-          label="Transparent baggrund"
+          label={t("agent.customize.transparentBackgroundLabel")}
           checked={extra.isTransparent ?? false}
           onChange={(v) => setExtraFlag("isTransparent", v)}
         />
         <ToggleSwitch
-          label="Mute agent"
+          label={t("agent.customize.muteAgentLabel")}
           checked={extra.agentMute ?? false}
           onChange={(v) => setExtraFlag("agentMute", v)}
         />
       </div>
 
-      <p className="text-xs text-slate-500">
-        Farve, størrelse, placering og branding-visning slår igennem på den rigtige widget med det samme. De øvrige
-        til/fra-valg gemmes til jeres profil, men styrer endnu ikke widgettens adfærd i denne udgave.
-      </p>
+      <p className="text-xs text-slate-500">{t("agent.customize.footerNote")}</p>
 
       <div className="flex items-center gap-3">
         <button
@@ -248,10 +257,10 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
           disabled={saving}
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
-          {saving ? "Gemmer…" : "Gem"}
+          {saving ? t("common.saving") : t("common.save")}
         </button>
-        {status === "saved" ? <span className="text-sm text-emerald-600">Gemt.</span> : null}
-        {status === "error" ? <span className="text-sm text-red-600">Kunne ikke gemme.</span> : null}
+        {status === "saved" ? <span className="text-sm text-emerald-600">{t("common.saved")}</span> : null}
+        {status === "error" ? <span className="text-sm text-red-600">{t("common.saveFailed")}</span> : null}
       </div>
     </div>
   );

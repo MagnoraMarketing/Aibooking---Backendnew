@@ -1,4 +1,5 @@
 import type { LLMMessage } from "./types";
+import { languageDirective } from "@/lib/i18n/agent-content";
 
 // Keeping the LLM context small is the single biggest lever on Claude API
 // cost. Instead of replaying the full conversation on every turn we keep a
@@ -27,6 +28,10 @@ export function buildSystemPrompt(params: {
   summary: string | null;
   maxResponseChars: number;
   knowledgeBase?: string | null;
+  // Widget's spoken language (see lib/i18n/agent-content.ts) — every
+  // default/example prompt here is authored in Danish, so a non-Danish
+  // widget needs an explicit instruction or Claude just answers in Danish.
+  language?: string | null;
 }): string {
   const approxWords = Math.max(10, Math.round(params.maxResponseChars / 6));
   const costControl = [
@@ -36,6 +41,11 @@ export function buildSystemPrompt(params: {
   ].join(" ");
 
   const parts = [(params.basePrompt ?? DEFAULT_SYSTEM_PROMPT).trim(), costControl];
+
+  const directive = languageDirective(params.language);
+  if (directive) {
+    parts.push(directive);
+  }
 
   if (params.knowledgeBase) {
     parts.push(params.knowledgeBase);

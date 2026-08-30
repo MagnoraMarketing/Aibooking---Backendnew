@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { translate } from "@/lib/i18n/dictionaries";
+import type { Locale } from "@/lib/i18n/locales";
 
 // Static, server-renderable marketing content for /dashboard/integrations —
 // mirrors the sales pitch on aibooking.dk/integrationer (hero, category
@@ -71,54 +73,46 @@ const ICONS = {
   ),
 } as const;
 
-const HERO_FEATURES = [
-  {
-    icon: ICONS.clock,
-    tint: "bg-brand-50 text-brand-600",
-    title: "Spar Timer Dagligt",
-    description: "Automatiser ind- og udgående opkald, SMS og emails mens AI'en synkroniserer med jeres systemer.",
-  },
-  {
-    icon: ICONS.bolt,
-    tint: "bg-brand-50 text-brand-600",
-    title: "Hurtig Opsætning",
-    description: "Ingen kompliceret installation. Forbind jeres eksisterende værktøjer på minutter.",
-  },
-  {
-    icon: ICONS.check,
-    tint: "bg-brand-50 text-brand-600",
-    title: "Altid Synkroniseret",
-    description: "Real-time opdateringer på tværs af alle jeres platforme. Ingen dobbeltarbejde.",
-  },
-];
+export function IntegrationsHero({ locale }: { locale: Locale }) {
+  const t = (key: string) => translate(locale, key);
 
-const CATEGORIES = [
-  { icon: ICONS.calendar, tint: "bg-blue-50 text-blue-600", title: "Kalender & Planlægning", tools: "Google Calendar, Outlook, Cal.com" },
-  { icon: ICONS.users, tint: "bg-emerald-50 text-emerald-600", title: "CRM & Kunder", tools: "HubSpot, Salesforce, Pipedrive" },
-  { icon: ICONS.chat, tint: "bg-sky-50 text-sky-600", title: "Kommunikation", tools: "WhatsApp, Slack, Discord, Messenger" },
-  { icon: ICONS.document, tint: "bg-amber-50 text-amber-600", title: "Dokumenter", tools: "Notion, WordPress, Google Docs" },
-  { icon: ICONS.cart, tint: "bg-rose-50 text-rose-600", title: "E-handel", tools: "Shopify, WooCommerce, Stripe" },
-  { icon: ICONS.wrench, tint: "bg-violet-50 text-violet-600", title: "Automatisering", tools: "Zapier, Make, Webhooks, API" },
-];
+  const HERO_FEATURES = [
+    {
+      icon: ICONS.clock,
+      tint: "bg-brand-50 text-brand-600",
+      title: t("dashboardPages.integrations-showcase.feature1Title"),
+      description: t("dashboardPages.integrations-showcase.feature1Description"),
+    },
+    {
+      icon: ICONS.bolt,
+      tint: "bg-brand-50 text-brand-600",
+      title: t("dashboardPages.integrations-showcase.feature2Title"),
+      description: t("dashboardPages.integrations-showcase.feature2Description"),
+    },
+    {
+      icon: ICONS.check,
+      tint: "bg-brand-50 text-brand-600",
+      title: t("dashboardPages.integrations-showcase.feature3Title"),
+      description: t("dashboardPages.integrations-showcase.feature3Description"),
+    },
+  ];
 
-export function IntegrationsHero() {
   return (
     <div className="space-y-8 text-center">
       <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-3 w-3">
           <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        Problemfri Integration
+        {t("dashboardPages.integrations-showcase.badge")}
       </span>
 
       <div className="space-y-4">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-          Forbind med dine <span className="text-brand-600">eksisterende værktøjer</span>
+          {t("dashboardPages.integrations-showcase.heroTitlePrefix")}{" "}
+          <span className="text-brand-600">{t("dashboardPages.integrations-showcase.heroTitleHighlight")}</span>
         </h1>
         <p className="mx-auto max-w-2xl text-sm text-slate-600 sm:text-base">
-          Vores AI-løsning automatiserer administration, opkald, SMS og email ved at arbejde sammen med de systemer I
-          allerede bruger. Spar tid, bliv mere professionel, og lad AI&apos;en håndtere ombookinger, opfølgning og
-          mødebekræftigelser automatisk.
+          {t("dashboardPages.integrations-showcase.heroDescription")}
         </p>
       </div>
 
@@ -135,12 +129,57 @@ export function IntegrationsHero() {
   );
 }
 
-export function IntegrationCategories() {
+export function IntegrationCategories({ locale }: { locale: Locale }) {
+  const t = (key: string) => translate(locale, key);
+
+  const CATEGORIES = [
+    {
+      icon: ICONS.calendar,
+      tint: "bg-blue-50 text-blue-600",
+      title: t("dashboardPages.integrations-showcase.categoryCalendarTitle"),
+      tools: "Google Calendar, Outlook, Cal.com",
+    },
+    {
+      icon: ICONS.users,
+      tint: "bg-emerald-50 text-emerald-600",
+      title: t("dashboardPages.integrations-showcase.categoryCrmTitle"),
+      tools: "HubSpot, Salesforce, Pipedrive",
+    },
+    {
+      icon: ICONS.chat,
+      tint: "bg-sky-50 text-sky-600",
+      title: t("dashboardPages.integrations-showcase.categoryCommunicationTitle"),
+      tools: "WhatsApp, Slack, Discord, Messenger",
+    },
+    {
+      icon: ICONS.document,
+      tint: "bg-amber-50 text-amber-600",
+      title: t("dashboardPages.integrations-showcase.categoryDocumentsTitle"),
+      tools: "Notion, WordPress, Google Docs",
+    },
+    {
+      icon: ICONS.cart,
+      tint: "bg-rose-50 text-rose-600",
+      title: t("dashboardPages.integrations-showcase.categoryEcommerceTitle"),
+      tools: "Shopify, WooCommerce, Stripe",
+    },
+    {
+      icon: ICONS.wrench,
+      tint: "bg-violet-50 text-violet-600",
+      title: t("dashboardPages.integrations-showcase.categoryAutomationTitle"),
+      tools: "Zapier, Make, Webhooks, API",
+    },
+  ];
+
   return (
     <div className="space-y-6 text-center">
       <div>
-        <h2 className="text-2xl font-semibold text-slate-900">Integration Kategorier</h2>
-        <p className="mt-1 text-sm text-slate-500">Vores AI-løsning forbinder med de værktøjer I allerede bruger hver dag</p>
+        <h2 className="text-2xl font-semibold text-slate-900">
+          {t("dashboardPages.integrations-showcase.categoriesHeading")}
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          {t("dashboardPages.integrations-showcase.categoriesSubtitle")}
+        </p>
       </div>
       <div className="grid grid-cols-1 gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
         {CATEGORIES.map((category) => (

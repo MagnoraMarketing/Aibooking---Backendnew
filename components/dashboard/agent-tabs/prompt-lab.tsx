@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; savePatch: SavePatch }) {
+  const { t } = useTranslation();
   const [systemPrompt, setSystemPrompt] = useState(widget.system_prompt ?? "");
   const [welcomeMessage, setWelcomeMessage] = useState(widget.welcome_message ?? "");
   const [openingMessage, setOpeningMessage] = useState(widget.opening_message ?? "");
@@ -27,7 +29,7 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
 
   async function handleGenerate() {
     if (!businessDescription.trim()) {
-      setGenerateError("Udfyld i det mindste hvad virksomheden laver.");
+      setGenerateError(t("agent.promptLab.generateErrorMissingDescription"));
       return;
     }
     setGenerating(true);
@@ -45,8 +47,8 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
       const data = await res.json().catch(() => null);
       setGenerateError(
         data?.error?.message
-          ? `Kunne ikke generere en prompt: ${data.error.message}`
-          : "Kunne ikke generere en prompt. Prøv igen, eller skriv den selv nedenfor."
+          ? t("agent.promptLab.generateErrorWithDetail", { detail: data.error.message })
+          : t("agent.promptLab.generateErrorGeneric")
       );
       return;
     }
@@ -59,22 +61,21 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
     <div className="space-y-5">
       <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Basisoplysninger</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Svar kort på nogle få spørgsmål om jeres virksomhed, så AI&apos;en kan skrive et udkast til jeres
-            AI-receptionist. I kan altid redigere resultatet manuelt bagefter.
-          </p>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            {t("agent.promptLab.sectionTitle")}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">{t("agent.promptLab.sectionDescription")}</p>
         </div>
 
         <div>
           <label htmlFor="business-description" className="mb-1 block text-sm font-medium text-slate-700">
-            Hvad laver virksomheden?
+            {t("agent.promptLab.businessDescriptionLabel")}
           </label>
           <input
             id="business-description"
             value={businessDescription}
             onChange={(e) => setBusinessDescription(e.target.value)}
-            placeholder="Fx frisørsalon i København med klip, farvning og styling"
+            placeholder={t("agent.promptLab.businessDescriptionPlaceholder")}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
         </div>
@@ -82,25 +83,25 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="key-services" className="mb-1 block text-sm font-medium text-slate-700">
-              Vigtigste ydelser/produkter
+              {t("agent.promptLab.keyServicesLabel")}
             </label>
             <input
               id="key-services"
               value={keyServices}
               onChange={(e) => setKeyServices(e.target.value)}
-              placeholder="Fx klipning, farvning, brudestyling"
+              placeholder={t("agent.promptLab.keyServicesPlaceholder")}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
           </div>
           <div>
             <label htmlFor="opening-hours" className="mb-1 block text-sm font-medium text-slate-700">
-              Åbningstider
+              {t("agent.promptLab.openingHoursLabel")}
             </label>
             <input
               id="opening-hours"
               value={openingHours}
               onChange={(e) => setOpeningHours(e.target.value)}
-              placeholder="Fx man-fre 9-18, lør 10-14"
+              placeholder={t("agent.promptLab.openingHoursPlaceholder")}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
           </div>
@@ -108,13 +109,13 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
 
         <div>
           <label htmlFor="other-notes" className="mb-1 block text-sm font-medium text-slate-700">
-            Andet vigtigt at vide
+            {t("agent.promptLab.otherNotesLabel")}
           </label>
           <input
             id="other-notes"
             value={otherNotes}
             onChange={(e) => setOtherNotes(e.target.value)}
-            placeholder="Fx husk at spørge om telefonnummer ved booking"
+            placeholder={t("agent.promptLab.otherNotesPlaceholder")}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
         </div>
@@ -127,50 +128,48 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
           disabled={generating}
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
-          {generating ? "Genererer…" : "Generér prompt"}
+          {generating ? t("agent.promptLab.generating") : t("agent.promptLab.generateButton")}
         </button>
       </div>
 
       <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div>
           <label htmlFor="system-prompt" className="mb-1 block text-sm font-medium text-slate-700">
-            System-prompt
+            {t("agent.promptLab.systemPromptLabel")}
           </label>
           <textarea
             id="system-prompt"
             rows={8}
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
-            placeholder="Udfyld basisoplysningerne ovenfor og klik Generér prompt, eller skriv jeres egen her."
+            placeholder={t("agent.promptLab.systemPromptPlaceholder")}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
-          <p className="mt-1 text-xs text-slate-500">
-            Genereret af AI ud fra basisoplysningerne — I kan altid redigere teksten manuelt her.
-          </p>
+          <p className="mt-1 text-xs text-slate-500">{t("agent.promptLab.systemPromptHelp")}</p>
         </div>
 
         <div>
           <label htmlFor="welcome-message" className="mb-1 block text-sm font-medium text-slate-700">
-            Velkomstbesked
+            {t("agent.promptLab.welcomeMessageLabel")}
           </label>
           <input
             id="welcome-message"
             value={welcomeMessage}
             onChange={(e) => setWelcomeMessage(e.target.value)}
-            placeholder="Hej! Hvordan kan jeg hjælpe dig i dag?"
+            placeholder={t("agent.promptLab.welcomeMessagePlaceholder")}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
         </div>
 
         <div>
           <label htmlFor="opening-message" className="mb-1 block text-sm font-medium text-slate-700">
-            Åbningsbesked (talt)
+            {t("agent.promptLab.openingMessageLabel")}
           </label>
           <input
             id="opening-message"
             value={openingMessage}
             onChange={(e) => setOpeningMessage(e.target.value)}
-            placeholder="Goddag, du taler med AI-assistenten. Hvad kan jeg hjælpe med?"
+            placeholder={t("agent.promptLab.openingMessagePlaceholder")}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
         </div>
@@ -182,10 +181,10 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
             disabled={saving}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
-            {saving ? "Gemmer…" : "Gem"}
+            {saving ? t("common.saving") : t("common.save")}
           </button>
-          {status === "saved" ? <span className="text-sm text-emerald-600">Gemt.</span> : null}
-          {status === "error" ? <span className="text-sm text-red-600">Kunne ikke gemme.</span> : null}
+          {status === "saved" ? <span className="text-sm text-emerald-600">{t("common.saved")}</span> : null}
+          {status === "error" ? <span className="text-sm text-red-600">{t("common.saveFailed")}</span> : null}
         </div>
       </div>
     </div>

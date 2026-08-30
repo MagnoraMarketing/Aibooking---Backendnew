@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/database/admin";
 import { finalizeUsageSession } from "@/lib/usage";
-import { validateTwilioSignature, formDataToParams, getOrCreateSubaccount } from "@/lib/twilio";
+import { validateTwilioSignature, formDataToParams } from "@/lib/twilio";
+import { resolveTwilioCallCredentials } from "@/lib/telephony/resolve";
 import { twilioWebhookUrls } from "@/lib/telephony/urls";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +36,17 @@ export async function POST(request: Request): Promise<NextResponse> {
   // finalize in that case.
   if (!conversation) return NextResponse.json({ received: true });
 
-  const credentials = await getOrCreateSubaccount(conversation.customer_id);
+  // A BYO number signs its callbacks with the customer's own auth token,
+  // not with the subaccount token this route used to assume — against the
+  // wrong token every BYO call's status callback failed the signature check
+  // and returned 403, so its usage session was never finalized: the call
+  // stayed "open" and its minutes were never billed. Resolving from the
+  // call's own number (ours is To on an inbound call, From on an outbound
+  // one) picks the right token for both kinds of number.
+  const credentials = await resolveTwilioCallCredentials({
+    customerId: conversation.customer_id,
+    candidateNumbers: [formParams.To, formParams.From],
+  });
   const signatureValid = validateTwilioSignature({
     url: twilioWebhookUrls().status,
     formParams,

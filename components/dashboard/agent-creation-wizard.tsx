@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LLMModel, Package, VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "./agent-configurator";
+import { useTranslation } from "@/components/i18n/language-provider";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { WizardVoiceStep } from "./agent-tabs/wizard-voice-step";
 import { WizardCalendarStep } from "./agent-tabs/wizard-calendar-step";
@@ -12,22 +13,26 @@ import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
 type AgentType = "widget" | "phone";
 
-const TYPE_OPTIONS: {
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
+
+function typeOptionsFor(t: Translate): {
   value: AgentType;
   title: string;
   description: string;
-}[] = [
-  {
-    value: "widget",
-    title: "Voice Widget",
-    description: "En chat-/stemme-widget til jeres hjemmeside — besøgende taler direkte med agenten i browseren.",
-  },
-  {
-    value: "phone",
-    title: "Telefon (Inbound/Outbound)",
-    description: "Agenten besvarer og/eller foretager opkald via jeres telefonnummer — forbindes med Twilio.",
-  },
-];
+}[] {
+  return [
+    {
+      value: "widget",
+      title: t("agent.wizard.type.widgetTitle"),
+      description: t("agent.wizard.type.widgetDescription"),
+    },
+    {
+      value: "phone",
+      title: t("agent.wizard.type.phoneTitle"),
+      description: t("agent.wizard.type.phoneDescription"),
+    },
+  ];
+}
 
 // Which engine powers a Voice Widget's realtime call is ours to decide, not
 // the customer's: AI Booking is the product, and the engine behind it is an
@@ -35,12 +40,19 @@ const TYPE_OPTIONS: {
 // stranded by if we ever swap it). Widgets are created on this provider and
 // the picker that used to sit in step 1 is gone. The Twilio ConversationRelay
 // path (0024_twilio_conversation_relay.sql) still exists server-side for
-// phone agents — it just isn't a choice presented here.
+// phone agents — it just isn't a choice presented here, and its TTS/voice
+// side is still incomplete.
 const WIDGET_LLM_PROVIDER = "vapi";
 
-function stepsFor(agentType: AgentType | null) {
-  const lastStep = agentType === "phone" ? "Telefonnummer" : "Embed-kode";
-  return ["Navn & type", "Prompt", "Stemme", "Kalender", lastStep] as const;
+function stepsFor(agentType: AgentType | null, t: Translate) {
+  const lastStep = agentType === "phone" ? t("agent.wizard.step.phone") : t("agent.wizard.step.embedCode");
+  return [
+    t("agent.wizard.step.nameType"),
+    t("agent.wizard.step.prompt"),
+    t("agent.wizard.step.voice"),
+    t("agent.wizard.step.calendar"),
+    lastStep,
+  ] as const;
 }
 
 interface AgentCreationWizardProps {
@@ -102,6 +114,7 @@ export function AgentCreationWizard({
   onComplete,
   fixedType,
 }: AgentCreationWizardProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [widget, setWidget] = useState<WidgetWithExtras | null>(null);
@@ -111,7 +124,8 @@ export function AgentCreationWizard({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const steps = stepsFor(agentType);
+  const steps = stepsFor(agentType, t);
+  const typeOptions = typeOptionsFor(t);
 
   const savePatch: SavePatch = async (patch) => {
     if (!widget) return false;
@@ -128,17 +142,17 @@ export function AgentCreationWizard({
 
   async function handleCreate() {
     if (!name.trim()) {
-      setError("Angiv et navn til agenten.");
+      setError(t("agent.wizard.errorNameRequired"));
       return;
     }
     if (!agentType) {
-      setError("Vælg om agenten er en Voice Widget eller til Telefon.");
+      setError(t("agent.wizard.errorTypeRequired"));
       return;
     }
     const provider = agentType === "phone" ? "anthropic" : WIDGET_LLM_PROVIDER;
     const selectedModelId = llmModels.find((m) => m.provider === provider)?.id ?? null;
     if (!selectedModelId) {
-      setError("Stemmeagenten kan ikke oprettes lige nu. Kontakt support.");
+      setError(t("agent.wizard.errorNoModel"));
       return;
     }
 
@@ -155,7 +169,7 @@ export function AgentCreationWizard({
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke oprette agenten. Prøv igen.");
+      setError(data?.error?.message ?? t("agent.wizard.errorCreateFailed"));
       return;
     }
 
@@ -178,13 +192,13 @@ export function AgentCreationWizard({
         <div className="space-y-4">
           <div>
             <label htmlFor="agent-name" className="mb-1 block text-sm font-medium text-slate-700">
-              Agent Name
+              {t("agent.wizard.agentNameLabel")}
             </label>
             <input
               id="agent-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Fx Reception – Hovedbutik"
+              placeholder={t("agent.wizard.agentNamePlaceholder")}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
           </div>
@@ -192,17 +206,17 @@ export function AgentCreationWizard({
           {fixedType ? (
             <div className="rounded-xl border border-brand-200 bg-brand-50 p-4">
               <p className="text-sm font-semibold text-brand-700">
-                {TYPE_OPTIONS.find((t) => t.value === fixedType)?.title}
+                {typeOptions.find((opt) => opt.value === fixedType)?.title}
               </p>
               <p className="mt-1 text-xs text-brand-600">
-                {TYPE_OPTIONS.find((t) => t.value === fixedType)?.description}
+                {typeOptions.find((opt) => opt.value === fixedType)?.description}
               </p>
             </div>
           ) : (
             <div>
-              <p className="mb-2 text-sm font-medium text-slate-700">Hvad skal agenten bruges til?</p>
+              <p className="mb-2 text-sm font-medium text-slate-700">{t("agent.wizard.typeQuestion")}</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {TYPE_OPTIONS.map((option) => (
+                {typeOptions.map((option) => (
                   <button
                     key={option.value}
                     type="button"
@@ -218,9 +232,7 @@ export function AgentCreationWizard({
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Resten af opsætningen tilpasses automatisk efter jeres valg — I skal ikke selv vælge teknisk model.
-              </p>
+              <p className="mt-2 text-xs text-slate-500">{t("agent.wizard.typeHelp")}</p>
             </div>
           )}
 
@@ -232,7 +244,7 @@ export function AgentCreationWizard({
               onClick={onCancel}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Annuller
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -240,7 +252,7 @@ export function AgentCreationWizard({
               disabled={creating || !agentType}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {creating ? "Opretter…" : "Næste →"}
+              {creating ? t("agent.wizard.creating") : t("agent.wizard.nextArrow")}
             </button>
           </div>
         </div>
@@ -255,14 +267,14 @@ export function AgentCreationWizard({
               onClick={() => setStep(2)}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Spring over
+              {t("common.skip")}
             </button>
             <button
               type="button"
               onClick={() => setStep(2)}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
             >
-              Næste →
+              {t("agent.wizard.nextArrow")}
             </button>
           </div>
         </div>
@@ -270,13 +282,19 @@ export function AgentCreationWizard({
 
       {step === 2 && widget ? (
         <div className="space-y-4">
-          <WizardVoiceStep widget={widget} voiceModels={voiceModels} savePatch={savePatch} onNext={() => setStep(3)} />
+          <WizardVoiceStep
+            widget={widget}
+            llmModels={llmModels}
+            voiceModels={voiceModels}
+            savePatch={savePatch}
+            onNext={() => setStep(3)}
+          />
           <button
             type="button"
             onClick={() => setStep(3)}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            Spring over
+            {t("common.skip")}
           </button>
         </div>
       ) : null}
@@ -295,7 +313,7 @@ export function AgentCreationWizard({
             onClick={handleFinish}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
-            Fuldfør — gå til agenten →
+            {t("agent.wizard.finish")}
           </button>
         </div>
       ) : null}

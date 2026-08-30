@@ -8,6 +8,7 @@ import { validateTwilioSignature, formDataToParams } from "@/lib/twilio";
 import { resolveTwilioDirectNumber } from "@/lib/telephony/resolve";
 import { twilioWebhookUrls, toTwilioLanguage } from "@/lib/telephony/urls";
 import { buildGatherResponse, buildSayAndHangupResponse, twimlResponseHeaders } from "@/lib/telephony/twiml";
+import { agentUnavailableText, askToRepeatText, noSpeechHeardText } from "@/lib/i18n/agent-content";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 
 export const dynamic = "force-dynamic";
@@ -69,13 +70,13 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   if (!bundle || !bundle.llmModel || !bundle.voiceModel) {
     await finalizeUsageSession(usageSession.id);
-    return xml(buildSayAndHangupResponse({ sayText: "Denne agent er ikke tilgængelig lige nu. Farvel.", language }));
+    return xml(buildSayAndHangupResponse({ sayText: agentUnavailableText(bundle?.widget.language), language }));
   }
 
   if (!speechResult || !speechResult.trim()) {
     return xml(
       buildGatherResponse({
-        sayText: "Jeg hørte desværre ikke noget. Kan du sige det igen?",
+        sayText: askToRepeatText(bundle.widget.language),
         gatherActionUrl: urls.turn,
         language,
       })
@@ -129,6 +130,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       playUrl,
       gatherActionUrl: urls.turn,
       language,
+      noInputText: noSpeechHeardText(bundle.widget.language),
     })
   );
 }

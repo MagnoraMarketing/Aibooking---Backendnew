@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { Widget, PhoneNumberDirection } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import { CallForwardingInstructions } from "./call-forwarding-instructions";
+import { useTranslation } from "@/components/i18n/language-provider";
+import { TwilioBalanceCard } from "./twilio-balance-card";
 
 interface InboundManagerProps {
   widgets: Widget[];
@@ -32,30 +34,23 @@ interface OwnedNumber {
 
 type Mode = "buy" | "byo";
 
-const STATUS_LABELS: Record<PhoneNumberRow["purchase_status"], string> = {
-  pending_payment: "Afventer betaling",
-  payment_confirmed: "Betaling bekræftet — aktiveres…",
-  provisioning: "Aktiveres…",
-  active: "Aktiv",
-  failed: "Fejlet",
-  released: "Frigivet",
-};
-
-const DIRECTION_LABELS: Record<PhoneNumberDirection, string> = {
-  inbound: "Inbound",
-  outbound: "Outbound",
-  both: "Inbound + Outbound",
-};
-
-function DirectionPicker({ value, onChange }: { value: PhoneNumberDirection; onChange: (v: PhoneNumberDirection) => void }) {
+function DirectionPicker({
+  value,
+  onChange,
+  t,
+}: {
+  value: PhoneNumberDirection;
+  onChange: (v: PhoneNumberDirection) => void;
+  t: (key: string) => string;
+}) {
   const options: { value: PhoneNumberDirection; label: string }[] = [
-    { value: "inbound", label: "Inbound" },
-    { value: "outbound", label: "Outbound" },
-    { value: "both", label: "Inbound + Outbound" },
+    { value: "inbound", label: t("dashboardPages.inbound.directionInbound") },
+    { value: "outbound", label: t("dashboardPages.inbound.directionOutbound") },
+    { value: "both", label: t("dashboardPages.inbound.directionBoth") },
   ];
   return (
     <div>
-      <p className="mb-1 text-sm font-medium text-slate-700">Nummerets rolle</p>
+      <p className="mb-1 text-sm font-medium text-slate-700">{t("dashboardPages.inbound.directionRoleLabel")}</p>
       <div className="flex gap-2">
         {options.map((option) => (
           <button
@@ -77,6 +72,29 @@ function DirectionPicker({ value, onChange }: { value: PhoneNumberDirection; onC
 }
 
 export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailable }: InboundManagerProps) {
+  const { t } = useTranslation();
+
+  const STATUS_LABELS: Record<PhoneNumberRow["purchase_status"], string> = useMemo(
+    () => ({
+      pending_payment: t("dashboardPages.inbound.statusPendingPayment"),
+      payment_confirmed: t("dashboardPages.inbound.statusPaymentConfirmed"),
+      provisioning: t("dashboardPages.inbound.statusProvisioning"),
+      active: t("dashboardPages.shared.statusActive"),
+      failed: t("dashboardPages.inbound.statusFailed"),
+      released: t("dashboardPages.inbound.statusReleased"),
+    }),
+    [t]
+  );
+
+  const DIRECTION_LABELS: Record<PhoneNumberDirection, string> = useMemo(
+    () => ({
+      inbound: t("dashboardPages.inbound.directionInbound"),
+      outbound: t("dashboardPages.inbound.directionOutbound"),
+      both: t("dashboardPages.inbound.directionBoth"),
+    }),
+    [t]
+  );
+
   const [phoneNumbers, setPhoneNumbers] = useState(initialPhoneNumbers);
   const [showForm, setShowForm] = useState(initialPhoneNumbers.length === 0);
   const [mode, setMode] = useState<Mode>("buy");
@@ -104,7 +122,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
   const [busyId, setBusyId] = useState<string | null>(null);
 
   function widgetName(id: string): string {
-    return widgets.find((w) => w.id === id)?.name ?? "Ukendt agent";
+    return widgets.find((w) => w.id === id)?.name ?? t("dashboardPages.shared.unknownAgent");
   }
 
   function handleOpenTrialModal() {
@@ -141,7 +159,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke hente ledige numre. Prøv igen.");
+      setError(data?.error?.message ?? t("dashboardPages.inbound.errorSearchNumbers"));
       return;
     }
 
@@ -151,7 +169,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
   async function handlePurchase() {
     if (!widgetId || !selectedNumber) {
-      setError("Vælg agent og et nummer.");
+      setError(t("dashboardPages.inbound.errorSelectAgentAndNumber"));
       return;
     }
     setPurchasing(true);
@@ -167,7 +185,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke købe nummeret.");
+      setError(data?.error?.message ?? t("dashboardPages.inbound.errorPurchase"));
       return;
     }
 
@@ -180,7 +198,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
   async function handleFetchByoNumbers() {
     if (!twilioAccountSid.trim() || !twilioAuthToken.trim()) {
-      setError("Udfyld Account SID og Auth Token først.");
+      setError(t("dashboardPages.inbound.errorFillTwilioCredentials"));
       return;
     }
     setFetchingByoNumbers(true);
@@ -200,7 +218,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke hente numre fra Twilio.");
+      setError(data?.error?.message ?? t("dashboardPages.inbound.errorFetchTwilioNumbers"));
       return;
     }
 
@@ -211,7 +229,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
   async function handleImport() {
     if (!widgetId || !twilioAccountSid.trim() || !twilioAuthToken.trim() || !twilioPhoneNumber.trim()) {
-      setError("Udfyld agent og alle Twilio-felter.");
+      setError(t("dashboardPages.inbound.errorFillAllTwilioFields"));
       return;
     }
     setImporting(true);
@@ -234,7 +252,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke importere nummeret.");
+      setError(data?.error?.message ?? t("dashboardPages.inbound.errorImport"));
       return;
     }
 
@@ -261,7 +279,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
   }
 
   async function handleRelease(id: string) {
-    if (!confirm("Er du sikker? Telefonnummeret frigives fra Twilio og kan muligvis ikke gendannes.")) return;
+    if (!confirm(t("dashboardPages.inbound.confirmRelease"))) return;
     setBusyId(id);
     const res = await fetch(`/api/customer/phone-numbers/${id}`, { method: "DELETE" });
     setBusyId(null);
@@ -274,10 +292,8 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Inbound</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Få et telefonnummer, og viderestil jeres eksisterende nummer til det, så AI-agenten svarer kunderne.
-          </p>
+          <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.inbound.title")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.inbound.subtitle")}</p>
         </div>
         {!showForm ? (
           <button
@@ -285,7 +301,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
             onClick={() => setShowForm(true)}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
-            + Nyt nummer
+            {t("dashboardPages.inbound.newNumber")}
           </button>
         ) : null}
       </div>
@@ -294,27 +310,25 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-brand-200 bg-brand-50 p-5">
           <div>
             <span className="inline-block rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
-              Introtilbud
+              {t("dashboardPages.shared.introOfferBadge")}
             </span>
             <h2 className="mt-1.5 text-base font-semibold text-slate-900">
-              Prøv AIbooking.dk Reception i 30 dage for 499 kr
+              {t("dashboardPages.inbound.introBannerTitle")}
             </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Testnummer, ~75 min taletid og fuld PRO-adgang — derefter 999 kr/md.
-            </p>
+            <p className="mt-1 text-sm text-slate-600">{t("dashboardPages.inbound.introBannerSubtitle")}</p>
           </div>
           <Link
             href="/dashboard/inbound/free-trial"
             className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
-            Se tilbuddet →
+            {t("dashboardPages.inbound.introBannerCta")}
           </Link>
         </div>
       ) : null}
 
       {widgets.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-          Opret en agent under &quot;Agent&quot; f&oslash;rst &mdash; et telefonnummer skal knyttes til en agent.
+          {t("dashboardPages.inbound.noAgentsYet")}
         </div>
       ) : showForm && !showTrialModal ? (
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -329,7 +343,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 mode === "buy" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              Køb nummer gennem os
+              {t("dashboardPages.inbound.tabBuy")}
             </button>
             <button
               type="button"
@@ -341,13 +355,13 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 mode === "byo" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              Brug eget Twilio-nummer
+              {t("dashboardPages.inbound.tabByo")}
             </button>
           </div>
 
           <div>
             <label htmlFor="inbound-widget" className="mb-1 block text-sm font-medium text-slate-700">
-              Agent
+              {t("dashboardPages.shared.agentLabel")}
             </label>
             <select
               id="inbound-widget"
@@ -363,27 +377,24 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
             </select>
           </div>
 
-          <DirectionPicker value={direction} onChange={setDirection} />
+          <DirectionPicker value={direction} onChange={setDirection} t={t} />
 
           <div>
             <label htmlFor="phone-label" className="mb-1 block text-sm font-medium text-slate-700">
-              Label (valgfrit)
+              {t("dashboardPages.inbound.labelOptional")}
             </label>
             <input
               id="phone-label"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="Fx Hovednummer"
+              placeholder={t("dashboardPages.inbound.labelPlaceholder")}
               className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
           </div>
 
           {mode === "buy" ? (
             <div className="space-y-3">
-              <p className="text-sm text-slate-500">
-                Vi køber et dansk nummer til jer og forbinder det med agenten med det samme. Nummeret er inkluderet i
-                jeres pakke — ingen ekstra betaling.
-              </p>
+              <p className="text-sm text-slate-500">{t("dashboardPages.inbound.buyDescription")}</p>
 
               {availableNumbers === null ? (
                 <button
@@ -392,10 +403,10 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                   disabled={searching}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                 >
-                  {searching ? "Søger…" : "Søg ledige numre →"}
+                  {searching ? t("dashboardPages.inbound.searching") : t("dashboardPages.inbound.searchNumbers")}
                 </button>
               ) : availableNumbers.length === 0 ? (
-                <p className="text-sm text-slate-500">Ingen ledige numre lige nu. Prøv igen om lidt.</p>
+                <p className="text-sm text-slate-500">{t("dashboardPages.inbound.noNumbersAvailable")}</p>
               ) : (
                 <ul className="space-y-2">
                   {availableNumbers.map((n) => (
@@ -419,7 +430,9 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                             {n.locality ? <span className="ml-2 text-xs text-slate-500">{n.locality}</span> : null}
                           </span>
                         </span>
-                        <span className="text-xs font-medium text-emerald-600">Inkluderet i pakke</span>
+                        <span className="text-xs font-medium text-emerald-600">
+                          {t("dashboardPages.shared.includedInPackage")}
+                        </span>
                       </label>
                     </li>
                   ))}
@@ -428,14 +441,12 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-slate-500">
-                I bringer jeres eget Twilio-nummer med. Find Account SID og Auth Token i jeres Twilio-konsol.
-              </p>
+              <p className="text-sm text-slate-500">{t("dashboardPages.inbound.byoDescription")}</p>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="twilio-sid" className="mb-1 block text-sm font-medium text-slate-700">
-                    Twilio Account SID
+                    {t("dashboardPages.inbound.twilioSidLabel")}
                   </label>
                   <input
                     id="twilio-sid"
@@ -450,7 +461,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 </div>
                 <div>
                   <label htmlFor="twilio-token" className="mb-1 block text-sm font-medium text-slate-700">
-                    Twilio Auth Token
+                    {t("dashboardPages.inbound.twilioTokenLabel")}
                   </label>
                   <input
                     id="twilio-token"
@@ -471,19 +482,17 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 disabled={fetchingByoNumbers || !twilioAccountSid.trim() || !twilioAuthToken.trim()}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
               >
-                {fetchingByoNumbers ? "Henter…" : "Hent numre fra Twilio →"}
+                {fetchingByoNumbers ? t("dashboardPages.inbound.fetching") : t("dashboardPages.inbound.fetchTwilioNumbers")}
               </button>
 
               {byoNumbers && byoNumbers.length === 0 ? (
-                <p className="text-sm text-amber-600">
-                  Ingen numre fundet på denne Twilio-konto. Indtast nummeret manuelt herunder.
-                </p>
+                <p className="text-sm text-amber-600">{t("dashboardPages.inbound.noByoNumbersFound")}</p>
               ) : null}
 
               {byoNumbers && byoNumbers.length > 0 && !byoManualEntry ? (
                 <div>
                   <label htmlFor="twilio-number-select" className="mb-1 block text-sm font-medium text-slate-700">
-                    Telefonnummer
+                    {t("dashboardPages.inbound.phoneNumberLabel")}
                   </label>
                   <select
                     id="twilio-number-select"
@@ -502,13 +511,13 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                     onClick={() => setByoManualEntry(true)}
                     className="mt-1 text-xs font-medium text-brand-600 hover:text-brand-700"
                   >
-                    Indtast nummer manuelt i stedet
+                    {t("dashboardPages.inbound.enterManually")}
                   </button>
                 </div>
               ) : (
                 <div>
                   <label htmlFor="twilio-number" className="mb-1 block text-sm font-medium text-slate-700">
-                    Telefonnummer
+                    {t("dashboardPages.inbound.phoneNumberLabel")}
                   </label>
                   <input
                     id="twilio-number"
@@ -523,7 +532,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                       onClick={() => setByoManualEntry(false)}
                       className="mt-1 text-xs font-medium text-brand-600 hover:text-brand-700"
                     >
-                      Vælg fra listen i stedet
+                      {t("dashboardPages.inbound.chooseFromList")}
                     </button>
                   ) : null}
                 </div>
@@ -540,7 +549,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 onClick={() => setShowForm(false)}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                Annuller
+                {t("common.cancel")}
               </button>
             ) : null}
             {mode === "buy" ? (
@@ -550,7 +559,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 disabled={purchasing || !selectedNumber}
                 className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {purchasing ? "Køber…" : "Køb nummer →"}
+                {purchasing ? t("dashboardPages.inbound.buying") : t("dashboardPages.inbound.buyNumber")}
               </button>
             ) : (
               <button
@@ -559,7 +568,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 disabled={importing}
                 className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {importing ? "Importerer…" : "Importér nummer →"}
+                {importing ? t("dashboardPages.inbound.importing") : t("dashboardPages.inbound.importNumber")}
               </button>
             )}
           </div>
@@ -571,17 +580,14 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Sidste trin — forbind jeres Twilio-nummer</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  I viderestiller blot jeres eksisterende firmanummer til testnummeret. Jeres rigtige opsætning
-                  rører vi ikke ved, og I kan stille viderestillingen tilbage når som helst.
-                </p>
+                <h2 className="text-lg font-semibold text-slate-900">{t("dashboardPages.inbound.trialModalTitle")}</h2>
+                <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.inbound.trialModalSubtitle")}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowTrialModal(false)}
                 className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                aria-label="Luk"
+                aria-label={t("common.close")}
               >
                 ✕
               </button>
@@ -589,27 +595,24 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
 
             <div className="mt-5 space-y-5">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-medium text-slate-800">Trin 1 — Har I ikke allerede en Twilio-konto?</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  Opret en gratis konto hos Twilio (ingen betalingskort krævet for et testnummer), og find jeres
-                  Account SID og Auth Token under &quot;Account Info&quot; på deres dashboard.
-                </p>
+                <p className="text-sm font-medium text-slate-800">{t("dashboardPages.inbound.trialStep1Title")}</p>
+                <p className="mt-1 text-sm text-slate-600">{t("dashboardPages.inbound.trialStep1Description")}</p>
                 <a
                   href="https://www.twilio.com/try-twilio"
                   target="_blank"
                   rel="noreferrer noopener"
                   className="mt-2 inline-block text-sm font-medium text-brand-600 hover:text-brand-700"
                 >
-                  Opret gratis Twilio-konto →
+                  {t("dashboardPages.inbound.trialCreateTwilioAccount")}
                 </a>
               </div>
 
               <div>
-                <p className="mb-2 text-sm font-medium text-slate-800">Trin 2 — Forbind kontoen</p>
+                <p className="mb-2 text-sm font-medium text-slate-800">{t("dashboardPages.inbound.trialStep2Title")}</p>
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="trial-widget" className="mb-1 block text-sm font-medium text-slate-700">
-                      Agent
+                      {t("dashboardPages.shared.agentLabel")}
                     </label>
                     <select
                       id="trial-widget"
@@ -628,7 +631,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label htmlFor="trial-twilio-sid" className="mb-1 block text-sm font-medium text-slate-700">
-                        Twilio Account SID
+                        {t("dashboardPages.inbound.twilioSidLabel")}
                       </label>
                       <input
                         id="trial-twilio-sid"
@@ -643,7 +646,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                     </div>
                     <div>
                       <label htmlFor="trial-twilio-token" className="mb-1 block text-sm font-medium text-slate-700">
-                        Twilio Auth Token
+                        {t("dashboardPages.inbound.twilioTokenLabel")}
                       </label>
                       <input
                         id="trial-twilio-token"
@@ -664,19 +667,17 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                     disabled={fetchingByoNumbers || !twilioAccountSid.trim() || !twilioAuthToken.trim()}
                     className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                   >
-                    {fetchingByoNumbers ? "Henter…" : "Hent numre fra Twilio →"}
+                    {fetchingByoNumbers ? t("dashboardPages.inbound.fetching") : t("dashboardPages.inbound.fetchTwilioNumbers")}
                   </button>
 
                   {byoNumbers && byoNumbers.length === 0 ? (
-                    <p className="text-sm text-amber-600">
-                      Ingen numre fundet på denne Twilio-konto. Indtast nummeret manuelt herunder.
-                    </p>
+                    <p className="text-sm text-amber-600">{t("dashboardPages.inbound.noByoNumbersFound")}</p>
                   ) : null}
 
                   {byoNumbers && byoNumbers.length > 0 && !byoManualEntry ? (
                     <div>
                       <label htmlFor="trial-twilio-number-select" className="mb-1 block text-sm font-medium text-slate-700">
-                        Telefonnummer
+                        {t("dashboardPages.inbound.phoneNumberLabel")}
                       </label>
                       <select
                         id="trial-twilio-number-select"
@@ -695,13 +696,13 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                         onClick={() => setByoManualEntry(true)}
                         className="mt-1 text-xs font-medium text-brand-600 hover:text-brand-700"
                       >
-                        Indtast nummer manuelt i stedet
+                        {t("dashboardPages.inbound.enterManually")}
                       </button>
                     </div>
                   ) : (
                     <div>
                       <label htmlFor="trial-twilio-number" className="mb-1 block text-sm font-medium text-slate-700">
-                        Telefonnummer
+                        {t("dashboardPages.inbound.phoneNumberLabel")}
                       </label>
                       <input
                         id="trial-twilio-number"
@@ -716,7 +717,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                           onClick={() => setByoManualEntry(false)}
                           className="mt-1 text-xs font-medium text-brand-600 hover:text-brand-700"
                         >
-                          Vælg fra listen i stedet
+                          {t("dashboardPages.inbound.chooseFromList")}
                         </button>
                       ) : null}
                     </div>
@@ -732,7 +733,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                 disabled={importing}
                 className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {importing ? "Forbinder…" : "Forbind nummer →"}
+                {importing ? t("dashboardPages.inbound.trialConnecting") : t("dashboardPages.inbound.trialConnectNumber")}
               </button>
             </div>
           </div>
@@ -740,10 +741,10 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
       ) : null}
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">Jeres numre</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{t("dashboardPages.inbound.numbersHeading")}</h2>
         {phoneNumbers.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            Ingen telefonnumre endnu.
+            {t("dashboardPages.inbound.noNumbersYet")}
           </div>
         ) : (
           <div className="space-y-6">
@@ -757,7 +758,9 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                     <p className="text-xs text-slate-500">
                       {phoneNumber.phone_number} · {widgetName(phoneNumber.widget_id)} ·{" "}
                       {DIRECTION_LABELS[phoneNumber.direction]}
-                      {phoneNumber.source === "platform_twilio" ? " · Inkluderet i pakke" : null}
+                      {phoneNumber.source === "platform_twilio"
+                        ? ` · ${t("dashboardPages.shared.includedInPackage")}`
+                        : null}
                     </p>
                     <p className="mt-1 text-xs font-medium text-slate-500">
                       {STATUS_LABELS[phoneNumber.purchase_status]}
@@ -774,7 +777,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                         disabled={busyId === phoneNumber.id}
                         className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                       >
-                        Prøv igen
+                        {t("dashboardPages.inbound.retry")}
                       </button>
                     ) : null}
                     {phoneNumber.purchase_status !== "released" ? (
@@ -784,13 +787,16 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
                         disabled={busyId === phoneNumber.id}
                         className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
                       >
-                        Frigiv
+                        {t("dashboardPages.inbound.release")}
                       </button>
                     ) : null}
                   </div>
                 </div>
                 {phoneNumber.purchase_status === "active" ? (
                   <CallForwardingInstructions phoneNumber={phoneNumber.phone_number} />
+                ) : null}
+                {phoneNumber.purchase_status === "active" && phoneNumber.source === "byo_twilio" ? (
+                  <TwilioBalanceCard phoneNumberId={phoneNumber.id} />
                 ) : null}
               </div>
             ))}

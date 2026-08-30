@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserClient } from "@/lib/database/browser";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 export function LogoutButton() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   async function handleLogout() {
@@ -23,7 +25,7 @@ export function LogoutButton() {
       disabled={loading}
       className="w-full rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
     >
-      {loading ? "Logger ud…" : "Log ud"}
+      {loading ? t("dashboardShell.loggingOut") : t("dashboardShell.logout")}
     </button>
   );
 }
