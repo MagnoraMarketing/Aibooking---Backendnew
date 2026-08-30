@@ -4,7 +4,7 @@ import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, importPhoneNumberInputSchema } from "@/lib/security";
 import { importTwilioPhoneNumber } from "@/lib/vapi";
 import { findIncomingPhoneNumberSid, configureDirectVoiceWebhook } from "@/lib/twilio";
-import { twilioWebhookUrls } from "@/lib/telephony/urls";
+import { assertTwilioWebhookBaseUrlConfigured, twilioWebhookUrls } from "@/lib/telephony/urls";
 import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
 import { ApiError } from "@/types/errors";
 
@@ -69,6 +69,10 @@ export const POST = withErrorHandling(async (request) => {
   if (isTwilioDirect) {
     const sid = await findIncomingPhoneNumberSid(credentials, body.twilioPhoneNumber);
     if (!sid) throw ApiError.badRequest("Nummeret blev ikke fundet på denne Twilio-konto.");
+
+    // Checked before the number is pointed anywhere — see the same guard in
+    // lib/phone-numbers/service.ts.
+    assertTwilioWebhookBaseUrlConfigured();
 
     const urls = twilioWebhookUrls();
     await configureDirectVoiceWebhook(credentials, sid, {

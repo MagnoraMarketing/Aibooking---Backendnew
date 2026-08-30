@@ -1,7 +1,38 @@
 import "server-only";
 
+// A trailing slash on NEXT_PUBLIC_APP_URL would produce "…dk//api/…" here,
+// and Twilio signs the exact string it was configured with — so the double
+// slash would survive into every signature check and silently 403 every
+// webhook. Normalizing once, here, keeps configuration-time and
+// validation-time URLs byte-identical whatever the env var looks like.
+function normalizeBaseUrl(rawUrl: string): string {
+  return rawUrl.trim().replace(/\/+$/, "");
+}
+
 function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const configured = process.env.NEXT_PUBLIC_APP_URL;
+  return configured ? normalizeBaseUrl(configured) : "http://localhost:3000";
+}
+
+// Called right before handing a webhook URL to Twilio (number purchase and
+// BYO import — see lib/phone-numbers/service.ts and
+// app/api/customer/phone-numbers/route.ts). Without this the localhost
+// fallback above gets registered on a real phone number and every inbound
+// call fails at Twilio's end, minutes after the fact, with nothing in our
+// own logs to show for it; failing here instead surfaces as a plain
+// provisioning error the customer can act on.
+export function assertTwilioWebhookBaseUrlConfigured(): void {
+  const configured = process.env.NEXT_PUBLIC_APP_URL;
+  if (!configured) {
+    throw new Error("NEXT_PUBLIC_APP_URL er ikke konfigureret — Twilio kan ikke kalde vores webhooks.");
+  }
+
+  const base = normalizeBaseUrl(configured);
+  if (!/^https:\/\//i.test(base) || /^https:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(base)) {
+    throw new Error(
+      `NEXT_PUBLIC_APP_URL (${base}) skal være en offentligt tilgængelig https-adresse, før et nummer kan tage imod opkald.`
+    );
+  }
 }
 
 // The fixed set of webhook URLs Twilio is configured to call (see

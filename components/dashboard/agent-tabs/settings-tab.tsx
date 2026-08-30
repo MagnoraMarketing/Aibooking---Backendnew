@@ -87,25 +87,7 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
           </select>
         </div>
 
-        {isVapiModel ? (
-          <div>
-            <label htmlFor="vapi-assistant-id" className="mb-1 block text-sm font-medium text-slate-700">
-              Vapi Assistant ID
-            </label>
-            <input
-              id="vapi-assistant-id"
-              type="text"
-              value={vapiAssistantId}
-              onChange={(e) => setVapiAssistantId(e.target.value)}
-              placeholder="fx 8f1c2e3a-..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-            />
-            <p className="mt-1 text-xs text-slate-500">
-              Oprettes automatisk når agenten laves. Sæt kun dette manuelt hvis I vil pege på en
-              anden assistent i Vapi&apos;s dashboard.
-            </p>
-          </div>
-        ) : null}
+        {/* Vapi Assistant ID is stored internally but hidden from customer UI */}
 
         <div>
           <label htmlFor="language" className="mb-1 block text-sm font-medium text-slate-700">

@@ -135,13 +135,22 @@ export interface Widget {
   widget_size: string;
   show_branding: boolean;
   max_response_chars: number;
+  free_trial_seconds: number;
+  booking_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
 
+export type BookingSetupStatus = "not_started" | "in_progress" | "completed" | "failed";
+
 export interface WidgetSettings {
   widget_id: string;
   extra: Record<string, unknown>;
+  booking_setup_status?: BookingSetupStatus;
+  booking_setup_started_at?: string | null;
+  booking_setup_completed_at?: string | null;
+  booking_setup_error?: string | null;
+  calendar_timezone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -207,6 +216,7 @@ export interface UsageSession {
   estimated_llm_cost: number;
   estimated_tts_cost: number;
   credit_cost_seconds: number;
+  is_trial_usage: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -306,7 +316,7 @@ export interface StripeEventRow {
   processed_at: string;
 }
 
-// Manual dialer (see 0025_manual_dialer.sql, lib/twilio/dialer.ts) — a
+// Manual dialer (see 0029_manual_dialer.sql, lib/twilio/dialer.ts) — a
 // customer-uploaded lead list they call through one-by-one from the
 // browser, as themselves.
 export interface LeadList {
@@ -339,5 +349,46 @@ export interface Lead {
   call_sid: string | null;
   duration_seconds: number | null;
   called_at: string | null;
+  created_at: string;
+}
+
+export type BookingSetupRequestStatus = "pending" | "in_progress" | "completed" | "cancelled";
+
+export interface BookingSetupRequest {
+  id: string;
+  customer_id: string;
+  widget_id: string;
+  status: BookingSetupRequestStatus;
+  request_details: Record<string, unknown> | null;
+  created_by: string | null;
+  assigned_to: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalcomConnection {
+  id: string;
+  customer_id: string;
+  calcom_user_id: string;
+  calcom_username: string;
+  calcom_email: string;
+  access_token: string;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  scope: string | null;
+  calcom_event_type_id: string | null;
+  calcom_event_type_name: string | null;
+  timezone: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalcomOAuthState {
+  state_hash: string;
+  customer_id: string;
+  expires_at: string;
   created_at: string;
 }
