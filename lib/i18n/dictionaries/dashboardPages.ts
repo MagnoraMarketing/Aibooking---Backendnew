@@ -933,6 +933,14 @@ export const dashboardPages: Namespace = {
     pt: "Tipo de evento",
     de: "Termintyp",
   },
+  "calendar-integrations.durationLabel": {
+    da: "Mødelængde",
+    en: "Meeting length",
+    es: "Duración de la reunión",
+    fr: "Durée de la réunion",
+    pt: "Duração da reunião",
+    de: "Termindauer",
+  },
   "calendar-integrations.timezoneLabel": {
     da: "Timezone",
     en: "Timezone",

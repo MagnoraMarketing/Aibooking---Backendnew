@@ -13,7 +13,13 @@ import { resolveTTSProvider, estimateTTSCost } from "@/lib/tts";
 import { recordLLMUsage, recordTTSUsage, appendTurnUsage, estimateSpeechDurationSeconds } from "@/lib/usage";
 import { getSummarizationModelName } from "@/lib/settings/platform";
 import { decryptSecret } from "@/lib/security";
+import { getOAuthCalendarSession, refreshGoogleToken, refreshOutlookToken } from "@/lib/calendar";
 import { generateReplyWithCalendarTools, type CalendarToolContext } from "./calendar-tools";
+
+// Fixed for Google/Outlook connections — see lib/vapi/booking-tools.ts's
+// module comment for why (neither OAuth exchange gives us a reliable IANA
+// timezone, and this platform's stated market is Danish SMBs).
+const OAUTH_CALENDAR_TIMEZONE = "Europe/Copenhagen";
 // Import the specific submodules, not the @/lib/knowledge-base barrel —
 // the barrel also re-exports PDF/URL extraction, which would drag their
 // dependencies (pdf-parse, etc.) into every conversation turn for no
@@ -266,17 +272,52 @@ export async function resolveCalendarToolContext(
     .eq("status", "connected")
     .maybeSingle();
 
-  if (!connection?.calcom_api_key || !connection.calcom_event_type_id) return null;
+  if (connection?.calcom_api_key && connection.calcom_event_type_id) {
+    const eventTypeId = Number(connection.calcom_event_type_id);
+    if (Number.isFinite(eventTypeId)) {
+      return {
+        provider: "calcom",
+        apiKey: decryptSecret(connection.calcom_api_key),
+        eventTypeId,
+        timezone: connection.calcom_timezone ?? "Europe/Copenhagen",
+        customerId: params.customerId,
+        widgetId: params.widget.id,
+        conversationId: params.conversationId,
+      };
+    }
+  }
 
-  const eventTypeId = Number(connection.calcom_event_type_id);
-  if (!Number.isFinite(eventTypeId)) return null;
+  const google = await getOAuthCalendarSession(params.widget.id, "google", refreshGoogleToken);
+  if (google) {
+    return {
+      provider: "google",
+      accessToken: google.accessToken,
+      calendarId: google.calendarId,
+      scheduleEmail: google.accountEmail,
+      durationMinutes: google.durationMinutes,
+      timezone: OAUTH_CALENDAR_TIMEZONE,
+      customerId: params.customerId,
+      widgetId: params.widget.id,
+      conversationId: params.conversationId,
+    };
+  }
 
-  return {
-    apiKey: decryptSecret(connection.calcom_api_key),
-    eventTypeId,
-    timezone: connection.calcom_timezone ?? "Europe/Copenhagen",
-    customerId: params.customerId,
-    widgetId: params.widget.id,
-    conversationId: params.conversationId,
-  };
+  const outlook = await getOAuthCalendarSession(params.widget.id, "outlook", refreshOutlookToken);
+  // getSchedule (the free/busy lookup) needs the mailbox's own address —
+  // without it we can only book blind, so treat a missing one as unusable.
+  if (outlook && outlook.accountEmail) {
+    return {
+      provider: "outlook",
+      accessToken: outlook.accessToken,
+      calendarId: outlook.calendarId,
+      scheduleEmail: outlook.accountEmail,
+      durationMinutes: outlook.durationMinutes,
+      timezone: OAUTH_CALENDAR_TIMEZONE,
+      customerId: params.customerId,
+      widgetId: params.widget.id,
+      conversationId: params.conversationId,
+    };
+  }
+
+  return null;
 }

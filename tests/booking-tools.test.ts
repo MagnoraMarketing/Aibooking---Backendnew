@@ -10,6 +10,25 @@ const findUpcomingCalcomBooking = vi.fn();
 const rescheduleCalcomBooking = vi.fn();
 const cancelCalcomBooking = vi.fn();
 
+// No Google/Outlook connection in these tests — getCalendarDetails should
+// never get past the calcom branch when one is connected, and these mocks
+// let it fall through safely (returning null) for the "nothing connected"
+// cases without hitting the network.
+const getOAuthCalendarSession = vi.fn().mockResolvedValue(null);
+const refreshGoogleToken = vi.fn();
+const refreshOutlookToken = vi.fn();
+const fetchGoogleFreeBusy = vi.fn();
+const createGoogleBooking = vi.fn();
+const findUpcomingGoogleBooking = vi.fn();
+const rescheduleGoogleBooking = vi.fn();
+const cancelGoogleBooking = vi.fn();
+const fetchOutlookFreeBusy = vi.fn();
+const createOutlookBooking = vi.fn();
+const findUpcomingOutlookBooking = vi.fn();
+const rescheduleOutlookBooking = vi.fn();
+const cancelOutlookBooking = vi.fn();
+const generateBusinessHourSlots = vi.fn();
+
 vi.mock("@/lib/calendar", () => ({
   fetchCalcomAvailability: (...args: unknown[]) => fetchCalcomAvailability(...args),
   createCalcomBooking: (...args: unknown[]) => createCalcomBooking(...args),
@@ -17,6 +36,20 @@ vi.mock("@/lib/calendar", () => ({
   findUpcomingCalcomBooking: (...args: unknown[]) => findUpcomingCalcomBooking(...args),
   rescheduleCalcomBooking: (...args: unknown[]) => rescheduleCalcomBooking(...args),
   cancelCalcomBooking: (...args: unknown[]) => cancelCalcomBooking(...args),
+  getOAuthCalendarSession: (...args: unknown[]) => getOAuthCalendarSession(...args),
+  refreshGoogleToken: (...args: unknown[]) => refreshGoogleToken(...args),
+  refreshOutlookToken: (...args: unknown[]) => refreshOutlookToken(...args),
+  fetchGoogleFreeBusy: (...args: unknown[]) => fetchGoogleFreeBusy(...args),
+  createGoogleBooking: (...args: unknown[]) => createGoogleBooking(...args),
+  findUpcomingGoogleBooking: (...args: unknown[]) => findUpcomingGoogleBooking(...args),
+  rescheduleGoogleBooking: (...args: unknown[]) => rescheduleGoogleBooking(...args),
+  cancelGoogleBooking: (...args: unknown[]) => cancelGoogleBooking(...args),
+  fetchOutlookFreeBusy: (...args: unknown[]) => fetchOutlookFreeBusy(...args),
+  createOutlookBooking: (...args: unknown[]) => createOutlookBooking(...args),
+  findUpcomingOutlookBooking: (...args: unknown[]) => findUpcomingOutlookBooking(...args),
+  rescheduleOutlookBooking: (...args: unknown[]) => rescheduleOutlookBooking(...args),
+  cancelOutlookBooking: (...args: unknown[]) => cancelOutlookBooking(...args),
+  generateBusinessHourSlots: (...args: unknown[]) => generateBusinessHourSlots(...args),
 }));
 
 vi.mock("@/lib/security", () => ({
@@ -103,6 +136,7 @@ beforeEach(() => {
   findUpcomingCalcomBooking.mockReset();
   rescheduleCalcomBooking.mockReset();
   cancelCalcomBooking.mockReset();
+  getOAuthCalendarSession.mockReset().mockResolvedValue(null);
 });
 
 const EXISTING_BOOKING = {
@@ -374,5 +408,142 @@ describe("tool dispatch", () => {
 
   it("returns a spoken-safe string for an unknown tool", async () => {
     expect(await executeBookingTool("drop_database", {}, ENABLED)).toBe("Den funktion findes ikke.");
+  });
+});
+
+describe("Google/Outlook calendars (no Cal.com connection)", () => {
+  const GOOGLE_SESSION = {
+    connectionId: "conn-1",
+    accessToken: "google-token",
+    calendarId: "primary",
+    accountEmail: "biz@example.com",
+    durationMinutes: 30,
+  };
+
+  const OUTLOOK_SESSION = {
+    connectionId: "conn-2",
+    accessToken: "outlook-token",
+    calendarId: "primary",
+    accountEmail: "biz@outlook.com",
+    durationMinutes: 45,
+  };
+
+  beforeEach(() => {
+    // No calcom connection — getCalendarDetails falls through to the OAuth
+    // providers.
+    calendarRow = null;
+  });
+
+  it("checks availability against Google when only Google is connected", async () => {
+    getOAuthCalendarSession.mockImplementation(async (_widgetId: string, provider: string) =>
+      provider === "google" ? GOOGLE_SESSION : null
+    );
+    fetchGoogleFreeBusy.mockResolvedValue([]);
+    generateBusinessHourSlots.mockReturnValue(["2026-09-01T09:00:00.000Z"]);
+
+    const reply = await checkAvailability({ date: "2026-09-01" }, ENABLED);
+
+    expect(fetchGoogleFreeBusy).toHaveBeenCalledWith(expect.objectContaining({ accessToken: "google-token" }));
+    expect(reply).toContain("2026-09-01T09:00:00.000Z");
+  });
+
+  it("checks availability against Outlook when only Outlook is connected", async () => {
+    getOAuthCalendarSession.mockImplementation(async (_widgetId: string, provider: string) =>
+      provider === "outlook" ? OUTLOOK_SESSION : null
+    );
+    fetchOutlookFreeBusy.mockResolvedValue([]);
+    generateBusinessHourSlots.mockReturnValue(["2026-09-01T09:00:00.000Z"]);
+
+    const reply = await checkAvailability({ date: "2026-09-01" }, ENABLED);
+
+    expect(fetchOutlookFreeBusy).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: "outlook-token", scheduleEmail: "biz@outlook.com" })
+    );
+    expect(reply).toContain("2026-09-01T09:00:00.000Z");
+  });
+
+  it("books into Google Calendar and records the generic appointment columns", async () => {
+    getOAuthCalendarSession.mockImplementation(async (_widgetId: string, provider: string) =>
+      provider === "google" ? GOOGLE_SESSION : null
+    );
+    createGoogleBooking.mockResolvedValue({
+      id: "evt_1",
+      startTime: "2026-09-01T10:00:00+02:00",
+      endTime: "2026-09-01T10:30:00+02:00",
+      attendeeEmails: ["a@b.dk"],
+    });
+
+    await createBooking(
+      { start_time: "2026-09-01T10:00:00+02:00", customer_name: "A", customer_email: "a@b.dk" },
+      ENABLED
+    );
+
+    expect(createGoogleBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: "google-token", durationMinutes: 30 })
+    );
+    expect(insertedAppointments.at(-1)).toMatchObject({
+      status: "booked",
+      calendar_provider: "google",
+      external_event_id: "evt_1",
+    });
+    // Never the calcom-specific columns for a Google booking.
+    expect(insertedAppointments.at(-1)).not.toHaveProperty("calcom_booking_uid");
+  });
+
+  it("never invents a Google booking that failed", async () => {
+    getOAuthCalendarSession.mockImplementation(async (_widgetId: string, provider: string) =>
+      provider === "google" ? GOOGLE_SESSION : null
+    );
+    createGoogleBooking.mockRejectedValue(new Error("Google rejected"));
+
+    const reply = await createBooking(
+      { start_time: "2026-09-01T10:00:00+02:00", customer_name: "A", customer_email: "a@b.dk" },
+      ENABLED
+    );
+
+    expect(reply).toContain("IKKE");
+    expect(insertedAppointments.at(-1)).toMatchObject({ status: "failed" });
+  });
+
+  it("reschedules an existing Outlook booking by its external event id", async () => {
+    getOAuthCalendarSession.mockImplementation(async (_widgetId: string, provider: string) =>
+      provider === "outlook" ? OUTLOOK_SESSION : null
+    );
+    const existing = {
+      id: "evt_9",
+      startTime: "2026-09-01T10:00:00Z",
+      endTime: "2026-09-01T10:45:00Z",
+      attendeeEmails: ["a@b.dk"],
+    };
+    findUpcomingOutlookBooking.mockResolvedValue(existing);
+    rescheduleOutlookBooking.mockResolvedValue({ ...existing, startTime: "2026-09-02T11:00:00Z" });
+
+    const reply = await rescheduleBooking(
+      { customer_email: "a@b.dk", new_start_time: "2026-09-02T11:00:00Z" },
+      ENABLED
+    );
+
+    expect(rescheduleOutlookBooking).toHaveBeenCalledWith(expect.objectContaining({ booking: existing }));
+    expect(updatedAppointments.at(-1)).toMatchObject({
+      patch: { appointment_time: "2026-09-02T11:00:00Z", status: "booked" },
+      filters: { customer_id: "cust-a", calendar_provider: "outlook", external_event_id: "evt_9" },
+    });
+    expect(reply).toContain("2026-09-02T11:00:00Z");
+  });
+
+  it("does not touch Google/Outlook at all when a Cal.com calendar is connected", async () => {
+    calendarRow = CONNECTED;
+    fetchCalcomAvailability.mockResolvedValue([{ time: "2026-09-01T10:00:00+02:00" }]);
+    getOAuthCalendarSession.mockClear();
+
+    await checkAvailability({}, ENABLED);
+
+    expect(getOAuthCalendarSession).not.toHaveBeenCalled();
+  });
+
+  it("reports no calendar set up when neither Cal.com nor an OAuth calendar is connected", async () => {
+    getOAuthCalendarSession.mockResolvedValue(null);
+
+    expect(await checkAvailability({}, ENABLED)).toContain("ikke sat op");
   });
 });

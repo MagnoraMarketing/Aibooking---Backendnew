@@ -192,6 +192,8 @@ export interface Appointment {
   status: AppointmentStatus;
   calcom_booking_uid: string | null;
   calcom_booking_id: number | null;
+  calendar_provider: CalendarProvider | null;
+  external_event_id: string | null;
   created_at: string;
 }
 
@@ -298,6 +300,8 @@ export interface CalendarConnection {
   token_expires_at: string | null;
   calcom_api_key: string | null;
   calcom_event_type_id: string | null;
+  calcom_timezone: string | null;
+  default_duration_minutes: number;
   created_at: string;
   updated_at: string;
 }

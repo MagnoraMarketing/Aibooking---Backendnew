@@ -18,6 +18,7 @@ export interface CalendarConnectionSummary {
   calendar_id: string | null;
   calcom_event_type_id: string | null;
   calcom_timezone: string | null;
+  default_duration_minutes: number;
   created_at: string;
 }
 
@@ -37,7 +38,7 @@ export default async function IntegrationsPage() {
     supabase
       .from("calendar_connections")
       .select(
-        "id, widget_id, provider, status, external_account_email, calendar_id, calcom_event_type_id, calcom_timezone, calcom_api_key, created_at"
+        "id, widget_id, provider, status, external_account_email, calendar_id, calcom_event_type_id, calcom_timezone, calcom_api_key, default_duration_minutes, created_at"
       )
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false }),
@@ -71,6 +72,7 @@ export default async function IntegrationsPage() {
     calendar_id: row.calendar_id,
     calcom_event_type_id: row.calcom_event_type_id,
     calcom_timezone: row.calcom_timezone,
+    default_duration_minutes: row.default_duration_minutes,
     created_at: row.created_at,
   }));
 

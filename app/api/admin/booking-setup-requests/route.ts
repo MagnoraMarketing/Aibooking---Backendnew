@@ -46,10 +46,12 @@ export const PATCH = withErrorHandling(async (request) => {
   const supabase = getAdminClient();
 
   // Completing is what switches booking on for the customer's agent, so it
-  // requires a calendar that actually works. Without this an agent would tell
-  // callers it can book and then fail on every single attempt. Enforced here
-  // and not only in the admin table's disabled button — a guard that lives
-  // solely in the UI is not a guard.
+  // requires a calendar that actually works — any of the three connected
+  // providers (lib/vapi/booking-tools.ts's getCalendarDetails tries calcom,
+  // then google, then outlook). Without this an agent would tell callers it
+  // can book and then fail on every single attempt. Enforced here and not
+  // only in the admin table's disabled button — a guard that lives solely
+  // in the UI is not a guard.
   if (body.status === "completed") {
     const { data: pending } = await supabase
       .from("booking_setup_requests")
@@ -59,17 +61,16 @@ export const PATCH = withErrorHandling(async (request) => {
 
     if (!pending) throw ApiError.notFound("Booking setup request not found");
 
-    const { data: connection } = await supabase
+    const { data: connections } = await supabase
       .from("calendar_connections")
       .select("id")
       .eq("widget_id", pending.widget_id)
-      .eq("provider", "calcom")
       .eq("status", "connected")
-      .maybeSingle();
+      .in("provider", ["calcom", "google", "outlook"]);
 
-    if (!connection) {
+    if (!connections || connections.length === 0) {
       throw ApiError.badRequest(
-        "Kunden har ingen forbundet Cal.com-kalender endnu — forbind kalenderen før opsætningen markeres færdig."
+        "Kunden har ingen forbundet kalender endnu — forbind Cal.com, Google Calendar eller Outlook før opsætningen markeres færdig."
       );
     }
   }
