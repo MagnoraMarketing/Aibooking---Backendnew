@@ -7,6 +7,7 @@ import {
   markSubscriptionCanceled,
   grantCreditsForPaidInvoice,
 } from "@/lib/billing/subscription-sync";
+import { grantWidgetLaunchCredits, parseWidgetLaunchReference } from "@/lib/billing/widget-launch";
 import { writeAuditLog } from "@/lib/security/audit";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -64,6 +65,22 @@ export async function POST(request: Request): Promise<NextResponse> {
         if (typeof session.subscription === "string") {
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
           await syncSubscriptionFromStripe(subscription);
+        }
+
+        // The wizard's closing payment step is a Stripe Payment Link, which
+        // carries no metadata of ours — the customer/widget it belongs to
+        // rides along in client_reference_id instead (see
+        // lib/billing/widget-launch.ts). A one-off payment produces no
+        // invoice.paid for a subscription of ours, so this is where those
+        // 200 minutes get credited. The return page may beat this webhook to
+        // it; grantWidgetLaunchCredits is idempotent either way.
+        const launchReference = parseWidgetLaunchReference(session.client_reference_id);
+        if (launchReference && session.payment_status === "paid" && !session.subscription) {
+          await grantWidgetLaunchCredits({
+            customerId: launchReference.customerId,
+            widgetId: launchReference.widgetId,
+            stripeEventId: session.id,
+          });
         }
         break;
       }

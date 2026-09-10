@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import type { LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { WIDGET_LAUNCH_MINUTES } from "@/lib/billing/widget-launch-offer";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { SettingsTab } from "./agent-tabs/settings-tab";
 import { TestAgentTab } from "./agent-tabs/test-agent";
@@ -92,8 +93,14 @@ export function AgentConfigurator({
   const [widget, setWidget] = useState(initialWidget);
   const isPhoneType = llmModels.find((m) => m.id === widget.llm_model_id)?.provider === "anthropic";
   const tabs = tabsFor(isPhoneType, t);
-  const requestedTab = useSearchParams().get("tab");
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<TabKey>(isTabKey(requestedTab, tabs) ? requestedTab : "prompt");
+  // Set by the Stripe return page once the launch offer is paid and the
+  // minutes are on the ledger (app/dashboard/checkout/return/page.tsx) — the
+  // customer lands here rather than on a Stripe receipt, so this is where
+  // they get told it worked.
+  const justPaid = searchParams.get("paid") === "1";
 
   const savePatch: SavePatch = async (patch) => {
     const res = await fetch(`/api/customer/widgets/${widget.id}`, {
@@ -115,6 +122,15 @@ export function AgentConfigurator({
         <h1 className="text-2xl font-semibold text-slate-900">{t("agent.configurator.title")}</h1>
         <p className="mt-1 text-sm text-slate-500">{widget.name}</p>
       </div>
+
+      {justPaid ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <p className="text-sm font-semibold text-emerald-800">{t("agent.configurator.paidBannerTitle")}</p>
+          <p className="mt-1 text-sm text-emerald-700">
+            {t("agent.configurator.paidBannerBody", { minutes: WIDGET_LAUNCH_MINUTES })}
+          </p>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
         {tabs.map((tab) => (

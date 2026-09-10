@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 import type { WidgetWithExtras } from "./agent-configurator";
 import { AgentCreationWizard } from "./agent-creation-wizard";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { WIDGET_LAUNCH_MINUTES } from "@/lib/billing/widget-launch-offer";
 
 interface AgentsManagerProps {
   initialWidgets: Widget[];
@@ -47,6 +49,10 @@ export function AgentsManager({
   const [showWizard, setShowWizard] = useState(initialWidgets.length === 0);
   const [search, setSearch] = useState("");
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  // The Stripe return page lands here when it can't tell which agent the
+  // payment belonged to (see app/dashboard/checkout/return/page.tsx) — the
+  // minutes are still credited, so say so rather than showing nothing.
+  const justPaid = useSearchParams().get("paid") === "1";
 
   const filteredWidgets = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -95,6 +101,15 @@ export function AgentsManager({
           </button>
         ) : null}
       </div>
+
+      {justPaid ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <p className="text-sm font-semibold text-emerald-800">{t("agent.configurator.paidBannerTitle")}</p>
+          <p className="mt-1 text-sm text-emerald-700">
+            {t("agent.wizardPayment.paidListBody", { minutes: WIDGET_LAUNCH_MINUTES })}
+          </p>
+        </div>
+      ) : null}
 
       {showWizard ? (
         <AgentCreationWizard
