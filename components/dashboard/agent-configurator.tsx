@@ -15,6 +15,16 @@ import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
 import { BookingTab } from "./agent-tabs/booking-tab";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
+// The "om virksomheden" answers behind a generated system prompt. Saved
+// alongside the prompt itself so it stays regenerable — see
+// agent-tabs/prompt-lab.tsx.
+export interface PromptInputs {
+  businessDescription?: string;
+  keyServices?: string;
+  openingHours?: string;
+  otherNotes?: string;
+}
+
 export interface WidgetExtra {
   tagline?: string | null;
   isGlowing?: boolean;
@@ -28,6 +38,7 @@ export interface WidgetExtra {
   agentMute?: boolean;
   vapiAssistantId?: string | null;
   voiceGender?: "male" | "female" | null;
+  promptInputs?: PromptInputs | null;
   knowledgeBase?: KnowledgeBaseSource[];
 }
 

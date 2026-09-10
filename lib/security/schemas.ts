@@ -159,6 +159,19 @@ export const widgetExtraSettingsSchema = z
     // resolveVoiceConfig in lib/vapi/assistants.ts. The raw template ids
     // themselves are never sent to the customer-facing UI.
     voiceGender: z.enum(["male", "female"]).nullable(),
+    // What the customer typed into Prompt Lab's "om virksomheden" fields,
+    // kept so the generated prompt can be regenerated or adjusted later
+    // instead of the answers being thrown away the moment the draft lands
+    // in the textarea (see agent-tabs/prompt-lab.tsx).
+    promptInputs: z
+      .object({
+        businessDescription: z.string().trim().max(2000),
+        keyServices: z.string().trim().max(2000),
+        openingHours: z.string().trim().max(2000),
+        otherNotes: z.string().trim().max(2000),
+      })
+      .partial()
+      .nullable(),
   })
   .partial();
 

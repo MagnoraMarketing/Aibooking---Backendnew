@@ -1,5 +1,6 @@
 import "server-only";
-import { getVapiVoiceTemplateAssistantId, type VapiVoiceGender } from "@/lib/settings/platform";
+import { getVapiVoiceTemplateAssistantId } from "@/lib/settings/platform";
+import { DEFAULT_VOICE_GENDER, FALLBACK_VOICE_BY_GENDER, type VapiVoiceGender } from "./voice-gender";
 import { vapiFetch } from "./client";
 
 export type { VapiVoiceGender };
@@ -24,28 +25,38 @@ async function resolveModelName(): Promise<string> {
   return VAPI_ASSISTANT_MODEL;
 }
 
-const FALLBACK_VOICE = { provider: "vapi", version: 2, voiceId: "Elliot" };
-
 // Clones the `voice` block from a master-admin-configured "template"
 // assistant (one for "male", one for "female") rather than storing voice
 // settings ourselves — the admin builds/tunes each template directly in
 // Vapi's own dashboard, and we just mirror whatever it's currently set to.
-// Best-effort: no template configured yet, or Vapi is unreachable, falls
-// back to the platform's original fixed voice rather than failing the
-// caller's create/update.
+//
+// Every failure path here falls back to a voice OF THE REQUESTED GENDER,
+// never to one fixed voice: a customer who picked "Dame" and got a male
+// voice back because a template was unset is a worse outcome than a
+// slightly different female voice, and one they can't diagnose or fix from
+// the dashboard. An absent choice is read as DEFAULT_VOICE_GENDER, the same
+// default the UI and creation route use.
 async function resolveVoiceConfig(voiceGender: VapiVoiceGender | null | undefined): Promise<Record<string, unknown>> {
-  if (!voiceGender) return FALLBACK_VOICE;
+  const gender = voiceGender ?? DEFAULT_VOICE_GENDER;
+  const fallback = FALLBACK_VOICE_BY_GENDER[gender];
 
-  const templateAssistantId = await getVapiVoiceTemplateAssistantId(voiceGender);
-  if (!templateAssistantId) return FALLBACK_VOICE;
+  const templateAssistantId = await getVapiVoiceTemplateAssistantId(gender);
+  if (!templateAssistantId) {
+    console.error(`No Vapi ${gender} voice template configured — using the built-in ${gender} fallback voice.`);
+    return fallback;
+  }
 
   try {
     const response = await vapiFetch(`/assistant/${encodeURIComponent(templateAssistantId)}`, { method: "GET" });
     const data = (await response.json()) as { voice?: Record<string, unknown> };
-    return data.voice ?? FALLBACK_VOICE;
+    if (!data.voice) {
+      console.error(`Vapi ${gender} voice template (${templateAssistantId}) has no voice block — using the fallback.`);
+      return fallback;
+    }
+    return data.voice;
   } catch (err) {
-    console.error(`Failed to read Vapi ${voiceGender} voice template (${templateAssistantId}):`, err);
-    return FALLBACK_VOICE;
+    console.error(`Failed to read Vapi ${gender} voice template (${templateAssistantId}):`, err);
+    return fallback;
   }
 }
 

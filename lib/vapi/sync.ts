@@ -8,6 +8,7 @@ import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import type { Widget } from "@/types/database";
 import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content";
 import { updateVapiAssistant, type VapiVoiceGender } from "./assistants";
+import { DEFAULT_VOICE_GENDER } from "./voice-gender";
 
 // Single place that knows how to turn a widget + its extra settings into an
 // up-to-date Vapi assistant — used by every call site that can change
@@ -41,7 +42,10 @@ export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<st
     widget.language
   );
 
-  const voiceGender = (extra.voiceGender as VapiVoiceGender | null | undefined) ?? null;
+  // Never null: an unset choice means the platform default ("Dame"), the
+  // same one the creation route stores and the UI shows preselected — see
+  // lib/vapi/voice-gender.ts.
+  const voiceGender = (extra.voiceGender as VapiVoiceGender | null | undefined) ?? DEFAULT_VOICE_GENDER;
 
   try {
     await updateVapiAssistant(

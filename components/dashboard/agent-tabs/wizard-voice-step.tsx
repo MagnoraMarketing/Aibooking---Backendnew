@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { LLMModel, VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { DEFAULT_VOICE_GENDER } from "@/lib/vapi/voice-gender";
 
 // Deliberately a smaller picker than the full Settings tab (which also
 // carries a page of "Coming soon" fields) — the creation wizard is meant to
@@ -25,7 +26,7 @@ export function WizardVoiceStep({
   const { t } = useTranslation();
   const isVapiModel = llmModels.find((m) => m.id === widget.llm_model_id)?.provider === "vapi";
   const [voiceModelId, setVoiceModelId] = useState(widget.voice_model_id ?? "");
-  const [voiceGender, setVoiceGender] = useState<"male" | "female">(widget.extra.voiceGender ?? "female");
+  const [voiceGender, setVoiceGender] = useState<"male" | "female">(widget.extra.voiceGender ?? DEFAULT_VOICE_GENDER);
   const [language, setLanguage] = useState(widget.language);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

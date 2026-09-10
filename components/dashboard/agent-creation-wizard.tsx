@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { LLMModel, Package, VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "./agent-configurator";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { WizardVoiceStep } from "./agent-tabs/wizard-voice-step";
 import { WizardCalendarStep } from "./agent-tabs/wizard-calendar-step";
@@ -45,17 +46,23 @@ function typeOptionsFor(t: Translate): {
 // side is still incomplete.
 const WIDGET_LLM_PROVIDER = "vapi";
 
-type StepKey = "basics" | "prompt" | "voice" | "calendar" | "test" | "payment" | "phone";
+type StepKey = "basics" | "knowledge" | "prompt" | "voice" | "calendar" | "test" | "payment" | "phone";
 
 interface WizardStep {
   key: StepKey;
   label: string;
 }
 
-// One continuous flow instead of a set of tabs: name -> prompt -> voice ->
-// calendar, then try the agent for real, then pay to put it live. Trying it
-// *before* the payment step is the point of that order — nobody should be
-// asked to pay for something they haven't heard talk.
+// One continuous flow instead of a set of tabs: name -> knowledge -> prompt
+// -> voice -> calendar, then try the agent for real, then pay to put it
+// live. Trying it *before* the payment step is the point of that order —
+// nobody should be asked to pay for something they haven't heard talk.
+//
+// Knowledge comes before the prompt for the same kind of reason: the
+// generated prompt is written with the attached sources in view (see
+// app/api/customer/widgets/[id]/generate-prompt), so a customer who pastes
+// their website first gets a draft about their actual business rather than
+// one about whatever fits in four form fields.
 //
 // Phone agents keep their own tail (a number to call, not an embed to pay
 // for): the Test step previews a website embed, which a phone agent has no
@@ -67,6 +74,7 @@ interface WizardStep {
 function stepsFor(agentType: AgentType | null, embedCodeUnlocked: boolean, t: Translate): WizardStep[] {
   const steps: WizardStep[] = [
     { key: "basics", label: t("agent.wizard.step.nameType") },
+    { key: "knowledge", label: t("agent.wizard.step.knowledge") },
     { key: "prompt", label: t("agent.wizard.step.prompt") },
     { key: "voice", label: t("agent.wizard.step.voice") },
     { key: "calendar", label: t("agent.wizard.step.calendar") },
@@ -292,8 +300,47 @@ export function AgentCreationWizard({
         </div>
       ) : null}
 
+      {currentKey === "knowledge" && widget ? (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">{t("agent.wizard.knowledgeTitle")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t("agent.wizard.knowledgeDescription")}</p>
+          </div>
+          <KnowledgeBaseTab
+            widget={widget}
+            onSourcesChange={(knowledgeBase) =>
+              setWidget((prev) => (prev ? { ...prev, extra: { ...prev.extra, knowledgeBase } } : prev))
+            }
+          />
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={goNext}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {t("common.skip")}
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              {t("agent.wizard.nextArrow")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {currentKey === "prompt" && widget ? (
         <div className="space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">{t("agent.wizard.promptTitle")}</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {(widget.extra.knowledgeBase?.length ?? 0) > 0
+                ? t("agent.wizard.promptDescriptionWithKnowledge", { count: widget.extra.knowledgeBase!.length })
+                : t("agent.wizard.promptDescription")}
+            </p>
+          </div>
           <PromptLabTab widget={widget} savePatch={savePatch} />
           <div className="flex gap-3">
             <button

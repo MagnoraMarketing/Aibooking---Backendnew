@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
+import type { PromptInputs, SavePatch, WidgetWithExtras } from "../agent-configurator";
 import { useTranslation } from "@/components/i18n/language-provider";
 
 export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; savePatch: SavePatch }) {
@@ -12,17 +12,31 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
 
-  const [businessDescription, setBusinessDescription] = useState("");
-  const [keyServices, setKeyServices] = useState("");
-  const [openingHours, setOpeningHours] = useState("");
-  const [otherNotes, setOtherNotes] = useState("");
+  // Seeded from what was saved last time (widget_settings.extra.promptInputs)
+  // rather than starting blank — these answers are what the prompt was
+  // generated from, so losing them means the customer has to retype their
+  // whole business to change one line of it.
+  const savedInputs = widget.extra.promptInputs ?? {};
+  const [businessDescription, setBusinessDescription] = useState(savedInputs.businessDescription ?? "");
+  const [keyServices, setKeyServices] = useState(savedInputs.keyServices ?? "");
+  const [openingHours, setOpeningHours] = useState(savedInputs.openingHours ?? "");
+  const [otherNotes, setOtherNotes] = useState(savedInputs.otherNotes ?? "");
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+
+  function currentPromptInputs(): PromptInputs {
+    return { businessDescription, keyServices, openingHours, otherNotes };
+  }
 
   async function handleSave() {
     setSaving(true);
     setStatus("idle");
-    const ok = await savePatch({ systemPrompt, welcomeMessage, openingMessage });
+    const ok = await savePatch({
+      systemPrompt,
+      welcomeMessage,
+      openingMessage,
+      extra: { promptInputs: currentPromptInputs() },
+    });
     setSaving(false);
     setStatus(ok ? "saved" : "error");
   }
@@ -55,6 +69,16 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
 
     const data = await res.json();
     setSystemPrompt(data.systemPrompt);
+
+    // Save the draft and the answers behind it in one go, rather than
+    // leaving a generated prompt sitting unsaved in a textarea the customer
+    // can navigate away from. This is also what pushes the new prompt (plus
+    // any attached knowledge base) onto the live Vapi assistant, since the
+    // PATCH route re-syncs it — see lib/vapi/sync.ts.
+    setSaving(true);
+    const saved = await savePatch({ systemPrompt: data.systemPrompt, extra: { promptInputs: currentPromptInputs() } });
+    setSaving(false);
+    setStatus(saved ? "saved" : "error");
   }
 
   return (

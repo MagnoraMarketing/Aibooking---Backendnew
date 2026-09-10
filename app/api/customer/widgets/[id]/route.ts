@@ -12,6 +12,7 @@ import {
 } from "@/lib/security";
 import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
 import { syncWidgetToVapiAssistant, createVapiAssistant, type VapiVoiceGender } from "@/lib/vapi";
+import { DEFAULT_VOICE_GENDER } from "@/lib/vapi/voice-gender";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
 import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content";
 import { ApiError } from "@/types/errors";
@@ -109,7 +110,7 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   if (data.llm_model_id && !extra.vapiAssistantId) {
     const { data: model } = await supabase.from("llm_models").select("provider").eq("id", data.llm_model_id).maybeSingle();
     if (model?.provider === "vapi") {
-      const voiceGender = (extra.voiceGender as VapiVoiceGender | null | undefined) ?? "female";
+      const voiceGender = (extra.voiceGender as VapiVoiceGender | null | undefined) ?? DEFAULT_VOICE_GENDER;
       const basePrompt = data.system_prompt ?? (await getDefaultSystemPrompt());
       const assistant = await createVapiAssistant({
         name: data.name,
