@@ -103,7 +103,13 @@ export async function POST(request: Request): Promise<NextResponse> {
         const subscriptionId =
           typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
         if (subscriptionId) {
-          await grantCreditsForPaidInvoice({ stripeSubscriptionId: subscriptionId, stripeEventId: event.id });
+          await grantCreditsForPaidInvoice({
+            stripeSubscriptionId: subscriptionId,
+            stripeEventId: event.id,
+            amountPaid: invoice.amount_paid,
+            currency: invoice.currency,
+            billingReason: invoice.billing_reason,
+          });
         }
         break;
       }

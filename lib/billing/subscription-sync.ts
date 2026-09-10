@@ -2,6 +2,8 @@ import "server-only";
 import type Stripe from "stripe";
 import { getAdminClient } from "@/lib/database/admin";
 import { grantCredits, getBalanceSeconds, expireCredits } from "@/lib/credits/ledger";
+import { notifyCustomerPayment } from "@/lib/email/internal-notifications";
+import type { Customer } from "@/types/database";
 
 // Unused minutes carry over, but not forever — cap how many months' worth
 // of included_minutes a balance can accumulate to before expiring the
@@ -85,6 +87,14 @@ export async function markSubscriptionCanceled(subscription: Stripe.Subscription
 export async function grantCreditsForPaidInvoice(params: {
   stripeSubscriptionId: string;
   stripeEventId: string;
+  // Straight off the Stripe invoice, so the notification quotes what was
+  // actually charged instead of the package's list price. Optional: an
+  // invoice we can't read an amount from still credits minutes normally.
+  amountPaid?: number | null;
+  currency?: string | null;
+  // Stripe's billing_reason — "subscription_create" is a customer's first
+  // invoice on a subscription, everything else is a renewal or a top-up.
+  billingReason?: string | null;
 }): Promise<void> {
   const supabase = getAdminClient();
 
@@ -115,6 +125,26 @@ export async function grantCreditsForPaidInvoice(params: {
     stripeEventId: params.stripeEventId,
   });
 
+  // Tells the platform inbox a customer paid — a first invoice is the one
+  // worth ringing about, so it's labelled as such (see
+  // lib/email/internal-notifications.ts). Never throws: the webhook must not
+  // 500 and be retried, re-running everything above, over an email.
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("name, email, phone")
+    .eq("id", subscription.customer_id)
+    .maybeSingle<Pick<Customer, "name" | "email" | "phone">>();
+
+  if (customer) {
+    await notifyCustomerPayment({
+      customer,
+      productLabel: pkg.package_name,
+      amountLabel: formatStripeAmount(params.amountPaid, params.currency),
+      isFirstPayment: params.billingReason === "subscription_create",
+      minutesGranted: pkg.included_minutes,
+    });
+  }
+
   // Rollover cap: if this renewal pushed the balance past
   // ROLLOVER_MONTHS_CAP worth of included_minutes, expire the excess.
   // Runs after granting (not before) so the credits just paid for this
@@ -128,4 +158,16 @@ export async function grantCreditsForPaidInvoice(params: {
       description: `Ubrugte credits udløbet (gemmes maks. ${ROLLOVER_MONTHS_CAP} måneder)`,
     });
   }
+}
+
+// Stripe reports amounts in the currency's smallest unit (øre for DKK), so
+// this is the one place that division happens — never re-derived at a call
+// site. Returns undefined when there's nothing trustworthy to show, which
+// simply leaves the amount row out of the notification.
+function formatStripeAmount(amount: number | null | undefined, currency: string | null | undefined): string | undefined {
+  if (typeof amount !== "number" || !currency) return undefined;
+  return new Intl.NumberFormat("da-DK", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+  }).format(amount / 100);
 }

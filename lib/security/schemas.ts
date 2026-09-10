@@ -20,6 +20,11 @@ export const createCustomerSchema = z.object({
 export const signupSchema = z.object({
   companyName: z.string().trim().min(1).max(200),
   email: z.string().trim().email().max(320),
+  // Optional: it only exists so someone can ring a new customer and welcome
+  // them (see lib/email/internal-notifications.ts). Deliberately unvalidated
+  // beyond a length cap — country prefixes, spaces and parentheses are all
+  // legitimate, and a rejected signup costs far more than a messy number.
+  phone: z.string().trim().max(40).optional(),
   password: z.string().min(8).max(200),
   language: z.enum(LOCALES).default("da"),
 });

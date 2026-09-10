@@ -12,6 +12,7 @@ export function SignupForm({ initialLanguage }: { initialLanguage: Locale }) {
   const { t, setLocale } = useTranslation();
   const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [language, setLanguage] = useState<Locale>(initialLanguage);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +36,15 @@ export function SignupForm({ initialLanguage }: { initialLanguage: Locale }) {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName, email, password, language }),
+        body: JSON.stringify({
+          companyName,
+          email,
+          // Optional — omitted rather than sent empty, so the column stays
+          // null instead of holding "".
+          phone: phone.trim() || undefined,
+          password,
+          language,
+        }),
       });
 
       if (!res.ok) {
@@ -128,6 +137,22 @@ export function SignupForm({ initialLanguage }: { initialLanguage: Locale }) {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="mb-1 block text-sm font-medium text-slate-700">
+              {t("auth.signup.phone")}
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              autoComplete="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder={t("auth.signup.phonePlaceholder")}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+            <p className="mt-1 text-xs text-slate-500">{t("auth.signup.phoneHelp")}</p>
           </div>
 
           <div>

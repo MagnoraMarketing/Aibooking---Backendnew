@@ -2,7 +2,9 @@ import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { grantCredits } from "@/lib/credits/ledger";
 import { writeAuditLog } from "@/lib/security/audit";
+import { notifyCustomerPayment } from "@/lib/email/internal-notifications";
 import { WIDGET_LAUNCH_MINUTES, WIDGET_LAUNCH_SECONDS } from "./widget-launch-offer";
+import type { Customer } from "@/types/database";
 
 // Server-only half of the Voice Widget launch offer — the part that moves
 // money-backed minutes onto a customer's ledger. Everything the browser also
@@ -31,11 +33,15 @@ export async function grantWidgetLaunchCredits(params: {
 
   const { data: customer } = await supabase
     .from("customers")
-    .select("id")
+    .select("id, name, email, phone, widget_launch_paid_at")
     .eq("id", params.customerId)
-    .maybeSingle();
+    .maybeSingle<Pick<Customer, "id" | "name" | "email" | "phone" | "widget_launch_paid_at">>();
 
   if (!customer) return { granted: false, reason: "customer_not_found" };
+
+  // Read before the grant marks it: this is what tells the notification
+  // whether it's their first purchase or another widget going live.
+  const isFirstPayment = !customer.widget_launch_paid_at;
 
   try {
     await grantCredits({
@@ -64,6 +70,16 @@ export async function grantWidgetLaunchCredits(params: {
     entityType: "widget",
     entityId: params.widgetId ?? undefined,
     metadata: { minutes: WIDGET_LAUNCH_MINUTES, stripeEventId: params.stripeEventId },
+  });
+
+  // Only reached when this call is the one that actually credited the
+  // payment — the duplicate path above returns early — so the webhook and
+  // the return page racing each other still produce exactly one email.
+  await notifyCustomerPayment({
+    customer,
+    productLabel: `Voice Widget start: ${WIDGET_LAUNCH_MINUTES} minutter`,
+    isFirstPayment,
+    minutesGranted: WIDGET_LAUNCH_MINUTES,
   });
 
   return { granted: true };
