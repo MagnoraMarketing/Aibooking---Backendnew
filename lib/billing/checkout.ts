@@ -4,6 +4,7 @@ import { getStripeClient } from "./stripe-client";
 import { getAdminClient } from "@/lib/database/admin";
 import type { Customer, Package } from "@/types/database";
 import { ApiError } from "@/types/errors";
+import { resolveAppUrl } from "@/lib/app-url";
 
 // Stripe's SDK throws its own Stripe.errors.StripeError, which — like a
 // plain Error — isn't an ApiError, so lib/security/http.ts's errorResponse
@@ -20,7 +21,7 @@ async function callStripe<T>(action: () => Promise<T>): Promise<T> {
 }
 
 function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return resolveAppUrl();
 }
 
 // Exported for other one-off/add-on Stripe purchases (e.g. buying a phone

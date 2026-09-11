@@ -1,6 +1,7 @@
 import "server-only";
 import { getVapiVoiceTemplateAssistantId } from "@/lib/settings/platform";
 import { DEFAULT_VOICE_GENDER, FALLBACK_VOICE_BY_GENDER, type VapiVoiceGender } from "./voice-gender";
+import { resolvePublicAppUrl } from "@/lib/app-url";
 import { vapiFetch } from "./client";
 
 export type { VapiVoiceGender };
@@ -69,7 +70,12 @@ async function resolveVoiceConfig(voiceGender: VapiVoiceGender | null | undefine
 // every delivery fail signature verification instead of never being sent.
 function webhookConfig(): { serverUrl: string; serverUrlSecret: string } | Record<string, never> {
   const secret = process.env.VAPI_WEBHOOK_SECRET;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  // resolvePublicAppUrl, not the raw env var: a localhost serverUrl is worse
+  // than none (Vapi would accept it and then fail every delivery), but a
+  // Vercel-provided domain is perfectly reachable — and before this, an unset
+  // NEXT_PUBLIC_APP_URL meant assistants were created with no serverUrl at
+  // all, so no transcripts, no end-of-call reports and no call billing.
+  const appUrl = resolvePublicAppUrl();
   if (!secret || !appUrl) return {};
   return { serverUrl: `${appUrl}/api/webhooks/vapi`, serverUrlSecret: secret };
 }

@@ -4,13 +4,14 @@ import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling, rateLimit, getClientIp } from "@/lib/security";
 import { createCheckoutSession, getOrCreateIntroOfferCoupon } from "@/lib/billing";
 import { ApiError } from "@/types/errors";
+import { resolveAppUrl } from "@/lib/app-url";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
 export const dynamic = "force-dynamic";
 
 function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return resolveAppUrl();
 }
 
 // The Inbound page's "prøv i 30 dage til 499 kr, derefter 999 kr" pitch
