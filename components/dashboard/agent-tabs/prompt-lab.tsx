@@ -24,6 +24,11 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
+  // Drives the "and N sources are added on top" line below — the sources
+  // themselves live on the Knowledge Base tab, but their effect shows up
+  // here, in the prompt the agent actually runs on.
+  const knowledgeBaseCount = widget.extra.knowledgeBase?.length ?? 0;
+
   function currentPromptInputs(): PromptInputs {
     return { businessDescription, keyServices, openingHours, otherNotes };
   }
@@ -157,6 +162,31 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
       </div>
 
       <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        {/* The prompt field looks like the only thing the agent knows, which
+            leads people to paste opening hours and prices into it — where
+            they freeze and go stale. Say plainly what each half is for: this
+            box is behaviour, the knowledge base is facts, and the two are
+            joined behind the scenes at every call (see lib/vapi/sync.ts and
+            lib/conversation/handle-turn.ts). */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-medium text-slate-700">{t("agent.promptLab.howItFitsTitle")}</p>
+          <ul className="mt-2 space-y-1.5 text-sm text-slate-600">
+            <li className="flex gap-2">
+              <span className="mt-0.5 text-brand-600">1.</span>
+              <span>{t("agent.promptLab.howItFitsPrompt")}</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="mt-0.5 text-brand-600">2.</span>
+              <span>
+                {knowledgeBaseCount > 0
+                  ? t("agent.promptLab.howItFitsKnowledgeWithCount", { count: knowledgeBaseCount })
+                  : t("agent.promptLab.howItFitsKnowledgeEmpty")}
+              </span>
+            </li>
+          </ul>
+          <p className="mt-2 text-xs text-slate-500">{t("agent.promptLab.howItFitsNote")}</p>
+        </div>
+
         <div>
           <label htmlFor="system-prompt" className="mb-1 block text-sm font-medium text-slate-700">
             {t("agent.promptLab.systemPromptLabel")}

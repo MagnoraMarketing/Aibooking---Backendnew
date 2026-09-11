@@ -107,6 +107,7 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   // requiring the customer to hand-paste a Vapi assistant id they have no
   // way to get. Runs on every save, so an already-broken widget fixes
   // itself the next time the customer touches Settings.
+  let assistantJustProvisioned = false;
   if (data.llm_model_id && !extra.vapiAssistantId) {
     const { data: model } = await supabase.from("llm_models").select("provider").eq("id", data.llm_model_id).maybeSingle();
     if (model?.provider === "vapi") {
@@ -120,6 +121,7 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
       });
       extra = { ...extra, voiceGender, vapiAssistantId: assistant.id };
       await supabase.from("widget_settings").upsert({ widget_id: widgetId, extra });
+      assistantJustProvisioned = true;
     }
   }
 
@@ -136,7 +138,18 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     widgetFields.openingMessage !== undefined ||
     widgetFields.language !== undefined;
 
-  if (relevantFieldsChanged || extraUpdate?.vapiAssistantId !== undefined || extraUpdate?.voiceGender !== undefined) {
+  // assistantJustProvisioned matters on its own: the self-heal above creates
+  // the assistant from the bare system prompt, with no knowledge base
+  // attached — only syncWidgetToVapiAssistant merges those sources in.
+  // Without this, a widget that healed during a save which changed nothing
+  // "relevant" (a colour, a status toggle) would answer with no knowledge of
+  // its own sources until the next prompt edit.
+  if (
+    assistantJustProvisioned ||
+    relevantFieldsChanged ||
+    extraUpdate?.vapiAssistantId !== undefined ||
+    extraUpdate?.voiceGender !== undefined
+  ) {
     await syncWidgetToVapiAssistant(data, extra);
   }
 
