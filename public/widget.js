@@ -85,6 +85,36 @@
     }).catch(function () {});
   }
 
+  // The launcher toggles the panel in every UI mode. Registering that in one
+  // place also lets the host page open the agent itself — window.aibooking
+  // .open() / .close() / .toggle() — so a site can wire its own "Book en
+  // tid" button in the page body to the agent instead of relying on the
+  // corner launcher alone. The dashboard's Test Agent preview opens the
+  // widget through exactly this.
+  function registerLauncher(launcher, panel, onOpen) {
+    function setOpen(open) {
+      state.open = open;
+      panel.style.display = open ? "flex" : "none";
+      if (open && onOpen) onOpen();
+    }
+
+    launcher.addEventListener("click", function () {
+      setOpen(!state.open);
+    });
+
+    window.aibooking = {
+      open: function () {
+        setOpen(true);
+      },
+      close: function () {
+        setOpen(false);
+      },
+      toggle: function () {
+        setOpen(!state.open);
+      },
+    };
+  }
+
   function el(tag, attrs, children) {
     var node = document.createElement(tag);
     if (attrs) {
@@ -379,11 +409,7 @@
       if (e.key === "Enter") send();
     });
 
-    launcher.addEventListener("click", function () {
-      state.open = !state.open;
-      panel.style.display = state.open ? "flex" : "none";
-      if (state.open) ensureSession();
-    });
+    registerLauncher(launcher, panel, ensureSession);
   }
 
   // "Expert model" widgets are speech-to-speech via OpenAI's Realtime API,
@@ -621,10 +647,7 @@
       if (rtc.active) endCall(true);
     });
 
-    launcher.addEventListener("click", function () {
-      state.open = !state.open;
-      panel.style.display = state.open ? "flex" : "none";
-    });
+    registerLauncher(launcher, panel);
   }
 
   // "Vapi model" widgets are also speech-to-speech, but the call itself is
@@ -861,10 +884,7 @@
       }
     });
 
-    launcher.addEventListener("click", function () {
-      state.open = !state.open;
-      panel.style.display = state.open ? "flex" : "none";
-    });
+    registerLauncher(launcher, panel);
   }
 
   // "Twilio Relay" widgets are also speech-to-speech, but the call is
@@ -1029,10 +1049,7 @@
       if (call.active && call.activeCall) call.activeCall.disconnect();
     });
 
-    launcher.addEventListener("click", function () {
-      state.open = !state.open;
-      panel.style.display = state.open ? "flex" : "none";
-    });
+    registerLauncher(launcher, panel);
   }
 
   fetch(apiBase + "/api/widget/config?publicId=" + encodeURIComponent(publicId))
