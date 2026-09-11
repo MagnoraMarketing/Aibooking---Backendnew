@@ -1168,6 +1168,38 @@ export const agent: Namespace = {
   // ---------------------------------------------------------------------
   // agent-tabs/test-agent.tsx
   // ---------------------------------------------------------------------
+  "testAgent.previewCtaLabel": {
+    da: "Prøv agenten",
+    en: "Try the agent",
+    es: "Probar el agente",
+    fr: "Essayer l'agent",
+    pt: "Experimentar o agente",
+    de: "Agent ausprobieren",
+  },
+  "testAgent.previewCtaHint": {
+    da: "Knappen herover er et eksempel på jeres egen knap — den åbner agenten via window.aibooking.open().",
+    en: "The button above is an example of your own button — it opens the agent via window.aibooking.open().",
+    es: "El botón de arriba es un ejemplo de su propio botón: abre el agente mediante window.aibooking.open().",
+    fr: "Le bouton ci-dessus est un exemple de votre propre bouton : il ouvre l'agent via window.aibooking.open().",
+    pt: "O botão acima é um exemplo do seu próprio botão — abre o agente através de window.aibooking.open().",
+    de: "Die Schaltfläche oben ist ein Beispiel für Ihre eigene Schaltfläche — sie öffnet den Agenten über window.aibooking.open().",
+  },
+  "testAgent.embedOriginWarningTitle": {
+    da: "Indlejrings-koden peger på et andet domæne",
+    en: "The embed code points at a different domain",
+    es: "El código de inserción apunta a otro dominio",
+    fr: "Le code d'intégration pointe vers un autre domaine",
+    pt: "O código de incorporação aponta para outro domínio",
+    de: "Der Einbettungscode verweist auf eine andere Domain",
+  },
+  "testAgent.embedOriginWarningBody": {
+    da: "Koden under Embed Code henter widget.js fra {origin}, som ikke er dette dashboard. Forhåndsvisningen herunder bruger derfor dette domæne i stedet, så I kan teste agenten — men sæt NEXT_PUBLIC_APP_URL til jeres rigtige domæne, før I giver koden videre til en kunde.",
+    en: "The code under Embed Code loads widget.js from {origin}, which is not this dashboard. The preview below uses this domain instead so you can still test the agent — but set NEXT_PUBLIC_APP_URL to your real domain before handing the code to a customer.",
+    es: "El código de Embed Code carga widget.js desde {origin}, que no es este panel. La vista previa usa este dominio para que pueda probar el agente, pero configure NEXT_PUBLIC_APP_URL con su dominio real antes de entregar el código a un cliente.",
+    fr: "Le code d'Embed Code charge widget.js depuis {origin}, qui n'est pas ce tableau de bord. L'aperçu ci-dessous utilise ce domaine afin que vous puissiez tester l'agent — mais définissez NEXT_PUBLIC_APP_URL sur votre vrai domaine avant de transmettre le code à un client.",
+    pt: "O código em Embed Code carrega widget.js de {origin}, que não é este painel. A pré-visualização usa este domínio para que possa testar o agente — mas defina NEXT_PUBLIC_APP_URL para o seu domínio real antes de entregar o código a um cliente.",
+    de: "Der Code unter Embed Code lädt widget.js von {origin}, was nicht dieses Dashboard ist. Die Vorschau verwendet stattdessen diese Domain, damit Sie den Agenten testen können — setzen Sie aber NEXT_PUBLIC_APP_URL auf Ihre echte Domain, bevor Sie den Code an einen Kunden weitergeben.",
+  },
   "testAgent.previewHeading": {
     da: "Sådan ser jeres side ud",
     en: "This is what your page looks like",
