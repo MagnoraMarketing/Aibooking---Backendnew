@@ -400,6 +400,22 @@ export const agent: Namespace = {
     pt: "Não foi possível gerar um prompt. Tente novamente ou escreva-o você mesmo abaixo.",
     de: "Der Prompt konnte nicht generiert werden. Versuchen Sie es erneut oder schreiben Sie ihn unten selbst.",
   },
+  "promptLab.generatedAndSaved": {
+    da: "Prompten er genereret og gemt på agenten.",
+    en: "The prompt was generated and saved to the agent.",
+    es: "El prompt se generó y se guardó en el agente.",
+    fr: "Le prompt a été généré et enregistré sur l'agent.",
+    pt: "O prompt foi gerado e guardado no agente.",
+    de: "Der Prompt wurde generiert und beim Agenten gespeichert.",
+  },
+  "promptLab.generatedNotSaved": {
+    da: "Prompten er genereret, men kunne ikke gemmes. Tjek teksten nedenfor og tryk Gem.",
+    en: "The prompt was generated but could not be saved. Check the text below and press Save.",
+    es: "El prompt se generó pero no se pudo guardar. Revise el texto a continuación y pulse Guardar.",
+    fr: "Le prompt a été généré mais n'a pas pu être enregistré. Vérifiez le texte ci-dessous et appuyez sur Enregistrer.",
+    pt: "O prompt foi gerado mas não foi possível guardá-lo. Verifique o texto abaixo e prima Guardar.",
+    de: "Der Prompt wurde generiert, konnte aber nicht gespeichert werden. Prüfen Sie den Text unten und klicken Sie auf Speichern.",
+  },
   "promptLab.generating": {
     da: "Genererer…",
     en: "Generating…",

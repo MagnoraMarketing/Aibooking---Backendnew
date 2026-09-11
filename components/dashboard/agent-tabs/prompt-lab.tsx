@@ -18,6 +18,7 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
   const [otherNotes, setOtherNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [generateStatus, setGenerateStatus] = useState<"idle" | "saved" | "unsaved">("idle");
 
   async function handleSave() {
     setSaving(true);
@@ -34,6 +35,7 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
     }
     setGenerating(true);
     setGenerateError(null);
+    setGenerateStatus("idle");
 
     const res = await fetch(`/api/customer/widgets/${widget.id}/generate-prompt`, {
       method: "POST",
@@ -41,9 +43,8 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
       body: JSON.stringify({ businessDescription, keyServices, openingHours, otherNotes }),
     });
 
-    setGenerating(false);
-
     if (!res.ok) {
+      setGenerating(false);
       const data = await res.json().catch(() => null);
       setGenerateError(
         data?.error?.message
@@ -55,6 +56,16 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
 
     const data = await res.json();
     setSystemPrompt(data.systemPrompt);
+
+    // Persist it straight away rather than leaving the draft sitting in an
+    // unsaved textarea: the same PATCH also pushes the prompt to the
+    // agent's Vapi assistant (see app/api/customer/widgets/[id]/route.ts),
+    // so the voice agent actually speaks from the generated prompt instead
+    // of the default one. The textarea stays editable, and the Save button
+    // below still saves any later hand-edits.
+    const saved = await savePatch({ systemPrompt: data.systemPrompt });
+    setGenerating(false);
+    setGenerateStatus(saved ? "saved" : "unsaved");
   }
 
   return (
@@ -121,6 +132,12 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
         </div>
 
         {generateError ? <p className="text-sm text-red-600">{generateError}</p> : null}
+        {generateStatus === "saved" ? (
+          <p className="text-sm text-emerald-600">{t("agent.promptLab.generatedAndSaved")}</p>
+        ) : null}
+        {generateStatus === "unsaved" ? (
+          <p className="text-sm text-amber-600">{t("agent.promptLab.generatedNotSaved")}</p>
+        ) : null}
 
         <button
           type="button"
