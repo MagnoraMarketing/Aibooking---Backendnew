@@ -4,9 +4,15 @@ import { grantCredits } from "@/lib/credits/ledger";
 import { generatePublicWidgetId } from "@/lib/widgets/public-id";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
 import { TRIAL_MINUTES, TRIAL_SECONDS } from "@/lib/billing/trial";
+import { createVapiAssistant } from "@/lib/vapi";
+import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content";
 import { getDefaultOrSpecified } from "./onboarding";
 import type { Customer, LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 import { ApiError } from "@/types/errors";
+
+// Mirrors app/api/customer/widgets/route.ts — the voice the wizard's
+// Stemme step starts from until the customer picks explicitly.
+const DEFAULT_VOICE_GENDER = "female";
 
 export interface SelfSignupParams {
   companyName: string;
@@ -20,6 +26,31 @@ export interface SelfSignupResult {
   customer: Customer;
   widget: Widget;
   userId: string;
+}
+
+// The "Main widget" a new customer lands on should be the same kind of agent
+// the create-agent flow would give them — the Vapi voice agent (see
+// 0012_vapi_default_model.sql). getDefaultOrSpecified would instead pick
+// llm_models.is_default, which is the OpenAI Realtime row: a different
+// engine, needing a different API key, with no Vapi assistant behind it. New
+// customers were landing on a first agent unlike every later one they create.
+//
+// is_default stays the fallback rather than the choice: it still means "the
+// system default" for everything that reads it independently of the create
+// flow, and it keeps signup working if nobody has marked a model
+// show_in_create_flow yet.
+async function resolveSignupLLMModel(): Promise<LLMModel> {
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from("llm_models")
+    .select("*")
+    .eq("active", true)
+    .eq("show_in_create_flow", true)
+    .order("is_default", { ascending: false })
+    .limit(1)
+    .maybeSingle<LLMModel>();
+
+  return data ?? (await getDefaultOrSpecified<LLMModel>("llm_models", undefined));
 }
 
 // Public counterpart to lib/customers/onboarding.ts's admin-triggered
@@ -36,7 +67,7 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
   }
 
   const pkg = await getDefaultOrSpecified<Package>("packages", undefined);
-  const llmModel = await getDefaultOrSpecified<LLMModel>("llm_models", undefined);
+  const llmModel = await resolveSignupLLMModel();
   const voiceModel = await getDefaultOrSpecified<VoiceModel>("voice_models", undefined);
 
   const { data: customer, error: customerError } = await supabase
@@ -87,7 +118,28 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
     throw new Error(`Failed to create default widget: ${widgetError?.message}`);
   }
 
-  await supabase.from("widget_settings").insert({ widget_id: widget.id, extra: {} });
+  // Same provisioning the create-agent route does (see
+  // app/api/customer/widgets/route.ts): a Vapi widget with no assistant
+  // can't take a call at all. Best-effort here, unlike there — a Vapi
+  // outage must not cost someone their signup, and the widget PATCH route
+  // self-heals a missing assistant the next time the customer saves.
+  const extra: Record<string, unknown> = { voiceGender: DEFAULT_VOICE_GENDER };
+
+  if (llmModel.provider === "vapi") {
+    try {
+      const assistant = await createVapiAssistant({
+        name: widget.name,
+        systemPrompt: withLanguageDirective(defaultSystemPrompt, widget.language),
+        firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
+        voiceGender: DEFAULT_VOICE_GENDER,
+      });
+      extra.vapiAssistantId = assistant.id;
+    } catch (err) {
+      console.error(`Failed to provision Vapi assistant for new customer ${customer.id}:`, err);
+    }
+  }
+
+  await supabase.from("widget_settings").insert({ widget_id: widget.id, extra });
 
   const { data: created, error: authError } = await supabase.auth.admin.createUser({
     email: params.email,

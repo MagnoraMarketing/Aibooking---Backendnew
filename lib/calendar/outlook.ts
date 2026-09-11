@@ -1,7 +1,7 @@
 import "server-only";
 import { ApiError } from "@/types/errors";
 import type { OAuthTokenResult } from "./types";
-import { resolveAppUrl } from "@/lib/app-url";
+import { getPublicAppUrl } from "@/lib/app-url";
 
 // Microsoft 365 / Outlook — the other dominant business calendar in
 // Denmark alongside Google Workspace. Uses the Microsoft identity platform
@@ -22,7 +22,7 @@ function getCredentials(): { clientId: string; clientSecret: string } {
 }
 
 function redirectUri(): string {
-  const base = resolveAppUrl();
+  const base = getPublicAppUrl();
   return `${base}/api/customer/calendar/outlook/callback`;
 }
 

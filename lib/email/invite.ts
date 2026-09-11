@@ -1,11 +1,11 @@
 import "server-only";
+import { getPublicAppUrl } from "@/lib/app-url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendEmail } from "./client";
 import { buildInviteEmailHtml } from "./templates/invite";
-import { resolveAppUrl } from "@/lib/app-url";
 
 function getAppUrl(): string {
-  return resolveAppUrl();
+  return getPublicAppUrl();
 }
 
 export interface SendCustomerInviteEmailParams {

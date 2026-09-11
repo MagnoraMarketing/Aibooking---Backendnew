@@ -3,6 +3,7 @@ import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, calcomConnectInputSchema, encryptSecret } from "@/lib/security";
 import { fetchCalcomEventTypes, fetchCalcomMe } from "@/lib/calendar";
+import { syncWidgetToVapiAssistant } from "@/lib/vapi";
 import { ApiError } from "@/types/errors";
 
 export const dynamic = "force-dynamic";
@@ -64,6 +65,29 @@ export const POST = withErrorHandling(async (request) => {
     .single();
   if (error) throw error;
 
+  // Connecting a calendar is what makes booking real for this agent.
+  // widgets.booking_enabled is the single gate the runtime reads (see
+  // 0030_optional_booking.sql): the Vapi assistant only carries booking
+  // tools when it's on, and the Anthropic tool handler only touches Cal.com
+  // when it's on. Until now only an admin completing a booking_setup_request
+  // flipped it, so a customer who connected Cal.com themselves ended up with
+  // a stored connection and an agent that still couldn't book anything.
+  const { data: enabledWidget } = await supabase
+    .from("widgets")
+    .update({ booking_enabled: true })
+    .eq("id", widget.id)
+    .select("*")
+    .single();
+
+  if (enabledWidget) {
+    const { data: settings } = await supabase
+      .from("widget_settings")
+      .select("extra")
+      .eq("widget_id", widget.id)
+      .maybeSingle();
+    await syncWidgetToVapiAssistant(enabledWidget, (settings?.extra as Record<string, unknown> | null) ?? {});
+  }
+
   await writeAuditLog({
     actorId: ctx.userId,
     actorRole: ctx.profile.role,
@@ -74,5 +98,5 @@ export const POST = withErrorHandling(async (request) => {
     metadata: { provider: "calcom" },
   });
 
-  return NextResponse.json({ connection }, { status: 201 });
+  return NextResponse.json({ connection, eventTypes, bookingEnabled: true }, { status: 201 });
 });

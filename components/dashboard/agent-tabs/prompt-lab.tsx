@@ -23,6 +23,7 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
   const [otherNotes, setOtherNotes] = useState(savedInputs.otherNotes ?? "");
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [generateStatus, setGenerateStatus] = useState<"idle" | "saved" | "unsaved">("idle");
 
   // Drives the "and N sources are added on top" line below — the sources
   // themselves live on the Knowledge Base tab, but their effect shows up
@@ -53,6 +54,7 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
     }
     setGenerating(true);
     setGenerateError(null);
+    setGenerateStatus("idle");
 
     const res = await fetch(`/api/customer/widgets/${widget.id}/generate-prompt`, {
       method: "POST",
@@ -60,9 +62,8 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
       body: JSON.stringify({ businessDescription, keyServices, openingHours, otherNotes }),
     });
 
-    setGenerating(false);
-
     if (!res.ok) {
+      setGenerating(false);
       const data = await res.json().catch(() => null);
       setGenerateError(
         data?.error?.message
@@ -75,15 +76,20 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
     const data = await res.json();
     setSystemPrompt(data.systemPrompt);
 
-    // Save the draft and the answers behind it in one go, rather than
-    // leaving a generated prompt sitting unsaved in a textarea the customer
-    // can navigate away from. This is also what pushes the new prompt (plus
-    // any attached knowledge base) onto the live Vapi assistant, since the
-    // PATCH route re-syncs it — see lib/vapi/sync.ts.
-    setSaving(true);
-    const saved = await savePatch({ systemPrompt: data.systemPrompt, extra: { promptInputs: currentPromptInputs() } });
-    setSaving(false);
-    setStatus(saved ? "saved" : "error");
+    // Persist it straight away rather than leaving the draft sitting in an
+    // unsaved textarea: the same PATCH also pushes the prompt to the agent's
+    // Vapi assistant (see app/api/customer/widgets/[id]/route.ts), so the
+    // voice agent actually speaks from the generated prompt instead of the
+    // default one. The answers that produced it are saved alongside, so the
+    // prompt stays regenerable instead of the inputs being thrown away. The
+    // textarea stays editable, and the Save button below still saves any
+    // later hand-edits.
+    const saved = await savePatch({
+      systemPrompt: data.systemPrompt,
+      extra: { promptInputs: currentPromptInputs() },
+    });
+    setGenerating(false);
+    setGenerateStatus(saved ? "saved" : "unsaved");
   }
 
   return (
@@ -150,6 +156,12 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
         </div>
 
         {generateError ? <p className="text-sm text-red-600">{generateError}</p> : null}
+        {generateStatus === "saved" ? (
+          <p className="text-sm text-emerald-600">{t("agent.promptLab.generatedAndSaved")}</p>
+        ) : null}
+        {generateStatus === "unsaved" ? (
+          <p className="text-sm text-amber-600">{t("agent.promptLab.generatedNotSaved")}</p>
+        ) : null}
 
         <button
           type="button"

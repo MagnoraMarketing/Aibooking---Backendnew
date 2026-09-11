@@ -20,8 +20,19 @@ export async function POST(request: Request): Promise<NextResponse> {
   const signature = request.headers.get("stripe-signature");
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  if (!signature || !webhookSecret) {
-    return NextResponse.json({ error: "Missing webhook signature/secret" }, { status: 400 });
+  // A missing secret is our misconfiguration, not a malformed request from
+  // Stripe — and it's the kind that hides: Stripe shows failed deliveries in
+  // its own dashboard while nothing here says why, and no invoice.paid ever
+  // grants the customer their minutes.
+  if (!webhookSecret) {
+    console.error(
+      "[stripe] STRIPE_WEBHOOK_SECRET is not set — every webhook is rejected, so paid invoices never grant credits."
+    );
+    return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 });
+  }
+
+  if (!signature) {
+    return NextResponse.json({ error: "Missing webhook signature" }, { status: 400 });
   }
 
   const rawBody = await request.text();

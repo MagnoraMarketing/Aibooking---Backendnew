@@ -3,6 +3,7 @@ import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling, writeAuditLog, requireParam, readJsonBody, decryptSecret, calcomUpdateEventTypeSchema } from "@/lib/security";
 import { fetchCalcomEventTypes } from "@/lib/calendar";
+import { syncWidgetToVapiAssistant } from "@/lib/vapi";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -55,7 +56,7 @@ export const DELETE = withErrorHandling(async (_request, { params }) => {
 
   const { data: connection, error: lookupError } = await supabase
     .from("calendar_connections")
-    .select("id, customer_id, provider")
+    .select("id, customer_id, widget_id, provider")
     .eq("id", connectionId)
     .maybeSingle();
   if (lookupError) throw lookupError;
@@ -63,6 +64,31 @@ export const DELETE = withErrorHandling(async (_request, { params }) => {
 
   const { error } = await supabase.from("calendar_connections").delete().eq("id", connectionId);
   if (error) throw error;
+
+  // The mirror of connecting (app/api/customer/calendar/calcom/route.ts):
+  // Cal.com is where bookings actually land, so removing it has to take the
+  // booking gate down with it and re-sync the Vapi assistant — otherwise the
+  // agent keeps offering to book and every attempt fails at the tool call,
+  // which reads worse to a caller than not offering at all. Only for
+  // provider='calcom': a Google/Outlook connection is a calendar the
+  // customer also linked, not the booking backend.
+  if (connection.provider === "calcom" && connection.widget_id) {
+    const { data: disabledWidget } = await supabase
+      .from("widgets")
+      .update({ booking_enabled: false })
+      .eq("id", connection.widget_id)
+      .select("*")
+      .single();
+
+    if (disabledWidget) {
+      const { data: settings } = await supabase
+        .from("widget_settings")
+        .select("extra")
+        .eq("widget_id", connection.widget_id)
+        .maybeSingle();
+      await syncWidgetToVapiAssistant(disabledWidget, (settings?.extra as Record<string, unknown> | null) ?? {});
+    }
+  }
 
   await writeAuditLog({
     actorId: ctx.userId,

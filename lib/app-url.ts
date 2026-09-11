@@ -1,78 +1,59 @@
-// Every absolute URL this platform hands to the outside world starts here —
-// a customer's embed snippet, a Stripe return URL, an OAuth redirect_uri, an
-// invite link, the serverUrl a Vapi assistant posts call events back to.
-// They must all agree on what "our address" is, so there is one resolver
-// rather than a copy of the same `?? "http://localhost:3000"` in each module.
+// The platform's own public base URL — the one we hand to *other people's*
+// systems: Stripe's success/cancel redirects, Vapi's serverUrl for call
+// events and booking tools, the embed snippet a customer pastes on their
+// site, invitation links in email.
 //
-// NEXT_PUBLIC_APP_URL is the intended source of truth: the real domain, set
-// once per environment. The fallbacks exist so a fresh deploy isn't
-// completely dead, but they are strictly worse, and ordered accordingly:
+// NEXT_PUBLIC_APP_URL is the intended source of truth (a custom domain), but
+// it's easy to forget on a fresh Vercel deploy — and each caller used to
+// carry its own `?? "http://localhost:3000"`, which turns a missing env var
+// into a working-looking URL that is useless to everyone except the
+// developer who wrote it: a Stripe checkout that redirects the paying
+// customer to localhost, a Vapi assistant whose webhook never arrives.
 //
-//   VERCEL_PROJECT_PRODUCTION_URL — the project's stable production domain
-//     (e.g. aibooking-backendnew.vercel.app). The same value for every
-//     deployment, so a snippet built from it still works after the next
-//     deploy.
+// The two Vercel fallbacks are automatic system env vars, set on every
+// hosted deployment with no dashboard config, and the order between them is
+// the whole point:
 //
-//   VERCEL_URL — *this deployment's own* URL
-//     (e.g. aibooking-backendnew-jwlxrkawl-….vercel.app). It is different
-//     for every single deploy, which makes it actively dangerous for
-//     anything long-lived: an embed snippet pasted onto a customer's website
-//     stops resolving the next time you ship. Last resort before localhost,
-//     and it is why the order above matters.
+//   VERCEL_PROJECT_PRODUCTION_URL — the project's production domain. The
+//     same value for every deployment, so an embed snippet built from it is
+//     still resolving a month and ten deploys later.
 //
-// Both Vercel values are system environment variables, present automatically
-// in every hosted deployment with no dashboard configuration:
+//   VERCEL_URL — *this deployment's own* URL, different for every single
+//     deploy. Anything long-lived built from it breaks the next time you
+//     ship, out on the customer's website where nobody is watching. Last
+//     resort before localhost.
+//
 // https://vercel.com/docs/environment-variables/system-environment-variables
-
-// A trailing slash would produce "…dk//api/…" downstream — harmless-looking,
-// but an OAuth redirect_uri or a Twilio-signed webhook URL has to match
-// byte-for-byte, so normalise once here instead of at each call site.
+//
+// Not used by lib/telephony/urls.ts: Twilio signs the exact URL string it
+// was configured with, so that module deliberately keeps its own strict
+// resolution and fails loudly rather than falling back at all.
 function normalize(rawUrl: string): string {
   return rawUrl.trim().replace(/\/+$/, "");
 }
 
-const LOCAL_FALLBACK = "http://localhost:3000";
-
-export interface AppUrlResolution {
-  url: string;
-  // Which variable answered. Callers that must not hand out an unstable or
-  // unreachable address (see resolvePublicAppUrl) branch on this rather than
-  // re-reading the environment themselves.
-  source: "configured" | "vercel-production" | "vercel-deployment" | "local-fallback";
+export function getPublicAppUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return normalize(process.env.NEXT_PUBLIC_APP_URL);
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${normalize(process.env.VERCEL_PROJECT_PRODUCTION_URL)}`;
+  }
+  if (process.env.VERCEL_URL) return `https://${normalize(process.env.VERCEL_URL)}`;
+  return "http://localhost:3000";
 }
 
-export function resolveAppUrlWithSource(): AppUrlResolution {
-  const configured = process.env.NEXT_PUBLIC_APP_URL;
-  if (configured) return { url: normalize(configured), source: "configured" };
-
-  const productionDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  if (productionDomain) return { url: `https://${normalize(productionDomain)}`, source: "vercel-production" };
-
-  const deploymentDomain = process.env.VERCEL_URL;
-  if (deploymentDomain) return { url: `https://${normalize(deploymentDomain)}`, source: "vercel-deployment" };
-
-  return { url: LOCAL_FALLBACK, source: "local-fallback" };
+// True when the resolved URL is something the outside world can actually
+// reach. Callers that hand the URL to a third party use this to skip or warn
+// rather than registering a localhost address that silently never works.
+export function isPubliclyReachableAppUrl(): boolean {
+  const url = getPublicAppUrl();
+  return /^https:\/\//i.test(url) && !/^https:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(url);
 }
 
-export function resolveAppUrl(): string {
-  return resolveAppUrlWithSource().url;
-}
-
-// For URLs that a third party will call back on, or that a customer will
-// keep: Twilio, Vapi, Stripe, Google/Microsoft OAuth. localhost is useless to
-// all of them — a serverUrl pointing at it means call events are simply never
-// delivered — so this returns null instead of a value that looks fine and
-// silently does nothing. Callers decide whether that's fatal or just skipped.
-export function resolvePublicAppUrl(): string | null {
-  const { url, source } = resolveAppUrlWithSource();
-  return source === "local-fallback" ? null : url;
-}
-
-// Whether the resolved address is one a customer can safely be given for
-// keeps. A per-deployment Vercel URL resolves and even works today, which is
-// exactly what makes it worth flagging: it breaks on the next deploy, long
-// after whoever pasted it has stopped looking.
+// Stricter than reachable, and a different question: is this an address a
+// customer can be given *for keeps*? A per-deployment VERCEL_URL is
+// reachable today and dead after the next deploy, which is exactly what
+// makes it worth telling them apart.
 export function isStableAppUrl(): boolean {
-  const { source } = resolveAppUrlWithSource();
-  return source === "configured" || source === "vercel-production";
+  if (process.env.NEXT_PUBLIC_APP_URL) return true;
+  return Boolean(process.env.VERCEL_PROJECT_PRODUCTION_URL);
 }

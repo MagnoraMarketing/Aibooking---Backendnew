@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/database/admin";
-import { readJsonBody, withErrorHandling, rateLimit, getClientIp, widgetRelayTokenSchema } from "@/lib/security";
+import { readJsonBody, withErrorHandling, rateLimit, getClientIp, widgetRelayTokenSchema, withPublicCors, corsPreflight } from "@/lib/security";
 import { getWidgetBundleByPublicId } from "@/lib/widgets";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { createUsageSession } from "@/lib/usage";
@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 // PublicWidgetConfig for why internal ids never reach the browser; the
 // relay-start webhook (app/api/telephony/twilio/voice/relay-start) resolves
 // the internal widget/customer ids itself from publicId once Twilio calls it.
-export const POST = withErrorHandling(async (request) => {
+export const POST = withPublicCors(withErrorHandling(async (request) => {
   const ip = getClientIp(request.headers);
   const { allowed } = rateLimit(`widget-relay-token:${ip}`, { limit: 20, windowMs: 60_000 });
   if (!allowed) throw ApiError.tooManyRequests();
@@ -68,4 +68,9 @@ export const POST = withErrorHandling(async (request) => {
     },
     { status: 201 }
   );
-});
+}));
+
+// CORS preflight for the cross-origin calls public/widget.js makes from
+// the customer's own website (Content-Type: application/json is not a
+// CORS-safelisted header, so the browser sends OPTIONS first).
+export const OPTIONS = () => corsPreflight();

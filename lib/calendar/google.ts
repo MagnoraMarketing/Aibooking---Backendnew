@@ -1,7 +1,7 @@
 import "server-only";
 import { ApiError } from "@/types/errors";
 import type { OAuthTokenResult } from "./types";
-import { resolveAppUrl } from "@/lib/app-url";
+import { getPublicAppUrl } from "@/lib/app-url";
 
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -18,7 +18,7 @@ function getCredentials(): { clientId: string; clientSecret: string } {
 }
 
 function redirectUri(): string {
-  const base = resolveAppUrl();
+  const base = getPublicAppUrl();
   return `${base}/api/customer/calendar/google/callback`;
 }
 
