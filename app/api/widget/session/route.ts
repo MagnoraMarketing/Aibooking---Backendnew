@@ -7,6 +7,8 @@ import {
   getClientIp,
   widgetSessionStartSchema,
   widgetSessionEndSchema,
+  withPublicCors,
+  corsPreflight,
 } from "@/lib/security";
 import { getWidgetBundleByPublicId } from "@/lib/widgets";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
@@ -26,7 +28,7 @@ export const dynamic = "force-dynamic";
 const DEFAULT_REALTIME_INSTRUCTIONS =
   "Du er en hjælpsom AI-assistent. Tal naturligt og kortfattet på dansk.";
 
-export const POST = withErrorHandling(async (request) => {
+export const POST = withPublicCors(withErrorHandling(async (request) => {
   const ip = getClientIp(request.headers);
   const { allowed } = rateLimit(`widget-session-start:${ip}`, { limit: 20, windowMs: 60_000 });
   if (!allowed) throw ApiError.tooManyRequests();
@@ -147,9 +149,9 @@ export const POST = withErrorHandling(async (request) => {
     },
     { status: 201 }
   );
-});
+}));
 
-export const PATCH = withErrorHandling(async (request) => {
+export const PATCH = withPublicCors(withErrorHandling(async (request) => {
   const ip = getClientIp(request.headers);
   const { allowed } = rateLimit(`widget-session-end:${ip}`, { limit: 40, windowMs: 60_000 });
   if (!allowed) throw ApiError.tooManyRequests();
@@ -166,4 +168,9 @@ export const PATCH = withErrorHandling(async (request) => {
     sessionId: session.id,
     billedDurationSeconds: session.billed_duration_seconds,
   });
-});
+}));
+
+// CORS preflight for the cross-origin calls public/widget.js makes from
+// the customer's own website (Content-Type: application/json is not a
+// CORS-safelisted header, so the browser sends OPTIONS first).
+export const OPTIONS = () => corsPreflight();

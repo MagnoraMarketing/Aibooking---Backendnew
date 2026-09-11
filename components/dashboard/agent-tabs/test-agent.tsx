@@ -18,10 +18,20 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+// The widget's own embed snippet, rewritten to load widget.js from
+// `origin` — used when the configured embed origin isn't this dashboard
+// (NEXT_PUBLIC_APP_URL unset or stale on the deployment), which would
+// otherwise leave the preview silently empty: widget.js is fetched from a
+// host the browser can't reach, and it fails quietly by design.
+function snippetForOrigin(snippet: string, origin: string | null): string {
+  if (!origin) return snippet;
+  return snippet.replace(/src="[^"]*\/widget\.js"/, `src="${origin}/widget.js"`);
+}
+
 // A stand-in "customer homepage" carrying the widget's *actual* embed
 // snippet, so Test Agent shows exactly what a visitor would see once this
 // is pasted onto their real site — not just the bare widget on a blank page.
-function buildPreviewHtml(widget: WidgetWithExtras, t: Translate): string {
+function buildPreviewHtml(widget: WidgetWithExtras, t: Translate, previewOrigin: string | null): string {
   const businessName = escapeHtml(widget.business_name ?? widget.name);
   const welcomeMessage = escapeHtml(widget.welcome_message ?? t("agent.testAgent.defaultWelcomeMessage"));
 
@@ -37,6 +47,11 @@ function buildPreviewHtml(widget: WidgetWithExtras, t: Translate): string {
   header p { margin: 0; color: #475569; }
   main { max-width: 720px; margin: 0 auto; padding: 32px 24px 140px; line-height: 1.6; color: #334155; }
   .placeholder-block { height: 160px; border-radius: 12px; background: #e2e8f0; margin: 24px 0; }
+  .try-agent {
+    display: inline-block; border: 0; cursor: pointer; border-radius: 10px; padding: 12px 20px;
+    font: inherit; font-weight: 600; color: #fff; background: ${widget.primary_color};
+  }
+  .try-agent-hint { margin-top: 8px; font-size: 13px; color: #64748b; }
 </style>
 </head>
 <body>
@@ -50,11 +65,33 @@ function buildPreviewHtml(widget: WidgetWithExtras, t: Translate): string {
       ${escapeHtml(t("agent.testAgent.previewParagraph"))}
     </p>
     <div class="placeholder-block"></div>
+    <button type="button" class="try-agent" onclick="window.aibooking && window.aibooking.open()">
+      ${escapeHtml(t("agent.testAgent.previewCtaLabel"))}
+    </button>
+    <p class="try-agent-hint">${escapeHtml(t("agent.testAgent.previewCtaHint"))}</p>
     <p>
       ${escapeHtml(t("agent.testAgent.previewFooterParagraph"))}
     </p>
   </main>
-  ${widget.embedSnippet}
+  ${snippetForOrigin(widget.embedSnippet, previewOrigin)}
+  <script>
+    // Open the agent as soon as widget.js has built it, so the preview shows
+    // the actual widget rather than a corner button the customer has to find.
+    // window.aibooking only exists once the config fetch has resolved, hence
+    // the short poll; it gives up rather than spinning forever if the widget
+    // never loads (the config banner above the preview explains that case).
+    (function () {
+      var tries = 0;
+      var timer = setInterval(function () {
+        if (window.aibooking) {
+          clearInterval(timer);
+          window.aibooking.open();
+        } else if (++tries > 60) {
+          clearInterval(timer);
+        }
+      }, 100);
+    })();
+  </script>
 </body>
 </html>`;
 }
@@ -100,10 +137,35 @@ function useWidgetConfigCheck(publicId: string) {
   return { status, errorMessage };
 }
 
+// The origin the embed snippet points at, when that isn't this dashboard's
+// own. Resolved in an effect rather than during render: window doesn't exist
+// server-side, and a mismatch that only appears after hydration would
+// otherwise make the markup differ between the two.
+function useMismatchedEmbedOrigin(embedSnippet: string): string | null {
+  const [mismatch, setMismatch] = useState<string | null>(null);
+
+  useEffect(() => {
+    const src = /src="([^"]*)\/widget\.js"/.exec(embedSnippet)?.[1];
+    if (!src) return;
+    try {
+      const embedOrigin = new URL(src, window.location.origin).origin;
+      setMismatch(embedOrigin === window.location.origin ? null : embedOrigin);
+    } catch {
+      setMismatch(null);
+    }
+  }, [embedSnippet]);
+
+  return mismatch;
+}
+
 export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
   const { t } = useTranslation();
   const [showCode, setShowCode] = useState(false);
-  const previewHtml = useMemo(() => buildPreviewHtml(widget, t), [widget, t]);
+  const mismatchedOrigin = useMismatchedEmbedOrigin(widget.embedSnippet);
+  const previewHtml = useMemo(
+    () => buildPreviewHtml(widget, t, mismatchedOrigin ? window.location.origin : null),
+    [widget, t, mismatchedOrigin]
+  );
   const configCheck = useWidgetConfigCheck(widget.public_id);
 
   if (widget.status !== "active") {
@@ -126,11 +188,18 @@ export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
         </div>
       ) : null}
 
+      {mismatchedOrigin ? (
+        <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="font-medium">{t("agent.testAgent.embedOriginWarningTitle")}</p>
+          <p className="mt-1">{t("agent.testAgent.embedOriginWarningBody", { origin: mismatchedOrigin })}</p>
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <iframe
           srcDoc={previewHtml}
           title={t("agent.testAgent.iframeTitle")}
-          className="h-[560px] w-full border-0"
+          className="h-[680px] w-full border-0"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           allow="microphone; autoplay"
         />
