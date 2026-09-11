@@ -157,7 +157,9 @@ describe("checkout for a package with no Stripe price", () => {
   it("still bills the one-time setup fee alongside the subscription", async () => {
     await createCheckoutSession({ customer: CUSTOMER, pkg: pkg({ setup_fee: 1998 }) });
 
-    const lineItems = created.sessions[0].line_items as Record<string, unknown>[];
+    const session = created.sessions[0];
+    expect(session).toBeDefined();
+    const lineItems = session!.line_items as Record<string, unknown>[];
     expect(lineItems).toHaveLength(2);
     expect(lineItems[1]).toMatchObject({ price_data: { currency: "dkk", unit_amount: 199800 } });
   });
