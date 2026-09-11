@@ -47,6 +47,44 @@
     });
   }
 
+  // Ends a usage session — the only thing that bills its minutes against the
+  // customer's credit ledger and closes the conversation (see
+  // finalizeUsageSession in lib/usage/session.ts).
+  //
+  // While the page is alive that's a plain PATCH. When the visitor is
+  // leaving (tab closed, navigation away) a normal fetch is cancelled
+  // mid-flight, so we hand the request to navigator.sendBeacon instead,
+  // which the browser delivers after the page is gone. sendBeacon can only
+  // POST, and only skips the CORS preflight an unloading page would never
+  // complete if the body carries a safelisted content type — hence the
+  // dedicated /api/widget/session/end route and the text/plain blob (the
+  // server parses the text as JSON regardless of the declared type).
+  function endSession(sessionId, durationSeconds, unloading) {
+    if (!sessionId) return;
+    var payload = { sessionId: sessionId };
+    // Only the engines that measure the call client-side (OpenAI Realtime,
+    // Vapi) report a duration. The text pipeline accrues it server-side,
+    // turn by turn, and sending a number here would overwrite that.
+    if (typeof durationSeconds === "number") payload.clientMeasuredDurationSeconds = durationSeconds;
+    var body = JSON.stringify(payload);
+
+    if (unloading) {
+      var url = apiBase + "/api/widget/session/end";
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([body], { type: "text/plain;charset=UTF-8" }));
+      } else {
+        fetch(url, { method: "POST", body: body, keepalive: true }).catch(function () {});
+      }
+      return;
+    }
+
+    apiFetch("/api/widget/session", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: body,
+    }).catch(function () {});
+  }
+
   function el(tag, attrs, children) {
     var node = document.createElement(tag);
     if (attrs) {
@@ -295,15 +333,15 @@
       });
     }
 
-    function endSessionBeacon() {
+    // pagehide rather than beforeunload: it also fires on mobile Safari and
+    // when the page goes into the back/forward cache, where beforeunload
+    // never runs at all.
+    window.addEventListener("pagehide", function () {
       if (!state.sessionId) return;
-      var payload = JSON.stringify({ sessionId: state.sessionId });
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(apiBase + "/api/widget/session", new Blob([payload], { type: "application/json" }));
-      }
-    }
-
-    window.addEventListener("beforeunload", endSessionBeacon);
+      var sessionId = state.sessionId;
+      state.sessionId = null;
+      endSession(sessionId, undefined, true);
+    });
 
     function send() {
       var text = input.value.trim();
@@ -457,7 +495,7 @@
       rtc.audioEl = null;
     }
 
-    function endCall() {
+    function endCall(unloading) {
       if (!rtc.active) return;
       rtc.active = false;
       var durationSeconds = rtc.startedAt ? (Date.now() - rtc.startedAt) / 1000 : 0;
@@ -468,11 +506,7 @@
       if (state.sessionId) {
         var sessionId = state.sessionId;
         state.sessionId = null;
-        apiFetch("/api/widget/session", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId: sessionId, clientMeasuredDurationSeconds: durationSeconds }),
-        }).catch(function () {});
+        endSession(sessionId, durationSeconds, unloading);
       }
     }
 
@@ -583,8 +617,8 @@
       else startCall();
     });
 
-    window.addEventListener("beforeunload", function () {
-      if (rtc.active) endCall();
+    window.addEventListener("pagehide", function () {
+      if (rtc.active) endCall(true);
     });
 
     launcher.addEventListener("click", function () {
@@ -726,7 +760,7 @@
     // here and only here — the call button just tells the SDK to stop,
     // whether the user hangs up or the assistant/Vapi ends the call first,
     // both paths converge on the SDK's own "call-end" event.
-    function handleCallEnd() {
+    function handleCallEnd(unloading) {
       if (!call.active) return;
       call.active = false;
       var durationSeconds = call.startedAt ? (Date.now() - call.startedAt) / 1000 : 0;
@@ -736,11 +770,7 @@
       if (state.sessionId) {
         var sessionId = state.sessionId;
         state.sessionId = null;
-        apiFetch("/api/widget/session", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId: sessionId, clientMeasuredDurationSeconds: durationSeconds }),
-        }).catch(function () {});
+        endSession(sessionId, durationSeconds, unloading);
       }
     }
 
@@ -773,7 +803,13 @@
                 statusEl.textContent = "Forbundet — I taler nu sammen";
                 callBtn.textContent = "⏹";
               });
-              call.client.on("call-end", handleCallEnd);
+              // Wrapped, not passed directly: the SDK hands its listeners an
+              // event object, which would land in handleCallEnd's
+              // `unloading` parameter and send the billing call as an
+              // unload beacon while the page is very much still alive.
+              call.client.on("call-end", function () {
+                handleCallEnd();
+              });
               call.client.on("message", handleMessage);
               call.client.on("error", function (e) {
                 // Vapi's error event shape isn't fixed (varies by failure
@@ -811,8 +847,18 @@
       else startCall();
     });
 
-    window.addEventListener("beforeunload", function () {
-      if (call.active && call.client) call.client.stop();
+    // Bill the call ourselves before asking the SDK to stop: the SDK's own
+    // "call-end" event is what normally triggers handleCallEnd, and it has
+    // no chance to fire once the page is unloading. Flipping call.active
+    // here also makes that late event a no-op if it does arrive.
+    window.addEventListener("pagehide", function () {
+      if (!call.active) return;
+      handleCallEnd(true);
+      if (call.client) {
+        try {
+          call.client.stop();
+        } catch (e) {}
+      }
     });
 
     launcher.addEventListener("click", function () {

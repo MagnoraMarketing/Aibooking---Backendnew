@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/database/admin";
-import { readJsonBody, withErrorHandling, rateLimit, getClientIp, widgetMessageSchema } from "@/lib/security";
+import { readJsonBody, withErrorHandling, rateLimit, getClientIp, widgetMessageSchema, withPublicCors, corsPreflight } from "@/lib/security";
 import { getWidgetBundleById } from "@/lib/widgets";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { handleConversationTurn } from "@/lib/conversation/handle-turn";
@@ -11,7 +11,7 @@ import { ApiError } from "@/types/errors";
 // never statically optimized/cached.
 export const dynamic = "force-dynamic";
 
-export const POST = withErrorHandling(async (request) => {
+export const POST = withPublicCors(withErrorHandling(async (request) => {
   const body = await readJsonBody(request, widgetMessageSchema);
 
   const { allowed } = rateLimit(`widget-message:${body.sessionId}`, { limit: 30, windowMs: 60_000 });
@@ -63,4 +63,9 @@ export const POST = withErrorHandling(async (request) => {
     audioBase64: result.audioBase64,
     audioContentType: result.audioContentType,
   });
-});
+}));
+
+// CORS preflight for the cross-origin calls public/widget.js makes from
+// the customer's own website (Content-Type: application/json is not a
+// CORS-safelisted header, so the browser sends OPTIONS first).
+export const OPTIONS = () => corsPreflight();
