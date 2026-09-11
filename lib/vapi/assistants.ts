@@ -1,5 +1,6 @@
 import "server-only";
 import { getVapiVoiceTemplateAssistantId, type VapiVoiceGender } from "@/lib/settings/platform";
+import { getPublicAppUrl, isPubliclyReachableAppUrl } from "@/lib/app-url";
 import { vapiFetch } from "./client";
 
 export type { VapiVoiceGender };
@@ -58,9 +59,27 @@ async function resolveVoiceConfig(voiceGender: VapiVoiceGender | null | undefine
 // every delivery fail signature verification instead of never being sent.
 function webhookConfig(): { serverUrl: string; serverUrlSecret: string } | Record<string, never> {
   const secret = process.env.VAPI_WEBHOOK_SECRET;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (!secret || !appUrl) return {};
-  return { serverUrl: `${appUrl}/api/webhooks/vapi`, serverUrlSecret: secret };
+  if (!secret) {
+    console.warn(
+      "[vapi] VAPI_WEBHOOK_SECRET is not set — assistants are created without a serverUrl, so call events, " +
+        "per-call billing and the booking tools will never reach us."
+    );
+    return {};
+  }
+
+  // Vapi has to reach this URL from its own servers, so a localhost fallback
+  // is worse than none: the assistant would be created with a serverUrl that
+  // silently never resolves. getPublicAppUrl covers the common case of
+  // NEXT_PUBLIC_APP_URL simply not being set on a Vercel deployment.
+  if (!isPubliclyReachableAppUrl()) {
+    console.warn(
+      `[vapi] ${getPublicAppUrl()} is not publicly reachable — assistants are created without a serverUrl, so ` +
+        "call events, per-call billing and the booking tools will never reach us. Set NEXT_PUBLIC_APP_URL."
+    );
+    return {};
+  }
+
+  return { serverUrl: `${getPublicAppUrl()}/api/webhooks/vapi`, serverUrlSecret: secret };
 }
 
 // The tools a booking-enabled assistant may call mid-call. They're declared

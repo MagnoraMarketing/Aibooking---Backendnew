@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getPublicAppUrl } from "@/lib/app-url";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling, rateLimit, getClientIp } from "@/lib/security";
@@ -10,7 +11,7 @@ import { ApiError } from "@/types/errors";
 export const dynamic = "force-dynamic";
 
 function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return getPublicAppUrl();
 }
 
 // The Inbound page's "prøv i 30 dage til 499 kr, derefter 999 kr" pitch

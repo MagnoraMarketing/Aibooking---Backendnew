@@ -2,6 +2,7 @@ import "server-only";
 import type Stripe from "stripe";
 import { getStripeClient } from "./stripe-client";
 import { getAdminClient } from "@/lib/database/admin";
+import { getPublicAppUrl } from "@/lib/app-url";
 import type { Customer, Package } from "@/types/database";
 import { ApiError } from "@/types/errors";
 
@@ -19,9 +20,10 @@ async function callStripe<T>(action: () => Promise<T>): Promise<T> {
   }
 }
 
-function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-}
+// Stripe redirects the paying customer back here after checkout, so a
+// localhost fallback would strand them on a page that only exists on a
+// developer's machine — see lib/app-url.ts.
+const getAppUrl = getPublicAppUrl;
 
 // Exported for other one-off/add-on Stripe purchases (e.g. buying a phone
 // number, see lib/phone-numbers) that need a Stripe customer to exist but
@@ -57,6 +59,43 @@ function nextBillingCycleAnchor(): number {
   return Math.floor(nextMonthFirst / 1000);
 }
 
+// Every package is priced in our own database (monthly_price, currency,
+// included_minutes), but Stripe needs a Price object to bill a subscription
+// against. packages.stripe_price_id is where that lives — and on this
+// platform it was null for every package, so checkout failed for every
+// customer with "Pakken er ikke sat op til betaling endnu", which no
+// customer can act on and no admin screen can fix (the field exists on the
+// admin pricing API but on no admin page).
+//
+// So create the Price from the package's own numbers the first time someone
+// checks out, and store the id back on the package — get-or-create, the
+// same shape as getOrCreateIntroOfferCoupon below. An id set by hand in
+// Stripe still wins; this only fills the gap. Changing a package's price
+// afterwards needs a new Stripe Price (they're immutable), which is what
+// the admin pricing API's stripePriceId field is for.
+async function resolveStripePriceId(pkg: Package): Promise<string> {
+  if (pkg.stripe_price_id) return pkg.stripe_price_id;
+
+  const stripe = getStripeClient();
+  const price = await callStripe(() =>
+    stripe.prices.create({
+      currency: pkg.currency.toLowerCase(),
+      unit_amount: Math.round(pkg.monthly_price * 100),
+      recurring: { interval: "month" },
+      product_data: { name: pkg.package_name },
+      metadata: { aibooking_package_id: pkg.id },
+    })
+  );
+
+  const supabase = getAdminClient();
+  const { error } = await supabase.from("packages").update({ stripe_price_id: price.id }).eq("id", pkg.id);
+  // A failed write is not worth failing the checkout over — the customer
+  // gets their session, and the next checkout just creates another Price.
+  if (error) console.error(`Failed to store Stripe price ${price.id} on package ${pkg.id}:`, error.message);
+
+  return price.id;
+}
+
 export async function createCheckoutSession(params: {
   customer: Customer;
   pkg: Package;
@@ -69,19 +108,12 @@ export async function createCheckoutSession(params: {
   cancelUrl?: string;
   subscriptionMetadata?: Record<string, string>;
 }): Promise<{ url: string }> {
-  if (!params.pkg.stripe_price_id) {
-    throw ApiError.internal(
-      `Pakken "${params.pkg.package_name}" er ikke sat op til betaling endnu (mangler Stripe-pris). Kontakt support.`
-    );
-  }
-
   const stripe = getStripeClient();
+  const priceId = await resolveStripePriceId(params.pkg);
   const stripeCustomerId = await ensureStripeCustomer(params.customer);
   const appUrl = getAppUrl();
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-    { price: params.pkg.stripe_price_id, quantity: 1 },
-  ];
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: priceId, quantity: 1 }];
 
   // A one-time setup/onboarding fee, billed alongside the first invoice —
   // no pre-created Stripe Price needed, unlike the recurring price above
