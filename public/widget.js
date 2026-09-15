@@ -47,6 +47,41 @@
     });
   }
 
+  // Errors that reach a customer-visible status line arrive in whatever shape
+  // their source felt like. An Error has a string `message`; a Vapi call
+  // error can carry `error.message` that is the *parsed body* of a failed
+  // HTTP request — an object, not a string. Concatenating one of those into
+  // a status line produced the literal "Fejl: [object Object]": visible to
+  // the customer, useless to everyone, and hiding the one piece of text that
+  // says what actually went wrong.
+  //
+  // Walk the usual nesting for the first real string, and fall back to
+  // compact JSON rather than to nothing, so even an unfamiliar shape says
+  // something. Returns null only when there is genuinely nothing to show.
+  function describeError(value, depth) {
+    depth = depth || 0;
+    if (value == null || depth > 4) return null;
+    if (typeof value === "string") return value.trim() || null;
+    if (typeof value !== "object") return String(value);
+
+    var keys = ["message", "errorMsg", "msg", "error", "reason", "statusText", "description"];
+    for (var i = 0; i < keys.length; i++) {
+      var nested = describeError(value[keys[i]], depth + 1);
+      if (nested) return nested;
+    }
+
+    try {
+      var json = JSON.stringify(value);
+      if (json && json !== "{}" && json !== "[]") {
+        return json.length > 300 ? json.slice(0, 300) + "…" : json;
+      }
+    } catch (circular) {
+      // A circular object can't be serialised — the console.error at the
+      // call site still has the real thing.
+    }
+    return null;
+  }
+
   // Ends a usage session — the only thing that bills its minutes against the
   // customer's credit ledger and closes the conversation (see
   // finalizeUsageSession in lib/usage/session.ts).
@@ -634,7 +669,7 @@
           statusEl.textContent =
             err.status === 402
               ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
+              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
         });
     }
 
@@ -841,8 +876,7 @@
                 // dead-end generic message, and always log the raw object so
                 // it's visible in devtools even when no readable text exists.
                 console.error("Vapi call error:", e);
-                var detail =
-                  (e && (e.message || e.errorMsg || (e.error && e.error.message))) || null;
+                var detail = describeError(e);
                 statusEl.textContent = detail
                   ? "Fejl: " + detail
                   : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
@@ -861,7 +895,7 @@
           statusEl.textContent =
             err.status === 402
               ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
+              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
         });
     }
 
@@ -1008,8 +1042,12 @@
           return loadTwilioSdk().then(function (Twilio) {
             if (!call.device) {
               call.device = new Twilio.Device(data.token);
-              call.device.on("error", function () {
-                statusEl.textContent = "Der opstod en fejl under samtalen.";
+              call.device.on("error", function (e) {
+                console.error("Twilio device error:", e);
+                var detail = describeError(e);
+                statusEl.textContent = detail
+                  ? "Fejl: " + detail
+                  : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
               });
             } else {
               call.device.updateToken(data.token);
@@ -1027,8 +1065,12 @@
             callBtn.textContent = "⏹";
           });
           twilioCall.on("disconnect", handleCallEnd);
-          twilioCall.on("error", function () {
-            statusEl.textContent = "Der opstod en fejl under samtalen.";
+          twilioCall.on("error", function (e) {
+            console.error("Twilio call error:", e);
+            var detail = describeError(e);
+            statusEl.textContent = detail
+              ? "Fejl: " + detail
+              : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
           });
         })
         .catch(function (err) {
@@ -1036,7 +1078,7 @@
           statusEl.textContent =
             err.status === 402
               ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
+              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
         });
     }
 
