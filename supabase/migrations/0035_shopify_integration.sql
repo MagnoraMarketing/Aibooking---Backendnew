@@ -4,15 +4,19 @@
 -- The whole point of this table is that it holds TWO deliberately separate
 -- things, and keeping them apart is the design:
 --
---   1. The PUBLIC webshop (shop_url, catalog, crawl_* columns). Built by
---      crawling the storefront the same way the knowledge base crawls any
---      other URL — products, prices, variants, shipping/returns/FAQ pages.
---      Nothing here is private, and it works the moment the customer pastes
---      their shop URL, with no Shopify account involved.
+--   1. The shop's PUBLIC information pages (shop_url, crawl_* columns) —
+--      shipping, returns, terms, FAQ. Read from the storefront the same way
+--      the knowledge base reads any other URL, and small enough to live in the
+--      agent's prompt. No Shopify account involved.
 --
 --   2. The PRIVATE Admin API connection (shop_domain, access_token, scopes,
---      status). Established through Shopify's own OAuth install flow and used
---      for one thing only: looking up a caller's order status and tracking.
+--      status). Established through Shopify's own OAuth install flow, and the
+--      source of everything a customer asks that has a live answer: products,
+--      prices, variants, sizes, colours, SKUs, stock, orders and tracking.
+--
+-- No product data is stored in this table, by design. Prices and stock change,
+-- and an agent quoting a cached price confidently is worse than one that looks
+-- it up. Every product answer is a live query made for the question asked.
 --
 -- A customer can have (1) without (2) — that's the expected first step of the
 -- setup flow — which is why every admin-side column is nullable and `status`
@@ -27,17 +31,11 @@ create table if not exists public.shopify_connections (
   customer_id uuid not null references public.customers (id) on delete cascade,
   widget_id uuid not null references public.widgets (id) on delete cascade,
 
-  -- (1) Public webshop
+  -- (1) Public information pages
   shop_url text,
-  catalog jsonb not null default '[]'::jsonb,
-  -- The shop's own currency, read from the storefront's meta.json. Prices in
-  -- products.json are bare numbers, so without this the agent would quote
-  -- "349" with no idea whether that is kroner or euro.
-  currency text,
   crawl_status text not null default 'pending'
     check (crawl_status in ('pending', 'running', 'ok', 'error')),
   crawl_error text,
-  crawled_product_count integer not null default 0,
   crawled_page_count integer not null default 0,
   last_sync_at timestamptz,
 
@@ -61,8 +59,8 @@ create index if not exists idx_shopify_connections_shop_domain on public.shopify
 comment on column public.shopify_connections.access_token is
   'AES-256-GCM ciphertext (lib/security/crypto.ts), never plaintext. Never selected back into a client-facing response — the dashboard only ever learns connected/not connected, the shop domain, and the last sync time.';
 
-comment on column public.shopify_connections.catalog is
-  'Products from the PUBLIC storefront crawl only (title, price, variants, URL). Never order or customer data — that stays behind the Admin API and is fetched per request, never stored.';
+comment on column public.shopify_connections.crawled_page_count is
+  'Number of the shop''s own information pages (shipping, returns, terms, FAQ) indexed into the agent prompt. Product and order data is never stored — it is queried live through the Admin API per question.';
 
 drop trigger if exists set_updated_at on public.shopify_connections;
 create trigger set_updated_at before update on public.shopify_connections

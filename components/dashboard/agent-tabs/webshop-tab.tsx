@@ -9,7 +9,11 @@ import type { WidgetWithExtras } from "../agent-configurator";
 // The Webshop / Shopify tab. Two numbered steps and nothing else on screen:
 // paste the shop address, then approve the Shopify connection. The customer
 // never sees a token, a scope or an API version — the setup they are asked to
-// understand is "which shop" and "may we look at your orders".
+// understand is "which shop" and "may we look things up in it".
+//
+// Step 2 is the one that matters most: products, prices, sizes, stock and
+// orders are all live Shopify lookups, so until it is connected the agent can
+// answer about delivery and returns but not about a single product.
 //
 // Everything this component knows about the connection comes from
 // ShopifyConnectionSummary, which by construction carries no credential.
@@ -254,7 +258,6 @@ export function WebshopTab({ widget }: WebshopTabProps) {
         {connection?.shopUrl ? (
           <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
-              <span>{t("agent.webshop.productsIndexed", { count: connection.productCount })}</span>
               <span>{t("agent.webshop.pagesIndexed", { count: connection.pageCount })}</span>
               {lastSynced ? <span>{t("agent.webshop.lastSynced", { date: lastSynced })}</span> : null}
             </div>

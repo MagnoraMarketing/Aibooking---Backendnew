@@ -1,109 +1,102 @@
-import type { ShopifyCatalogProduct } from "./types";
-
-// Searches the crawled catalogue in memory. No network, no Shopify account:
-// this answers from the public storefront data the crawler already collected,
-// which is what keeps product questions working for a customer who has saved
-// their webshop URL but not yet run the OAuth install.
+// Turning a customer's own words into a Shopify product query, and picking the
+// variant they actually asked about out of what comes back.
 //
-// Pure and dependency-free so the ranking can be tested directly.
-
-const MAX_RESULTS = 5;
-const MAX_DESCRIPTION_CHARS = 300;
-
-export interface ShopifyProductMatch {
-  name: string;
-  price: string | null;
-  price_max: string | null;
-  currency: string | null;
-  url: string;
-  description: string;
-  available: boolean;
-  variants: { title: string; price: string | null; available: boolean | null }[];
-  options: { name: string; values: string[] }[];
-}
+// Pure and dependency-free: no network, no database. lib/shopify/products.ts
+// runs the query this builds against the Admin API.
+//
+// This file used to rank a crawled catalogue held in our own database. It
+// doesn't any more — the catalogue is gone, and the only product data that
+// reaches the agent is what a live Shopify query returns for the question
+// being asked.
 
 // Words that carry no signal in a product query — dropping them stops "har I
-// sorte løbesko" from scoring every product that happens to contain "i".
+// sorte løbesko" from searching for the word "i".
 const STOP_WORDS = new Set([
   "har", "i", "en", "et", "og", "til", "med", "på", "den", "det", "de", "er", "jeg", "vil", "gerne",
   "hvad", "koster", "hvilke", "hvilken", "findes", "kan", "man", "få", "købe", "jeres", "din", "dine",
   "the", "a", "an", "and", "or", "of", "for", "with", "do", "does", "you", "your", "have", "any",
   "in", "is", "it", "are", "we", "what", "which", "show", "me", "tell", "about", "there", "to", "buy",
-  "size", "colour", "color", "størrelse", "farve", "farver",
   // "Hvad sælger I?" is a browse, not a search for a product called "salg".
   "sælger", "sælge", "salg", "sell", "sells", "sale", "selling", "stock", "lager",
+  // These name the ATTRIBUTE, not the product: "størrelse 42" should search
+  // for nothing and match the variant option value 42.
+  "størrelse", "str", "size", "farve", "farver", "colour", "color",
 ]);
+
+// A token that describes a variant rather than a product. Sizes are the common
+// case and are almost always numeric ("42", "43", "XL"), so they are matched
+// against option VALUES rather than sent to Shopify's product search — which
+// indexes titles, tags, vendors and types, not option values.
+const SIZE_LIKE = /^(\d{1,3}([.,]\d)?|xxs|xs|s|m|l|xl|xxl|xxxl|one ?size)$/i;
+
+export interface ParsedProductQuery {
+  /** Shopify product query syntax, or null for a plain browse. */
+  shopifyQuery: string | null;
+  /** Free-text terms describing the product itself. */
+  productTerms: string[];
+  /** Terms that look like a size or other variant option value. */
+  variantTerms: string[];
+}
 
 function tokenize(value: string): string[] {
   return value
     .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
+    .split(/[^\p{L}\p{N}.,]+/u)
+    .map((token) => token.replace(/^[.,]+|[.,]+$/g, ""))
     .filter((token) => token.length > 0);
 }
 
-function scoreProduct(product: ShopifyCatalogProduct, tokens: string[]): number {
-  const title = product.title.toLowerCase();
-  const description = product.description.toLowerCase();
-  const meta = [product.productType ?? "", product.vendor ?? "", ...product.tags].join(" ").toLowerCase();
-  const optionValues = product.options
-    .flatMap((option) => option.values)
-    .concat(product.variants.flatMap((variant) => variant.options))
-    .join(" ")
-    .toLowerCase();
-
-  let score = 0;
-
-  for (const token of tokens) {
-    // Weighted by how much each field says about what the product IS. A hit in
-    // the title is close to decisive; one in the description is a hint.
-    if (title.includes(token)) score += 10;
-    if (meta.includes(token)) score += 4;
-    // Option values are how "43" and "sort" find the right product — a size or
-    // a colour appears nowhere else.
-    if (optionValues.includes(token)) score += 4;
-    if (description.includes(token)) score += 1;
-  }
-
-  // With everything else equal, offer something that can actually be bought.
-  if (score > 0 && product.available) score += 2;
-
-  return score;
+// Shopify's search query syntax gives ':' '(' ')' '"' and '\' their own
+// meaning. A customer's words are data, not syntax, so anything structural is
+// dropped before the term is interpolated — a stray quote would otherwise
+// change which products the query returns.
+function escapeTerm(term: string): string {
+  return term.replace(/[\\"():*~^<>=-]/g, "").trim();
 }
 
-export function searchShopifyCatalog(
-  catalog: ShopifyCatalogProduct[],
-  query: string,
-  currency: string | null = null
-): ShopifyProductMatch[] {
+export function parseProductQuery(query: string): ParsedProductQuery {
   const tokens = tokenize(query).filter((token) => !STOP_WORDS.has(token));
 
-  // An empty or all-stop-word query ("hvad sælger I?") is a browse, not a
-  // search — answer with what the shop has rather than nothing at all.
-  const ranked =
-    tokens.length === 0
-      ? catalog.slice(0, MAX_RESULTS)
-      : catalog
-          .map((product) => ({ product, score: scoreProduct(product, tokens) }))
-          .filter((entry) => entry.score > 0)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, MAX_RESULTS)
-          .map((entry) => entry.product);
+  const variantTerms: string[] = [];
+  const productTerms: string[] = [];
+  for (const token of tokens) {
+    (SIZE_LIKE.test(token) ? variantTerms : productTerms).push(token);
+  }
 
-  return ranked.map((product) => ({
-    name: product.title,
-    price: product.priceMin,
-    price_max: product.priceMax !== product.priceMin ? product.priceMax : null,
-    currency,
-    url: product.url,
-    description: product.description.slice(0, MAX_DESCRIPTION_CHARS),
-    available: product.available,
-    variants: product.variants.map((variant) => ({
-      title: variant.title,
-      price: variant.price,
-      available: variant.available,
-    })),
-    options: product.options.filter(
-      (option) => option.values.length > 0 && option.values[0] !== "Default Title"
-    ),
-  }));
+  const usable = productTerms.map(escapeTerm).filter((term) => term.length > 1);
+
+  if (usable.length === 0) {
+    // "Hvad sælger I?" names no product. A null query lists what the shop has
+    // rather than searching for nothing and answering "we sell nothing".
+    return { shopifyQuery: null, productTerms, variantTerms };
+  }
+
+  // Each term is OR'd across the fields Shopify indexes, and the groups are
+  // AND'd — so "nike løbesko" needs both words somewhere, while either may sit
+  // in the title, the tags, the type or the vendor. Trailing '*' is a prefix
+  // match ("sko*" finds "skorem"); Shopify does not support a leading one.
+  const shopifyQuery = usable
+    .map((term) => `(title:${term}* OR tag:${term}* OR product_type:${term}* OR vendor:${term}*)`)
+    .join(" AND ");
+
+  return { shopifyQuery, productTerms, variantTerms };
+}
+
+export interface VariantLike {
+  title: string;
+  options: { name: string; value: string }[];
+}
+
+// Whether a variant matches the size/option words the customer used. Compared
+// against option VALUES and the variant title, case-insensitively, as whole
+// values — so "42" matches the size 42 but not 42.5 or 142.
+export function variantMatchesTerms(variant: VariantLike, variantTerms: string[]): boolean {
+  if (variantTerms.length === 0) return true;
+
+  const values = [
+    ...variant.options.map((option) => option.value),
+    ...variant.title.split(/\s*\/\s*/),
+  ].map((value) => value.trim().toLowerCase());
+
+  return variantTerms.every((term) => values.includes(term.toLowerCase()));
 }

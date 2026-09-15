@@ -4,19 +4,22 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // and chat both run through exactly this, so anything asserted here holds on
 // the phone and in the widget alike.
 
-const loadCatalogMock = vi.fn((..._args: unknown[]) => Promise.resolve<unknown>(null));
 const loadAdminCredentialsMock = vi.fn((..._args: unknown[]) => Promise.resolve<unknown>(null));
 const markReauthMock = vi.fn((..._args: unknown[]) => Promise.resolve<void>(undefined));
 const lookupOrderMock = vi.fn((..._args: unknown[]) => Promise.resolve<unknown>(null));
+const searchProductsMock = vi.fn((..._args: unknown[]) => Promise.resolve<unknown>(null));
 
 vi.mock("@/lib/shopify/connection", () => ({
-  loadCatalog: (...args: unknown[]) => loadCatalogMock(...args),
   loadAdminCredentials: (...args: unknown[]) => loadAdminCredentialsMock(...args),
   markConnectionNeedsReauth: (...args: unknown[]) => markReauthMock(...args),
 }));
 
 vi.mock("@/lib/shopify/orders", () => ({
   lookupShopifyOrder: (...args: unknown[]) => lookupOrderMock(...args),
+}));
+
+vi.mock("@/lib/shopify/products", () => ({
+  searchShopifyProducts: (...args: unknown[]) => searchProductsMock(...args),
 }));
 
 import { ShopifyAdminApiError } from "@/lib/shopify/admin-api";
@@ -27,33 +30,45 @@ import {
   SHOPIFY_TOOL_NAMES,
 } from "@/lib/shopify/agent-tools";
 import { buildShopifyAnthropicTools, buildShopifyVapiTools } from "@/lib/shopify/tool-definitions";
-import type { ShopifyCatalogProduct } from "@/lib/shopify/types";
 
-const PRODUCT: ShopifyCatalogProduct = {
-  title: "Nike Air Max",
-  handle: "nike-air-max",
+const PRODUCT = {
+  name: "Nike Air Max",
+  price: "899",
+  price_max: null,
+  currency: "DKK",
   url: "https://shop.dk/products/nike-air-max",
-  description: "Let løbesko.",
-  productType: "Løbesko",
+  product_type: "Løbesko",
   vendor: "Nike",
-  tags: [],
-  options: [{ name: "Størrelse", values: ["42", "43"] }],
-  variants: [{ title: "Sort / 43", price: "899", compareAtPrice: null, available: true, sku: "S43", options: ["Sort", "43"] }],
-  priceMin: "899",
-  priceMax: "899",
-  imageUrl: null,
   available: true,
+  total_inventory: 4,
+  variants: [
+    {
+      title: "Sort / 42",
+      sku: "S42",
+      price: "899",
+      currency: "DKK",
+      available: true,
+      inventory: 4,
+      options: [{ name: "Størrelse", value: "42" }],
+      matches_request: true,
+    },
+  ],
 };
 
-const CREDENTIALS = { connectionId: "conn-1", shopDomain: "shop.myshopify.com", accessToken: "shpat_x" };
+const CREDENTIALS = {
+  connectionId: "conn-1",
+  shopDomain: "shop.myshopify.com",
+  accessToken: "shpat_x",
+  scopes: "read_products,read_orders",
+};
 
 function parse(result: string): Record<string, unknown> {
   return JSON.parse(result) as Record<string, unknown>;
 }
 
 beforeEach(() => {
-  loadCatalogMock.mockReset().mockResolvedValue({ catalog: [PRODUCT], currency: "DKK", shopUrl: "https://shop.dk" });
   loadAdminCredentialsMock.mockReset().mockResolvedValue(CREDENTIALS);
+  searchProductsMock.mockReset().mockResolvedValue({ products: [PRODUCT], requested_options: ["42"] });
   // mockReset() alone strips the async implementation, leaving a mock that
   // returns undefined — which would make the production `.catch()` on its
   // promise throw and mask the branch under test.
@@ -62,14 +77,17 @@ beforeEach(() => {
 });
 
 describe("resolveShopifyCapabilities", () => {
-  it("separates 'can answer product questions' from 'can look up orders'", async () => {
+  it("follows the scopes Shopify actually granted, not the ones we asked for", async () => {
     expect(await resolveShopifyCapabilities("widget-a")).toEqual({ products: true, orders: true });
 
-    // The expected first step of the setup: URL saved, OAuth not done yet.
-    loadAdminCredentialsMock.mockResolvedValue(null);
-    expect(await resolveShopifyCapabilities("widget-a")).toEqual({ products: true, orders: false });
+    // A merchant who installed the app before read_products was requested has
+    // a working order lookup and no product access. Handing the agent a
+    // product tool here would just make it fail mid-conversation.
+    loadAdminCredentialsMock.mockResolvedValue({ ...CREDENTIALS, scopes: "read_orders" });
+    expect(await resolveShopifyCapabilities("widget-a")).toEqual({ products: false, orders: true });
 
-    loadCatalogMock.mockResolvedValue({ catalog: [], currency: null, shopUrl: null });
+    // Shop URL saved, Shopify not connected yet.
+    loadAdminCredentialsMock.mockResolvedValue(null);
     expect(await resolveShopifyCapabilities("widget-a")).toEqual({ products: false, orders: false });
   });
 });
@@ -82,9 +100,22 @@ describe("the tools an assistant is given", () => {
 
   // Offering a tool the widget can't fulfil teaches the agent to promise
   // something it then fails at — worse than not offering it.
-  it("offers product search without order tracking when only the shop URL is saved", () => {
-    const names = buildShopifyVapiTools({ products: true, orders: false }).map((tool) => tool.function.name);
-    expect(names).toEqual(["search_shopify_products"]);
+  it("offers only what the granted scopes allow", () => {
+    expect(buildShopifyVapiTools({ products: true, orders: false }).map((tool) => tool.function.name)).toEqual([
+      "search_shopify_products",
+    ]);
+    expect(buildShopifyVapiTools({ products: false, orders: true }).map((tool) => tool.function.name)).toEqual([
+      "get_shopify_order_status",
+    ]);
+  });
+
+  // The agent is told to copy the tool's url verbatim. A description that
+  // stopped saying so would let it start building links from product names,
+  // which 404 in front of a customer about to buy.
+  it("tells the agent to use the product's real link and never invent one", () => {
+    const description = buildShopifyAnthropicTools({ products: true, orders: false })[0]!.description!;
+    expect(description).toContain("[Se produkt](url)");
+    expect(description).toMatch(/opfind aldrig et link/i);
   });
 
   it("gives voice and chat exactly the same tools and descriptions", () => {
@@ -109,8 +140,7 @@ describe("search_shopify_products", () => {
     const result = parse(await executeShopifyTool("search_shopify_products", { query: "løbesko" }, "widget-a"));
 
     expect(result.found).toBe(true);
-    expect(result.shop_url).toBe("https://shop.dk");
-    expect(Array.isArray(result.products)).toBe(true);
+    expect(result.requested_options).toEqual(["42"]);
     expect((result.products as Record<string, unknown>[])[0]).toMatchObject({
       name: "Nike Air Max",
       price: "899",
@@ -119,14 +149,43 @@ describe("search_shopify_products", () => {
     });
   });
 
+  // The behaviour the whole rework exists for: the question goes to Shopify,
+  // not to a catalogue sitting in the agent's prompt.
+  it("queries Shopify live with the customer's own words", async () => {
+    await executeShopifyTool("search_shopify_products", { query: "Nike i størrelse 42" }, "widget-a");
+
+    expect(searchProductsMock).toHaveBeenCalledWith({
+      shopDomain: "shop.myshopify.com",
+      accessToken: "shpat_x",
+      query: "Nike i størrelse 42",
+    });
+  });
+
   it("says so plainly when the shop has no such product", async () => {
+    searchProductsMock.mockResolvedValue({ products: [], requested_options: [] });
     const result = parse(await executeShopifyTool("search_shopify_products", { query: "havetraktor" }, "widget-a"));
     expect(result).toMatchObject({ found: false, products: [] });
   });
 
-  it("reads the catalogue of the widget it was given, not one from the arguments", async () => {
+  it("refuses to look anything up when Shopify isn't connected", async () => {
+    loadAdminCredentialsMock.mockResolvedValue(null);
+    const result = parse(await executeShopifyTool("search_shopify_products", { query: "sko" }, "widget-a"));
+    expect(result).toMatchObject({ found: false, error: "not_connected" });
+    expect(searchProductsMock).not.toHaveBeenCalled();
+  });
+
+  it("marks the connection for reconnection when Shopify rejects the token", async () => {
+    searchProductsMock.mockRejectedValue(new ShopifyAdminApiError("rejected", "unauthorized"));
+
+    const result = parse(await executeShopifyTool("search_shopify_products", { query: "sko" }, "widget-a"));
+
+    expect(result).toMatchObject({ found: false, error: "reauth_required" });
+    expect(markReauthMock).toHaveBeenCalledWith("conn-1", "unauthorized");
+  });
+
+  it("uses the credentials of the widget on the call, not any in the arguments", async () => {
     await executeShopifyTool("search_shopify_products", { query: "sko", widgetId: "widget-b" }, "widget-a");
-    expect(loadCatalogMock).toHaveBeenCalledWith("widget-a");
+    expect(loadAdminCredentialsMock).toHaveBeenCalledWith("widget-a");
   });
 });
 
@@ -206,8 +265,8 @@ describe("failure handling", () => {
       error: "unavailable",
     });
 
-    loadCatalogMock.mockRejectedValue(new Error("db down"));
-    expect(parse(await executeShopifyTool("search_shopify_products", { query: "sko" }, "widget-a"))).toEqual({
+    searchProductsMock.mockRejectedValue(new Error("shopify down"));
+    expect(parse(await executeShopifyTool("search_shopify_products", { query: "sko" }, "widget-a"))).toMatchObject({
       found: false,
       error: "unavailable",
     });

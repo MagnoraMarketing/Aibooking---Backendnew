@@ -6,9 +6,13 @@ import type { Widget } from "@/types/database";
 import { crawlShopifyStore, ShopifyCrawlError } from "./crawl";
 import { formatShopifyKnowledge, replaceShopifySource, SHOPIFY_SOURCE_ID } from "./knowledge";
 
-// Runs one webshop sync end to end: crawl the storefront, store the
-// catalogue, rewrite the agent's Shopify knowledge source, and push the new
-// prompt to the widget's Vapi assistant.
+// Runs one webshop sync end to end: read the shop's public information pages,
+// rewrite the agent's Shopify knowledge source, and push the new prompt to the
+// widget's Vapi assistant.
+//
+// Products are not part of this. They are looked up live per question through
+// the Admin API (lib/shopify/products.ts), so nothing here can go stale into a
+// price the agent quotes.
 //
 // The knowledge lands in widget_settings.extra.knowledgeBase like every other
 // source, under one FIXED id. That id is the whole trick: a re-sync replaces
@@ -20,7 +24,6 @@ export type ShopifySyncFailure = "invalid_url" | "unreachable" | "not_shopify" |
 export interface ShopifySyncResult {
   ok: boolean;
   failure?: ShopifySyncFailure;
-  productCount: number;
   pageCount: number;
 }
 
@@ -51,7 +54,7 @@ export async function syncShopifyWebshop(params: {
       .from("shopify_connections")
       .update({ crawl_status: "error", crawl_error: failure })
       .eq("widget_id", widget.id);
-    return { ok: false, failure, productCount: 0, pageCount: 0 };
+    return { ok: false, failure, pageCount: 0 };
   }
 
   if (!crawl.looksLikeShopify) {
@@ -59,7 +62,7 @@ export async function syncShopifyWebshop(params: {
       .from("shopify_connections")
       .update({ crawl_status: "error", crawl_error: "not_shopify" })
       .eq("widget_id", widget.id);
-    return { ok: false, failure: "not_shopify", productCount: 0, pageCount: 0 };
+    return { ok: false, failure: "not_shopify", pageCount: 0 };
   }
 
   const content = formatShopifyKnowledge(crawl, shopUrl);
@@ -67,11 +70,8 @@ export async function syncShopifyWebshop(params: {
   const { error: connectionError } = await supabase
     .from("shopify_connections")
     .update({
-      catalog: crawl.products,
-      currency: crawl.currency,
       crawl_status: "ok",
       crawl_error: null,
-      crawled_product_count: crawl.products.length,
       crawled_page_count: crawl.pages.length,
       last_sync_at: new Date().toISOString(),
     })
@@ -108,7 +108,7 @@ export async function syncShopifyWebshop(params: {
 
   await syncWidgetToVapiAssistant(widget, updatedExtra);
 
-  return { ok: true, productCount: crawl.products.length, pageCount: crawl.pages.length };
+  return { ok: true, pageCount: crawl.pages.length };
 }
 
 // Disconnecting the webshop has to take its knowledge with it — otherwise the

@@ -1,34 +1,9 @@
-// Shared shapes for the Shopify integration. Deliberately split along the
-// same line as the database (0035_shopify_integration.sql): everything here
-// describes PUBLIC storefront data. Order/fulfilment shapes live in
-// ./orders.ts, behind the Admin API.
-
-export interface ShopifyCatalogVariant {
-  title: string;
-  price: string | null;
-  compareAtPrice: string | null;
-  available: boolean | null;
-  sku: string | null;
-  /** The variant's option values in order, e.g. ["Sort", "43"]. */
-  options: string[];
-}
-
-export interface ShopifyCatalogProduct {
-  title: string;
-  handle: string;
-  url: string;
-  description: string;
-  productType: string | null;
-  vendor: string | null;
-  tags: string[];
-  /** e.g. [{ name: "Farve", values: ["Sort", "Hvid"] }, { name: "Størrelse", ... }] */
-  options: { name: string; values: string[] }[];
-  variants: ShopifyCatalogVariant[];
-  priceMin: string | null;
-  priceMax: string | null;
-  imageUrl: string | null;
-  available: boolean;
-}
+// Shared shapes for the Shopify integration.
+//
+// Everything here describes the shop's PUBLIC information pages — shipping,
+// returns, terms, FAQ — which are the one thing that still reaches the agent's
+// prompt. Products, variants, stock and orders are live Admin API lookups and
+// their shapes live in ./products.ts and ./orders.ts; none of it is stored.
 
 export interface ShopifyCrawledPage {
   title: string;
@@ -37,9 +12,7 @@ export interface ShopifyCrawledPage {
 }
 
 export interface ShopifyCrawlResult {
-  products: ShopifyCatalogProduct[];
   pages: ShopifyCrawledPage[];
-  currency: string | null;
   /** True when the storefront answered as a Shopify shop at all. */
   looksLikeShopify: boolean;
 }
@@ -57,7 +30,6 @@ export interface ShopifyConnectionSummary {
   statusError: string | null;
   crawlStatus: ShopifyCrawlStatus;
   crawlError: string | null;
-  productCount: number;
   pageCount: number;
   lastSyncAt: string | null;
   connectedAt: string | null;

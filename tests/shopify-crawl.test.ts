@@ -4,30 +4,10 @@ import { formatShopifyKnowledge, replaceShopifySource, SHOPIFY_SOURCE_ID } from 
 import { formatKnowledgeBaseForPrompt } from "@/lib/knowledge-base/format";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 
-// The crawler reads a real Shopify storefront's public endpoints. Everything
-// below stubs the network and asserts on what it makes of the responses.
-
-const PRODUCTS_JSON = {
-  products: [
-    {
-      title: "Nike Air Max",
-      handle: "nike-air-max",
-      body_html: "<p>Let <b>løbesko</b> til asfalt.</p>",
-      product_type: "Løbesko",
-      vendor: "Nike",
-      tags: ["løb", "sko"],
-      options: [
-        { name: "Farve", values: ["Sort", "Hvid"] },
-        { name: "Størrelse", values: ["42", "43"] },
-      ],
-      variants: [
-        { title: "Sort / 43", price: "899.00", compare_at_price: "999.00", available: true, sku: "S43", option1: "Sort", option2: "43" },
-        { title: "Hvid / 42", price: "949.00", compare_at_price: null, available: false, sku: "H42", option1: "Hvid", option2: "42" },
-      ],
-      images: [{ src: "https://cdn.shopify.com/img.jpg" }],
-    },
-  ],
-};
+// The crawler reads the shop's public INFORMATION pages — and nothing else.
+// Products, prices, variants and stock are live Admin API lookups
+// (tests/shopify-product-lookup.test.ts), so a crawl that started fetching
+// products again would be a regression, not a feature. That is asserted here.
 
 const HOMEPAGE = `<!doctype html><html><head><title>Shoppen</title></head><body>
   <script>window.Shopify = {};</script>
@@ -75,49 +55,9 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("crawlShopifyStore", () => {
-  it("builds a structured catalogue from the storefront's products.json", async () => {
-    stubStorefront((url) => {
-      if (url.includes("/products.json?limit=250&page=1")) return jsonResponse(PRODUCTS_JSON);
-      if (url.includes("/products.json")) return jsonResponse({ products: [] });
-      if (url.includes("/meta.json")) return jsonResponse({ currency: "DKK" });
-      if (isHomepage(url)) return htmlResponse(HOMEPAGE);
-      if (url.includes("/policies/")) return PAGE_HTML("Handelsbetingelser");
-      if (url.includes("/pages/")) return PAGE_HTML("Levering");
-      return null;
-    });
-
-    const result = await crawlShopifyStore("shop.dk");
-
-    expect(result.looksLikeShopify).toBe(true);
-    expect(result.currency).toBe("DKK");
-    expect(result.products).toHaveLength(1);
-
-    const [product] = result.products;
-    expect(product).toMatchObject({
-      title: "Nike Air Max",
-      handle: "nike-air-max",
-      url: "https://shop.dk/products/nike-air-max",
-      productType: "Løbesko",
-      vendor: "Nike",
-      // Cheapest and dearest variant, so the agent can quote "from 899".
-      priceMin: "899",
-      priceMax: "949",
-      available: true,
-    });
-    // HTML out of body_html, so the prompt gets prose rather than markup.
-    expect(product!.description).toBe("Let løbesko til asfalt.");
-    expect(product!.options).toEqual([
-      { name: "Farve", values: ["Sort", "Hvid"] },
-      { name: "Størrelse", values: ["42", "43"] },
-    ]);
-    expect(product!.variants[0]).toMatchObject({ title: "Sort / 43", price: "899.00", available: true, options: ["Sort", "43"] });
-    expect(product!.variants[1]).toMatchObject({ available: false });
-  });
 
   it("indexes the shop's own information pages", async () => {
     stubStorefront((url) => {
-      if (url.includes("/products.json")) return jsonResponse(PRODUCTS_JSON);
-      if (url.includes("/meta.json")) return jsonResponse({ currency: "DKK" });
       if (isHomepage(url)) return htmlResponse(HOMEPAGE);
       if (url.includes("/policies/shipping-policy")) return PAGE_HTML("Fragt og levering");
       if (url.includes("/pages/levering")) return PAGE_HTML("Levering");
@@ -136,8 +76,6 @@ describe("crawlShopifyStore", () => {
   // "Den skal IKKE forsøge at crawle private/customer-only sider."
   it("never requests account, cart or checkout pages", async () => {
     stubStorefront((url) => {
-      if (url.includes("/products.json")) return jsonResponse(PRODUCTS_JSON);
-      if (url.includes("/meta.json")) return jsonResponse({ currency: "DKK" });
       if (isHomepage(url)) return htmlResponse(HOMEPAGE);
       return PAGE_HTML("Side");
     });
@@ -152,8 +90,6 @@ describe("crawlShopifyStore", () => {
 
   it("does not follow links off the shop's own domain", async () => {
     stubStorefront((url) => {
-      if (url.includes("/products.json")) return jsonResponse(PRODUCTS_JSON);
-      if (url.includes("/meta.json")) return jsonResponse({ currency: "DKK" });
       if (isHomepage(url)) return htmlResponse(HOMEPAGE);
       return PAGE_HTML("Side");
     });
@@ -166,29 +102,11 @@ describe("crawlShopifyStore", () => {
 
   // shop.dk -> www.shop.dk is an ordinary, legitimate redirect; refusing it
   // would fail on a large share of real shops.
-  it("follows a redirect to the shop's canonical host", async () => {
-    stubStorefront((url) => {
-      if (url === "https://shop.dk/products.json?limit=250&page=1") {
-        return new Response(null, { status: 301, headers: { location: "https://www.shop.dk/products.json" } });
-      }
-      if (url.includes("www.shop.dk/products.json")) return jsonResponse(PRODUCTS_JSON);
-      if (url.includes("/products.json")) return jsonResponse({ products: [] });
-      if (url.includes("/meta.json")) return jsonResponse({ currency: "DKK" });
-      if (isHomepage(url)) return htmlResponse(HOMEPAGE);
-      return PAGE_HTML("Side");
-    });
-
-    const result = await crawlShopifyStore("https://shop.dk");
-    expect(result.products).toHaveLength(1);
-  });
 
   // A redirect is the classic way past an SSRF hostname check, so the guard
   // has to run on every hop, not just the URL the customer typed.
   it("refuses a redirect into a private address", async () => {
     stubStorefront((url) => {
-      if (url.includes("/products.json")) {
-        return new Response(null, { status: 302, headers: { location: "http://169.254.169.254/latest/meta-data/" } });
-      }
       if (isHomepage(url)) {
         return new Response(null, { status: 302, headers: { location: "http://127.0.0.1/admin" } });
       }
@@ -209,10 +127,17 @@ describe("crawlShopifyStore", () => {
 
   // Telling the customer "that doesn't look like a Shopify shop" beats
   // silently indexing an unrelated website as their webshop.
+  it("never requests products.json — products come from the Admin API", async () => {
+    stubStorefront((url) => (isHomepage(url) ? htmlResponse(HOMEPAGE) : PAGE_HTML("Side")));
+
+    await crawlShopifyStore("https://shop.dk");
+
+    expect(requestedUrls.some((url) => url.includes("products.json"))).toBe(false);
+    expect(requestedUrls.some((url) => url.includes("/products/"))).toBe(false);
+  });
+
   it("reports a site that isn't a Shopify shop", async () => {
     stubStorefront((url) => {
-      if (url.includes("/products.json")) return htmlResponse("<html>404</html>", 404);
-      if (url.includes("/meta.json")) return jsonResponse({});
       return htmlResponse("<html><head><title>Blog</title></head><body>Et wordpress-site</body></html>");
     });
 
@@ -230,63 +155,31 @@ describe("formatShopifyKnowledge", () => {
   it("writes an overview the agent can answer from, and points at the tool for detail", () => {
     const text = formatShopifyKnowledge(
       {
-        products: [
-          {
-            title: "Nike Air Max",
-            handle: "nike-air-max",
-            url: "https://shop.dk/products/nike-air-max",
-            description: "Let løbesko.",
-            productType: "Løbesko",
-            vendor: "Nike",
-            tags: [],
-            options: [{ name: "Størrelse", values: ["42", "43"] }],
-            variants: [],
-            priceMin: "899",
-            priceMax: "949",
-            imageUrl: null,
-            available: true,
-          },
-        ],
         pages: [{ title: "Fragt", url: "https://shop.dk/policies/shipping-policy", text: "Vi sender med DHL på 1-3 hverdage." }],
-        currency: "DKK",
         looksLikeShopify: true,
       },
       "https://shop.dk"
     );
 
     expect(text).toContain("https://shop.dk");
-    expect(text).toContain("Nike Air Max");
-    expect(text).toContain("899–949 DKK");
-    expect(text).toContain("Størrelse: 42/43");
-    expect(text).toContain("search_shopify_products");
     expect(text).toContain("Vi sender med DHL");
+    // The prompt must point the agent at the tool for anything about a
+    // product, so it never answers a price question from this text.
+    expect(text).toContain("search_shopify_products");
   });
 
-  it("stays within the prompt budget for a very large shop", () => {
-    const many = Array.from({ length: 400 }, (_, i) => ({
-      title: `Produkt ${i}`,
-      handle: `p-${i}`,
-      url: `https://shop.dk/products/p-${i}`,
-      description: "x".repeat(600),
-      productType: null,
-      vendor: null,
-      tags: [],
-      options: [],
-      variants: [],
-      priceMin: "100",
-      priceMax: "100",
-      imageUrl: null,
-      available: true,
+  it("stays within the prompt budget for a shop with a lot of policy text", () => {
+    const pages = Array.from({ length: 20 }, (_, i) => ({
+      title: `Side ${i}`,
+      url: `https://shop.dk/pages/p-${i}`,
+      text: "x".repeat(4_000),
     }));
 
-    const text = formatShopifyKnowledge(
-      { products: many, pages: [], currency: "DKK", looksLikeShopify: true },
-      "https://shop.dk"
-    );
+    const text = formatShopifyKnowledge({ pages, looksLikeShopify: true }, "https://shop.dk");
 
     // The knowledge base is stuffed whole into the system prompt and shared
     // with the customer's own sources — one shop must not crowd it out.
-    expect(text.length).toBeLessThanOrEqual(12_000);
+    expect(text.length).toBeLessThanOrEqual(6_000);
   });
 });
 

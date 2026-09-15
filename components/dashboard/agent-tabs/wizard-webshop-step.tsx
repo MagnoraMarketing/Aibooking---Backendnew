@@ -8,17 +8,17 @@ import { useTranslation } from "@/components/i18n/language-provider";
 // calendar step — same PUT /api/customer/widgets/[id]/shopify the Webshop tab
 // uses, just the one field.
 //
-// Only step 1 (the public webshop) is offered here. Order tracking needs a
-// redirect out to Shopify and back, which would drop the customer out of the
-// wizard mid-flow — so that step is pointed at the Webshop tab instead, where
-// returning from Shopify lands correctly. Optional either way: "Spring over"
-// leaves the agent with no webshop.
+// Only step 1 (the shop address and its public info pages) is offered here.
+// Connecting Shopify itself needs a redirect out and back, which would drop
+// the customer out of the wizard mid-flow — so that step is pointed at the
+// Webshop tab instead, where returning from Shopify lands correctly. Optional
+// either way: "Spring over" leaves the agent with no webshop.
 export function WizardWebshopStep({ widget, onNext }: { widget: WidgetWithExtras; onNext: () => void }) {
   const { t } = useTranslation();
   const [shopUrl, setShopUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ products: number; pages: number } | null>(null);
+  const [result, setResult] = useState<{ pages: number } | null>(null);
 
   async function handleSave() {
     const trimmed = shopUrl.trim();
@@ -53,7 +53,7 @@ export function WizardWebshopStep({ widget, onNext }: { widget: WidgetWithExtras
       );
       return;
     }
-    setResult({ products: data.sync?.productCount ?? 0, pages: data.sync?.pageCount ?? 0 });
+    setResult({ pages: data.sync?.pageCount ?? 0 });
   }
 
   return (
@@ -68,10 +68,7 @@ export function WizardWebshopStep({ widget, onNext }: { widget: WidgetWithExtras
       {result ? (
         <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
           <p className="text-sm font-medium text-emerald-800">{t("agent.webshop.statusConnected")}</p>
-          <p className="text-sm text-emerald-700">
-            {t("agent.webshop.productsIndexed", { count: result.products })} ·{" "}
-            {t("agent.webshop.pagesIndexed", { count: result.pages })}
-          </p>
+          <p className="text-sm text-emerald-700">{t("agent.webshop.pagesIndexed", { count: result.pages })}</p>
           <p className="text-sm text-emerald-700">{t("agent.wizardWebshop.orderTrackingLater")}</p>
         </div>
       ) : (

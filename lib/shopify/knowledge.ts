@@ -1,67 +1,30 @@
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
-import type { ShopifyCatalogProduct, ShopifyCrawlResult } from "./types";
+import type { ShopifyCrawlResult } from "./types";
 
-// Turns a storefront crawl into the one knowledge-base source the agent reads
-// from its prompt. Kept free of server-only imports so it can be unit-tested
-// as the pure formatter it is.
+// The shop's own information pages, formatted as the one knowledge-base
+// source the webshop integration writes.
 //
-// The prompt gets an OVERVIEW — enough to answer "what do you sell?", "what
-// does it cost?", "how long is delivery?" without a tool call. Anything more
-// specific ("do you have it in size 43?") is what search_shopify_products is
-// for, which reads the full catalogue server-side. So this budget is
-// deliberately modest: the knowledge base is stuffed whole into the system
-// prompt (see lib/knowledge-base/format.ts) and is shared with every other
-// source the customer added.
-const MAX_TOTAL_CHARS = 12_000;
-const MAX_PRODUCTS_IN_PROMPT = 60;
+// Note what is NOT here: products, prices, variants, stock. Those are live
+// Admin API lookups (lib/shopify/products.ts) made per question, so the agent
+// quotes today's price and today's stock rather than a snapshot. What remains
+// is the prose a customer asks about but no API answers well — delivery
+// times, shipping cost, returns, terms, FAQ — which is small, changes rarely,
+// and is worth having in the prompt so 'hvor lang tid tager levering?' does
+// not need a tool call.
+const MAX_TOTAL_CHARS = 6_000;
 const MAX_PAGE_CHARS = 1_400;
 
 export const SHOPIFY_SOURCE_ID = "shopify-webshop";
 
-function formatPrice(product: ShopifyCatalogProduct, currency: string | null): string | null {
-  if (!product.priceMin) return null;
-  const suffix = currency ? ` ${currency}` : "";
-  if (product.priceMax && product.priceMax !== product.priceMin) {
-    return `${product.priceMin}–${product.priceMax}${suffix}`;
-  }
-  return `${product.priceMin}${suffix}`;
-}
-
-function describeProduct(product: ShopifyCatalogProduct, currency: string | null): string {
-  const bits: string[] = [product.title];
-
-  const price = formatPrice(product, currency);
-  if (price) bits.push(`pris ${price}`);
-
-  for (const option of product.options) {
-    // Shopify names the placeholder option on a product with no real variants
-    // "Title" with the single value "Default Title" — noise, not an option.
-    if (option.values.length === 0 || option.values[0] === "Default Title") continue;
-    bits.push(`${option.name}: ${option.values.join("/")}`);
-  }
-
-  if (!product.available) bits.push("udsolgt");
-  bits.push(product.url);
-
-  return `- ${bits.join(" — ")}`;
-}
-
 export function formatShopifyKnowledge(result: ShopifyCrawlResult, shopUrl: string): string {
   const sections: string[] = [
-    `Webshoppen ${shopUrl} er forbundet til denne agent. Nedenstående er hentet direkte fra shoppens offentlige sider.`,
+    [
+      `Virksomhedens webshop er ${shopUrl}.`,
+      "Nedenstående er shoppens egne informationssider om levering, retur, betaling og lignende.",
+      "Produkter, priser, størrelser, farver og lagerstatus står IKKE her — dem slår du altid op med search_shopify_products,",
+      "så du citerer den aktuelle pris og lagerstatus i stedet for at gætte.",
+    ].join(" "),
   ];
-
-  if (result.products.length > 0) {
-    const shown = result.products.slice(0, MAX_PRODUCTS_IN_PROMPT);
-    const lines = shown.map((product) => describeProduct(product, result.currency));
-    sections.push(
-      [
-        `## Produkter (${shown.length} af ${result.products.length})`,
-        "Brug funktionen search_shopify_products til at slå et bestemt produkt, en størrelse eller en farve op — listen her er kun et overblik.",
-        ...lines,
-      ].join("\n")
-    );
-  }
 
   for (const page of result.pages) {
     sections.push(`## ${page.title}\n${page.url}\n${page.text.slice(0, MAX_PAGE_CHARS)}`);

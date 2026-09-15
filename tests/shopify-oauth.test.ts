@@ -39,10 +39,12 @@ describe("buildShopifyAuthorizeUrl", () => {
     expect(url.searchParams.get("redirect_uri")).toBe(
       "https://aibooking-backendnew.vercel.app/api/customer/shopify/callback"
     );
-    // Order tracking reads orders. Nothing here may write, and nothing else
-    // should be requested — a merchant sees this list on the consent screen.
-    expect(SHOPIFY_SCOPES).toBe("read_orders");
-    expect(url.searchParams.get("scope")).toBe("read_orders");
+    // Products and orders, both read-only. Nothing here may write, and nothing
+    // else may be requested — a merchant sees this list on the consent screen,
+    // and every extra scope is one more thing to have to justify.
+    expect(SHOPIFY_SCOPES).toBe("read_products,read_orders");
+    expect(url.searchParams.get("scope")).toBe("read_products,read_orders");
+    expect(SHOPIFY_SCOPES).not.toMatch(/write_/);
     // Empty grant_options[] = offline token, which is what a background order
     // lookup needs.
     expect(url.searchParams.get("grant_options[]")).toBe("");

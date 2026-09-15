@@ -60,7 +60,8 @@ function buildToolGuidance(
 
   if (shopify?.capabilities.products) {
     parts.push(
-      "Virksomheden har en webshop. Brug search_shopify_products når kunden spørger om et produkt, en pris, en størrelse, en farve eller lagerstatus — opfind aldrig et produkt eller en pris."
+      "Virksomheden har en webshop. Brug search_shopify_products hver gang kunden spørger om et produkt, en pris, en størrelse, en farve, et varenummer eller lagerstatus — slå altid op, og svar aldrig ud fra hukommelsen. " +
+        "Nævner du et produkt, så afslut med et klikbart link i formatet [Se produkt](url), hvor url er kopieret ordret fra tool-svarets 'url'-felt. Opfind aldrig et link."
     );
   }
 

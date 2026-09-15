@@ -40,7 +40,7 @@ export const POST = withErrorHandling(async (_request, { params }) => {
     action: "shopify.webshop.synced",
     entityType: "widget",
     entityId: widget.id,
-    metadata: { ok: result.ok, productCount: result.productCount, pageCount: result.pageCount },
+    metadata: { ok: result.ok, pageCount: result.pageCount },
   });
 
   return NextResponse.json({ connection: await getConnectionSummary(widgetId), sync: result });

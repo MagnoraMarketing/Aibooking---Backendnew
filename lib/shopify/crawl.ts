@@ -2,36 +2,21 @@ import "server-only";
 import { assertSafeHttpUrl } from "@/lib/security/ssrf";
 import { stripHtml } from "@/lib/knowledge-base/url";
 import { normalizeShopUrl } from "./domain";
-import type {
-  ShopifyCatalogProduct,
-  ShopifyCatalogVariant,
-  ShopifyCrawledPage,
-  ShopifyCrawlResult,
-} from "./types";
+import type { ShopifyCrawledPage, ShopifyCrawlResult } from "./types";
 
-// Reads a customer's PUBLIC Shopify storefront and turns it into two things:
-// a structured product catalogue (what search_shopify_products answers from)
-// and the plain text of the shop's own information pages (shipping, returns,
-// terms, FAQ, about, contact) for the agent's prompt.
+// Reads the shop's own PUBLIC information pages — shipping, returns, terms,
+// FAQ, about, contact — as plain text for the agent's prompt.
 //
-// Everything here is data any visitor to the shop can see. No Shopify account
-// and no access token is involved — that is the entire point of the split
-// described in 0035_shopify_integration.sql. A customer who has only pasted
-// their URL, and never run the OAuth install, still gets a fully working
-// product-answering agent from this.
+// It deliberately does NOT read products. Product names, prices, variants,
+// sizes, colours, SKUs and stock are live Shopify Admin API lookups made per
+// question (lib/shopify/products.ts), so the agent answers from what the shop
+// holds right now instead of from a catalogue copied into its prompt at some
+// earlier sync. The two must not overlap: a stale price quoted confidently is
+// worse than no price at all.
 
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_RESPONSE_BYTES = 3 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
-
-// products.json pages at 250 each. Four pages is 1000 products scanned; the
-// catalogue itself is capped lower (MAX_CATALOG_PRODUCTS) because it has to
-// fit in a jsonb column and be searched in memory on every tool call.
-const MAX_PRODUCT_PAGES = 4;
-const PRODUCTS_PER_PAGE = 250;
-const MAX_CATALOG_PRODUCTS = 300;
-const MAX_VARIANTS_PER_PRODUCT = 30;
-const MAX_DESCRIPTION_CHARS = 600;
 
 const MAX_INFO_PAGES = 14;
 const MAX_PAGE_TEXT_CHARS = 4_000;
@@ -138,130 +123,6 @@ async function fetchText(url: string): Promise<string | null> {
   return new TextDecoder().decode(buffer);
 }
 
-async function fetchJson<T>(url: string): Promise<T | null> {
-  const response = await safeFetch(url);
-  if (!response || !response.ok) return null;
-  if (!(response.headers.get("content-type") ?? "").includes("json")) return null;
-
-  const buffer = await response.arrayBuffer().catch(() => null);
-  if (!buffer || buffer.byteLength > MAX_RESPONSE_BYTES) return null;
-  try {
-    return JSON.parse(new TextDecoder().decode(buffer)) as T;
-  } catch {
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Products
-// ---------------------------------------------------------------------------
-
-interface RawVariant {
-  title?: string;
-  price?: string;
-  compare_at_price?: string | null;
-  available?: boolean;
-  sku?: string | null;
-  option1?: string | null;
-  option2?: string | null;
-  option3?: string | null;
-}
-
-interface RawProduct {
-  title?: string;
-  handle?: string;
-  body_html?: string;
-  product_type?: string;
-  vendor?: string;
-  tags?: string[] | string;
-  options?: { name?: string; values?: string[] }[];
-  variants?: RawVariant[];
-  images?: { src?: string }[];
-}
-
-function toNumber(value: string | null | undefined): number | null {
-  if (!value) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function mapProduct(raw: RawProduct, origin: string): ShopifyCatalogProduct | null {
-  const title = raw.title?.trim();
-  const handle = raw.handle?.trim();
-  if (!title || !handle) return null;
-
-  const variants: ShopifyCatalogVariant[] = (raw.variants ?? [])
-    .slice(0, MAX_VARIANTS_PER_PRODUCT)
-    .map((variant) => ({
-      title: variant.title?.trim() || "Standard",
-      price: variant.price ?? null,
-      compareAtPrice: variant.compare_at_price ?? null,
-      available: typeof variant.available === "boolean" ? variant.available : null,
-      sku: variant.sku?.trim() || null,
-      options: [variant.option1, variant.option2, variant.option3]
-        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-        .map((value) => value.trim()),
-    }));
-
-  const prices = variants.map((v) => toNumber(v.price)).filter((v): v is number => v !== null);
-
-  const tags = Array.isArray(raw.tags)
-    ? raw.tags
-    : typeof raw.tags === "string"
-      ? raw.tags.split(",").map((tag) => tag.trim())
-      : [];
-
-  return {
-    title,
-    handle,
-    url: `${origin}/products/${handle}`,
-    description: stripHtml(raw.body_html ?? "").slice(0, MAX_DESCRIPTION_CHARS),
-    productType: raw.product_type?.trim() || null,
-    vendor: raw.vendor?.trim() || null,
-    tags: tags.filter(Boolean).slice(0, 20),
-    options: (raw.options ?? [])
-      .map((option) => ({
-        name: option.name?.trim() ?? "",
-        values: (option.values ?? []).map((value) => value.trim()).filter(Boolean).slice(0, 40),
-      }))
-      .filter((option) => option.name.length > 0),
-    variants,
-    priceMin: prices.length > 0 ? String(Math.min(...prices)) : null,
-    priceMax: prices.length > 0 ? String(Math.max(...prices)) : null,
-    imageUrl: raw.images?.[0]?.src ?? null,
-    // `available` is per-variant and can be absent; a product counts as
-    // available when at least one variant says so. Unknown is not "sold out"
-    // — claiming something is out of stock when it isn't costs a sale.
-    available: variants.some((variant) => variant.available !== false),
-  };
-}
-
-// The storefront's own products.json. It is public on every Shopify shop that
-// hasn't explicitly disabled it, needs no credentials, and returns exactly
-// the structured fields (variants, options, prices, availability) that would
-// otherwise have to be scraped back out of rendered HTML.
-async function crawlProducts(origin: string): Promise<ShopifyCatalogProduct[]> {
-  const products: ShopifyCatalogProduct[] = [];
-
-  for (let page = 1; page <= MAX_PRODUCT_PAGES; page++) {
-    const payload = await fetchJson<{ products?: RawProduct[] }>(
-      `${origin}/products.json?limit=${PRODUCTS_PER_PAGE}&page=${page}`
-    );
-    const batch = payload?.products;
-    if (!Array.isArray(batch) || batch.length === 0) break;
-
-    for (const raw of batch) {
-      const product = mapProduct(raw, origin);
-      if (product) products.push(product);
-      if (products.length >= MAX_CATALOG_PRODUCTS) return products;
-    }
-
-    if (batch.length < PRODUCTS_PER_PAGE) break;
-  }
-
-  return products;
-}
-
 // ---------------------------------------------------------------------------
 // Information pages
 // ---------------------------------------------------------------------------
@@ -322,30 +183,22 @@ export async function crawlShopifyStore(rawShopUrl: string): Promise<ShopifyCraw
   const { origin } = normalized;
 
   const homepageHtml = await fetchText(origin);
-  const products = await crawlProducts(origin);
+  if (!homepageHtml) throw new ShopifyCrawlError("unreachable");
 
-  // "Is this actually a Shopify shop?" — products.json answering is the
-  // strongest signal, and the storefront markup naming Shopify is the
-  // fallback for a shop with the JSON endpoint disabled or an empty
-  // catalogue. A shop that is neither gets told its URL doesn't look right,
-  // rather than silently indexing a WordPress site as a webshop.
-  const looksLikeShopify =
-    products.length > 0 ||
-    (homepageHtml !== null && /cdn\.shopify\.com|shopify\.com\/s\/files|Shopify\.theme/i.test(homepageHtml));
-
-  if (!homepageHtml && products.length === 0) throw new ShopifyCrawlError("unreachable");
+  // "Is this actually a Shopify shop?" — the storefront markup naming Shopify
+  // is the signal. Telling the customer their address doesn't look right beats
+  // silently indexing an unrelated website as their webshop.
+  const looksLikeShopify = /cdn\.shopify\.com|shopify\.com\/s\/files|Shopify\.theme|myshopify\.com/i.test(
+    homepageHtml
+  );
 
   const pageUrls = new Set<string>(POLICY_PATHS.map((path) => `${origin}${path}`));
-  if (homepageHtml) {
-    for (const link of discoverInfoLinks(homepageHtml, origin)) pageUrls.add(link);
-  }
+  for (const link of discoverInfoLinks(homepageHtml, origin)) pageUrls.add(link);
 
   const pages: ShopifyCrawledPage[] = [];
-  if (homepageHtml) {
-    const text = stripHtml(homepageHtml).slice(0, MAX_PAGE_TEXT_CHARS);
-    if (text.length >= 120) {
-      pages.push({ title: extractTitle(homepageHtml) ?? "Forside", url: origin, text });
-    }
+  const homepageText = stripHtml(homepageHtml).slice(0, MAX_PAGE_TEXT_CHARS);
+  if (homepageText.length >= 120) {
+    pages.push({ title: extractTitle(homepageHtml) ?? "Forside", url: origin, text: homepageText });
   }
 
   const crawled = await Promise.all([...pageUrls].slice(0, MAX_INFO_PAGES).map((url) => crawlPage(url)));
@@ -353,7 +206,5 @@ export async function crawlShopifyStore(rawShopUrl: string): Promise<ShopifyCraw
     if (page) pages.push(page);
   }
 
-  const meta = await fetchJson<{ currency?: string }>(`${origin}/meta.json`);
-
-  return { products, pages, currency: meta?.currency?.trim() || null, looksLikeShopify };
+  return { pages, looksLikeShopify };
 }

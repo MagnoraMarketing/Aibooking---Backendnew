@@ -12,13 +12,18 @@ import { isMyshopifyDomain } from "./domain";
 // redirect-based, which is what the "no manual API tokens in the frontend"
 // requirement means in practice.
 
-// Only what order tracking actually needs. read_orders covers the order and
-// its fulfilments (tracking number, carrier, URL). Nothing here can write.
+// Only what the two agent tools actually need, and both are read-only:
+//   read_products — product names, prices, variants, sizes, colours, SKUs,
+//                   stock and the product's own storefront URL.
+//   read_orders   — an order and its fulfilments (tracking number, carrier,
+//                   tracking URL).
+// Nothing here can write. A merchant sees this list on the consent screen, so
+// every scope has to be one we can justify out loud.
 //
 // Worth knowing when the app is configured: read_orders reaches the last 60
 // days of orders. A shop that needs older ones must be granted read_all_orders
 // by Shopify — see the setup notes in .env.example.
-export const SHOPIFY_SCOPES = "read_orders";
+export const SHOPIFY_SCOPES = "read_products,read_orders";
 
 function credentials(): { clientId: string; clientSecret: string } {
   return {

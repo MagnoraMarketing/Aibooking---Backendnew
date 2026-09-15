@@ -50,21 +50,19 @@ const CONNECTED_ROW = {
   customer_id: "cust-a",
   widget_id: "widget-a",
   shop_url: "https://shop-a.dk",
-  currency: "DKK",
   crawl_status: "ok",
   crawl_error: null,
-  crawled_product_count: 12,
   crawled_page_count: 4,
   last_sync_at: "2026-09-15T18:30:00Z",
   shop_domain: "shop-a.myshopify.com",
   access_token: "cipher:shpat_supersecret",
-  scopes: "read_orders",
+  scopes: "read_products,read_orders",
   status: "connected",
   status_error: null,
   connected_at: "2026-09-15T18:00:00Z",
 };
 
-import { getConnectionSummary, loadAdminCredentials, loadCatalog, toSummary } from "@/lib/shopify/connection";
+import { getConnectionSummary, loadAdminCredentials, toSummary } from "@/lib/shopify/connection";
 import { shopifyAdminGraphQL } from "@/lib/shopify/admin-api";
 
 beforeEach(() => {
@@ -96,7 +94,6 @@ describe("the access token never reaches the dashboard", () => {
       statusError: null,
       crawlStatus: "ok",
       crawlError: null,
-      productCount: 12,
       pageCount: 4,
       lastSyncAt: "2026-09-15T18:30:00Z",
       connectedAt: "2026-09-15T18:00:00Z",
@@ -115,9 +112,8 @@ describe("one customer cannot reach another's webshop", () => {
   it("scopes every read to the widget it was asked about", async () => {
     await getConnectionSummary("widget-a");
     await loadAdminCredentials("widget-a");
-    await loadCatalog("widget-a");
 
-    expect(queries.length).toBe(3);
+    expect(queries.length).toBe(2);
     for (const query of queries) {
       expect(query.table).toBe("shopify_connections");
       expect(query.filters.widget_id).toBe("widget-a");
@@ -136,6 +132,7 @@ describe("loadAdminCredentials", () => {
       connectionId: "conn-1",
       shopDomain: "shop-a.myshopify.com",
       accessToken: "shpat_supersecret",
+      scopes: "read_products,read_orders",
     });
   });
 

@@ -165,6 +165,77 @@
     return node;
   }
 
+
+  // Renders an agent message into a bubble, turning product links into
+  // something the customer can actually click.
+  //
+  // Two forms are recognised, and nothing else: a markdown link
+  // "[Se produkt](https://…)", which the Shopify product tool asks the agent
+  // to emit, and a bare https:// URL. Both become real <a> elements; every
+  // other character stays a text node.
+  //
+  // Built with createElement and createTextNode, never innerHTML: the text
+  // comes from a model that is in turn quoting a merchant's product data, so
+  // it is never treated as markup. The scheme is checked too — an href is only
+  // written when the URL parses as http(s), so a "javascript:" link in the
+  // message can never become a clickable one in the widget.
+  var MESSAGE_LINK_PATTERN = /\[([^\]\n]{1,80})\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"')\]]+)/g;
+
+  function isSafeHttpUrl(value) {
+    try {
+      var parsed = new URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function buildLink(href, label, primaryColor, asButton) {
+    var anchor = document.createElement("a");
+    anchor.setAttribute("href", href);
+    anchor.setAttribute("target", "_blank");
+    // noopener keeps the opened page from reaching back into the widget via
+    // window.opener; noreferrer keeps the customer's page out of the referrer.
+    anchor.setAttribute("rel", "noopener noreferrer");
+    anchor.style.cssText = asButton
+      ? "display:inline-block;margin-top:6px;padding:7px 14px;border-radius:999px;background:" +
+        primaryColor +
+        ";color:#fff;font-weight:600;font-size:13px;text-decoration:none;"
+      : "color:inherit;text-decoration:underline;word-break:break-all;";
+    anchor.appendChild(document.createTextNode(label));
+    return anchor;
+  }
+
+  function appendMessageContent(node, text, primaryColor) {
+    var value = typeof text === "string" ? text : String(text == null ? "" : text);
+    var lastIndex = 0;
+    var match;
+
+    MESSAGE_LINK_PATTERN.lastIndex = 0;
+    while ((match = MESSAGE_LINK_PATTERN.exec(value)) !== null) {
+      if (match.index > lastIndex) {
+        node.appendChild(document.createTextNode(value.slice(lastIndex, match.index)));
+      }
+
+      var label = match[1];
+      var href = match[2] || match[3];
+
+      if (href && isSafeHttpUrl(href)) {
+        // A labelled link is the product CTA the agent was asked for, so it
+        // gets the button treatment; a bare URL stays inline.
+        node.appendChild(buildLink(href, label || href, primaryColor, Boolean(label)));
+      } else {
+        node.appendChild(document.createTextNode(match[0]));
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < value.length) {
+      node.appendChild(document.createTextNode(value.slice(lastIndex)));
+    }
+  }
+
   // Shared by all three UI builders below (text chat, OpenAI Realtime, Vapi)
   // so the avatar/branding treatment stays identical across every widget
   // mode instead of drifting between three copies.
@@ -370,8 +441,9 @@
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
               : "align-self:flex-start;background:#f1f1f1;color:#222;"),
         },
-        [text]
+        []
       );
+      appendMessageContent(bubble, text, config.primaryColor);
       messagesEl.appendChild(bubble);
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
@@ -525,8 +597,9 @@
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
               : "align-self:flex-start;background:#f1f1f1;color:#222;"),
         },
-        [text]
+        []
       );
+      appendMessageContent(bubble, text, config.primaryColor);
       transcriptEl.appendChild(bubble);
       transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
@@ -806,8 +879,9 @@
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
               : "align-self:flex-start;background:#f1f1f1;color:#222;"),
         },
-        [text]
+        []
       );
+      appendMessageContent(bubble, text, config.primaryColor);
       transcriptEl.appendChild(bubble);
       transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
