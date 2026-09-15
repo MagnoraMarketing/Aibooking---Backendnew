@@ -16,6 +16,7 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
     text: t("agent.knowledgeBase.typeText"),
     url: t("agent.knowledgeBase.typeUrl"),
     pdf: t("agent.knowledgeBase.typePdf"),
+    shopify: t("agent.knowledgeBase.typeShopify"),
   };
   const sources = (widget.extra.knowledgeBase as KnowledgeBaseSource[] | undefined) ?? [];
 
@@ -183,13 +184,22 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
                     })}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(source.id)}
-                  className="text-xs font-medium text-red-600 hover:text-red-700"
-                >
-                  {t("agent.knowledgeBase.removeButton")}
-                </button>
+                {source.type === "shopify" ? (
+                  // Managed by the Webshop tab, not here: deleting it would
+                  // only hold until the next sync put it straight back, which
+                  // is a worse answer than saying where the real switch is.
+                  <span className="shrink-0 text-xs text-slate-500">
+                    {t("agent.knowledgeBase.managedByShopify")}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(source.id)}
+                    className="text-xs font-medium text-red-600 hover:text-red-700"
+                  >
+                    {t("agent.knowledgeBase.removeButton")}
+                  </button>
+                )}
               </li>
             ))}
           </ul>

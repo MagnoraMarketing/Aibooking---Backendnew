@@ -304,6 +304,36 @@ export interface CalendarConnection {
   updated_at: string;
 }
 
+// Shopify / webshop integration (0035_shopify_integration.sql). One row per
+// widget, holding two independent halves: the public storefront crawl
+// (shop_url, catalog, crawl_*) and the private Admin API install (shop_domain,
+// access_token, status). See lib/shopify for why they stay apart.
+export type ShopifyConnectionStatus = "not_connected" | "connected" | "error" | "reauth_required";
+export type ShopifyCrawlStatus = "pending" | "running" | "ok" | "error";
+
+export interface ShopifyConnectionRow {
+  id: string;
+  customer_id: string;
+  widget_id: string;
+  shop_url: string | null;
+  catalog: unknown;
+  currency: string | null;
+  crawl_status: ShopifyCrawlStatus;
+  crawl_error: string | null;
+  crawled_product_count: number;
+  crawled_page_count: number;
+  last_sync_at: string | null;
+  shop_domain: string | null;
+  /** AES-256-GCM ciphertext. Never selected into a client-facing response. */
+  access_token: string | null;
+  scopes: string | null;
+  status: ShopifyConnectionStatus;
+  status_error: string | null;
+  connected_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface StripeEventRow {
   id: string;
   type: string;

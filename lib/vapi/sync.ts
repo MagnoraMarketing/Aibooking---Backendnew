@@ -7,6 +7,11 @@ import { formatKnowledgeBaseForPrompt } from "@/lib/knowledge-base/format";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import type { Widget } from "@/types/database";
 import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content";
+// Imported from the submodules rather than the @/lib/shopify barrel: the
+// barrel also re-exports lib/shopify/sync.ts, which imports @/lib/vapi — and
+// that would be an import cycle straight back into this file.
+import { resolveShopifyCapabilities } from "@/lib/shopify/agent-tools";
+import { buildShopifyVapiTools } from "@/lib/shopify/tool-definitions";
 import { updateVapiAssistant, type VapiVoiceGender } from "./assistants";
 import { DEFAULT_VOICE_GENDER } from "./voice-gender";
 
@@ -47,6 +52,19 @@ export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<st
   // lib/vapi/voice-gender.ts.
   const voiceGender = (extra.voiceGender as VapiVoiceGender | null | undefined) ?? DEFAULT_VOICE_GENDER;
 
+  // Webshop tools are attached per capability, not per feature flag: product
+  // search needs a crawled catalogue, order lookup needs a completed Shopify
+  // install, and a widget can genuinely have the first without the second.
+  // Giving the assistant a tool it can't fulfil would just teach it to promise
+  // things — so a widget with no webshop gets neither, and the empty list in
+  // buildAssistantBody clears any that a previous sync left behind.
+  let shopifyTools: unknown[] = [];
+  try {
+    shopifyTools = buildShopifyVapiTools(await resolveShopifyCapabilities(widget.id));
+  } catch (err) {
+    console.error("Failed to resolve Shopify tools for assistant sync:", err);
+  }
+
   try {
     await updateVapiAssistant(
       vapiAssistantId,
@@ -56,7 +74,8 @@ export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<st
         firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
         voiceGender,
       },
-      includeBookingTools
+      includeBookingTools,
+      shopifyTools
     );
   } catch (err) {
     console.error("Failed to sync widget to Vapi assistant:", err);

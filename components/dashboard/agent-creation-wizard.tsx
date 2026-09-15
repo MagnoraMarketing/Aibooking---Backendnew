@@ -9,6 +9,7 @@ import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { WizardVoiceStep } from "./agent-tabs/wizard-voice-step";
 import { WizardCalendarStep } from "./agent-tabs/wizard-calendar-step";
+import { WizardWebshopStep } from "./agent-tabs/wizard-webshop-step";
 import { TestAgentTab } from "./agent-tabs/test-agent";
 import { WizardPaymentStep } from "./agent-tabs/wizard-payment-step";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
@@ -46,7 +47,7 @@ function typeOptionsFor(t: Translate): {
 // side is still incomplete.
 const WIDGET_LLM_PROVIDER = "vapi";
 
-type StepKey = "basics" | "knowledge" | "prompt" | "voice" | "calendar" | "test" | "payment" | "phone";
+type StepKey = "basics" | "knowledge" | "prompt" | "voice" | "calendar" | "webshop" | "test" | "payment" | "phone";
 
 interface WizardStep {
   key: StepKey;
@@ -78,6 +79,7 @@ function stepsFor(agentType: AgentType | null, embedCodeUnlocked: boolean, t: Tr
     { key: "prompt", label: t("agent.wizard.step.prompt") },
     { key: "voice", label: t("agent.wizard.step.voice") },
     { key: "calendar", label: t("agent.wizard.step.calendar") },
+    { key: "webshop", label: t("agent.wizard.step.webshop") },
   ];
   if (agentType === "phone") {
     steps.push({ key: "phone", label: t("agent.wizard.step.phone") });
@@ -381,6 +383,7 @@ export function AgentCreationWizard({
       ) : null}
 
       {currentKey === "calendar" && widget ? <WizardCalendarStep widget={widget} onNext={goNext} /> : null}
+      {currentKey === "webshop" && widget ? <WizardWebshopStep widget={widget} onNext={goNext} /> : null}
 
       {/* Try the finished agent on a stand-in website before being asked to
           pay for it — the same preview the Test Agent tab shows later. */}

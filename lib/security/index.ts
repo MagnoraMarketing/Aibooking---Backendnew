@@ -6,4 +6,5 @@ export { requireParam } from "./params";
 export { applyPublicCors, withPublicCors, corsPreflight } from "./cors";
 export { requireInternalSecret } from "./internal-auth";
 export { requireCredentialEnv } from "./env";
+export { assertSafeHttpUrl, isSafeHttpUrl } from "./ssrf";
 export * from "./schemas";

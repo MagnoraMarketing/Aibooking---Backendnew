@@ -1,34 +1,12 @@
 import "server-only";
-
-// Pragmatic SSRF guard: rejects the obvious private/internal hostnames a
-// customer-supplied URL could point at. Not a DNS-rebinding-proof solution
-// (that needs resolving the hostname and checking the IP right before
-// connecting) — reasonable for an authenticated, customer-admin-only
-// feature, not a fully hardened one.
-const BLOCKED_HOSTNAME_PATTERNS = [
-  /^localhost$/i,
-  /^127\./,
-  /^10\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^192\.168\./,
-  /^169\.254\./,
-  /^0\.0\.0\.0$/,
-  /^\[?::1\]?$/,
-];
+import { assertSafeHttpUrl } from "@/lib/security/ssrf";
 
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024; // 2MB — plenty for a few pages of HTML
 const FETCH_TIMEOUT_MS = 10_000;
 
-function assertSafeUrl(url: URL): void {
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Only http/https URLs are supported");
-  }
-  if (BLOCKED_HOSTNAME_PATTERNS.some((pattern) => pattern.test(url.hostname))) {
-    throw new Error("This URL points to a private/internal address and can't be imported");
-  }
-}
-
-function stripHtml(html: string): string {
+// Exported for the Shopify crawler (lib/shopify/crawl.ts), which reads the
+// same kind of storefront HTML and wants the same plain-text out.
+export function stripHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -46,7 +24,7 @@ function stripHtml(html: string): string {
 
 export async function extractTextFromUrl(rawUrl: string): Promise<string> {
   const url = new URL(rawUrl);
-  assertSafeUrl(url);
+  assertSafeHttpUrl(url);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
