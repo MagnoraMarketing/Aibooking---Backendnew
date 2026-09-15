@@ -5,6 +5,7 @@ import { readJsonBody, withErrorHandling, writeAuditLog, createWidgetSchema } fr
 import { generatePublicWidgetId, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
 import { createVapiAssistant } from "@/lib/vapi";
+import { DEFAULT_VOICE_GENDER } from "@/lib/vapi/voice-gender";
 import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 
@@ -64,10 +65,11 @@ export const POST = withErrorHandling(async (request) => {
 
   if (error) throw error;
 
-  // Widgets on the Vapi model default to the "female" voice template until
-  // the customer picks explicitly in the wizard's Stemme step — see
-  // WizardVoiceStep and resolveVoiceConfig in lib/vapi/assistants.ts.
-  const DEFAULT_VOICE_GENDER = "female";
+  // Widgets on the Vapi model default to the "Dame" voice template until the
+  // customer picks explicitly in the wizard's Stemme step — see
+  // WizardVoiceStep and resolveVoiceConfig in lib/vapi/assistants.ts. The
+  // default itself lives in lib/vapi/voice-gender.ts so the UI, this route
+  // and the assistant sync can't drift apart.
   await supabase.from("widget_settings").insert({ widget_id: widget.id, extra: { voiceGender: DEFAULT_VOICE_GENDER } });
 
   // Agents are now created exclusively on the Vapi model (see

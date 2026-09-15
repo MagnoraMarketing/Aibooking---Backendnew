@@ -23,22 +23,31 @@ export function trialDaysRemaining(customerCreatedAt: string): number {
 const ACTIVE_SUBSCRIPTION_STATUSES = ["active", "trialing"];
 
 // Generating the embed code (the "go live on a real website" step) requires
-// either a paid subscription in good standing, or still being inside the
-// free trial window with trial minutes left. Building and testing an agent
-// stays free indefinitely; only publishing it is gated. Once the trial
-// window or its minutes run out, the only way back in is subscribing —
-// a leftover balance from some other source (e.g. a manual credit) does
-// NOT substitute for that on its own, unlike the trial-era version of this
-// check. The Inbound page's "30 dage til 499 kr" intro offer
+// a paid subscription in good standing, a paid Voice Widget launch offer, or
+// still being inside the free trial window with trial minutes left. Building
+// and testing an agent stays free indefinitely; only publishing it is gated.
+// Once the trial window or its minutes run out, the only way back in is
+// paying — a leftover balance from some other source (e.g. a manual credit)
+// does NOT substitute for that on its own, unlike the trial-era version of
+// this check. The Inbound page's "30 dage til 499 kr" intro offer
 // (app/api/billing/intro-offer) is a real paid subscription, so it already
 // satisfies this via subscriptionStatus — no separate bypass needed.
+//
+// The wizard's closing payment step (lib/billing/widget-launch.ts) is a
+// one-off purchase of 200 minutes rather than a subscription, so it leaves
+// nothing in `subscriptions` to check: widgetLaunchPaidAt is how that
+// purchase keeps the embed code unlocked once the minutes are spent. The
+// minutes still run out like any others — this only governs whether the
+// snippet is visible, not whether calls can be made.
 export function hasEmbedCodeAccess(params: {
   customerCreatedAt: string;
   subscriptionStatus: string | null | undefined;
   balanceSeconds: number;
+  widgetLaunchPaidAt?: string | null;
 }): boolean {
   if (params.subscriptionStatus && ACTIVE_SUBSCRIPTION_STATUSES.includes(params.subscriptionStatus)) {
     return true;
   }
+  if (params.widgetLaunchPaidAt) return true;
   return isWithinTrial(params.customerCreatedAt) && params.balanceSeconds > 0;
 }

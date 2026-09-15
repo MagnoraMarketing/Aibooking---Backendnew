@@ -20,6 +20,11 @@ export const createCustomerSchema = z.object({
 export const signupSchema = z.object({
   companyName: z.string().trim().min(1).max(200),
   email: z.string().trim().email().max(320),
+  // Optional: it only exists so someone can ring a new customer and welcome
+  // them (see lib/email/internal-notifications.ts). Deliberately unvalidated
+  // beyond a length cap — country prefixes, spaces and parentheses are all
+  // legitimate, and a rejected signup costs far more than a messy number.
+  phone: z.string().trim().max(40).optional(),
   password: z.string().min(8).max(200),
   language: z.enum(LOCALES).default("da"),
 });
@@ -154,6 +159,19 @@ export const widgetExtraSettingsSchema = z
     // resolveVoiceConfig in lib/vapi/assistants.ts. The raw template ids
     // themselves are never sent to the customer-facing UI.
     voiceGender: z.enum(["male", "female"]).nullable(),
+    // What the customer typed into Prompt Lab's "om virksomheden" fields,
+    // kept so the generated prompt can be regenerated or adjusted later
+    // instead of the answers being thrown away the moment the draft lands
+    // in the textarea (see agent-tabs/prompt-lab.tsx).
+    promptInputs: z
+      .object({
+        businessDescription: z.string().trim().max(2000),
+        keyServices: z.string().trim().max(2000),
+        openingHours: z.string().trim().max(2000),
+        otherNotes: z.string().trim().max(2000),
+      })
+      .partial()
+      .nullable(),
   })
   .partial();
 

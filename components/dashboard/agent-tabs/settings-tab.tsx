@@ -6,6 +6,7 @@ import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 import { ComingSoonField } from "../coming-soon-field";
 import { ToggleSwitch } from "../toggle-switch";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { DEFAULT_VOICE_GENDER } from "@/lib/vapi/voice-gender";
 
 interface SettingsTabProps {
   widget: WidgetWithExtras;
@@ -17,7 +18,7 @@ interface SettingsTabProps {
 export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: SettingsTabProps) {
   const { t } = useTranslation();
   const [voiceModelId, setVoiceModelId] = useState(widget.voice_model_id ?? "");
-  const [voiceGender, setVoiceGender] = useState<"male" | "female">(widget.extra.voiceGender ?? "female");
+  const [voiceGender, setVoiceGender] = useState<"male" | "female">(widget.extra.voiceGender ?? DEFAULT_VOICE_GENDER);
   const [llmModelId, setLlmModelId] = useState(widget.llm_model_id ?? "");
   const [language, setLanguage] = useState(widget.language);
   const [saving, setSaving] = useState(false);
@@ -27,7 +28,7 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
   // model was just switched to Vapi) — the state's initial value only
   // reflects widget.extra at first render.
   useEffect(() => {
-    setVoiceGender(widget.extra.voiceGender ?? "female");
+    setVoiceGender(widget.extra.voiceGender ?? DEFAULT_VOICE_GENDER);
   }, [widget.extra.voiceGender]);
 
   const selectedModel = llmModels.find((model) => model.id === llmModelId);

@@ -28,9 +28,11 @@ export interface Customer {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   status: CustomerStatus;
   stripe_customer_id: string | null;
   intro_offer_used_at: string | null;
+  widget_launch_paid_at: string | null;
   created_at: string;
   updated_at: string;
 }

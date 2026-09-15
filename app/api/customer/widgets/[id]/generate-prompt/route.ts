@@ -4,6 +4,9 @@ import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, requireParam, generatePromptInputSchema } from "@/lib/security";
 import { resolveLLMProvider } from "@/lib/llm";
 import { getPromptDraftingModelName } from "@/lib/settings/platform";
+// Import the specific submodule, not the @/lib/knowledge-base barrel —
+// see lib/knowledge-base/pdf.ts's top comment for why.
+import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import { languageNameInDanish } from "@/lib/i18n/agent-content";
 import { ApiError } from "@/types/errors";
 
@@ -24,6 +27,8 @@ Skriv en kort, klar system-prompt på ${language} til virksomheden beskrevet i b
 - Instruere AI'en i at hjælpe besøgende med spørgsmål og bookinger, og tale naturligt og kortfattet
 - Instruere AI'en i ALDRIG at opfinde information den ikke har — den skal sige det tydeligt i stedet
 
+Brugerens besked kan indeholde uddrag fra virksomhedens egen vidensbase (hjemmeside, dokumenter). Brug dem til at forstå virksomheden og ramme dens tone og fagsprog — men GENGIV dem ikke i prompten: vidensbasen sendes med til agenten separat, så priser, åbningstider og produktdetaljer derfra skal ikke skrives ind i selve prompten, hvor de ville fryse fast og blive forældede.
+
 Svar KUN med selve system-prompten, uden indledning, forklaring eller anførselstegn.`;
 }
 
@@ -39,17 +44,33 @@ export const POST = withErrorHandling(async (request, { params }) => {
 
   const { data: widget, error } = await supabase
     .from("widgets")
-    .select("id, customer_id, language")
+    .select("id, customer_id, language, name, business_name")
     .eq("id", widgetId)
     .maybeSingle();
   if (error) throw error;
   if (!widget || widget.customer_id !== ctx.profile.customer_id) throw ApiError.notFound("Widget not found");
 
+  // The knowledge base the customer has already attached to this widget
+  // (their website, documents) is the best description of the business we
+  // have — far better than four short form fields — so the draft is written
+  // with it in view. Only an excerpt: this is context for *writing* the
+  // prompt, not the knowledge itself, which reaches the agent separately at
+  // sync time (lib/vapi/sync.ts).
+  const { data: settings } = await supabase
+    .from("widget_settings")
+    .select("extra")
+    .eq("widget_id", widgetId)
+    .maybeSingle<{ extra: { knowledgeBase?: KnowledgeBaseSource[] } | null }>();
+
+  const knowledgeBaseExcerpt = buildKnowledgeBaseExcerpt(settings?.extra?.knowledgeBase ?? []);
+
   const details = [
+    `Virksomhedens navn: ${widget.business_name ?? widget.name}`,
     `Hvad virksomheden laver: ${body.businessDescription}`,
     body.keyServices ? `Vigtigste ydelser/produkter: ${body.keyServices}` : null,
     body.openingHours ? `Åbningstider: ${body.openingHours}` : null,
     body.otherNotes ? `Andet vigtigt: ${body.otherNotes}` : null,
+    knowledgeBaseExcerpt,
   ]
     .filter(Boolean)
     .join("\n");
@@ -66,3 +87,20 @@ export const POST = withErrorHandling(async (request, { params }) => {
 
   return NextResponse.json({ systemPrompt: result.content.trim() });
 });
+
+// A bounded taste of each attached source rather than the whole knowledge
+// base: the draft only needs enough to recognise the business's field and
+// tone, and the full text can run to tens of thousands of characters (see
+// lib/knowledge-base/format.ts's own cap for the agent-facing copy).
+const KB_EXCERPT_CHARS_PER_SOURCE = 1200;
+const KB_EXCERPT_MAX_SOURCES = 5;
+
+function buildKnowledgeBaseExcerpt(sources: KnowledgeBaseSource[]): string | null {
+  if (sources.length === 0) return null;
+
+  const parts = sources
+    .slice(0, KB_EXCERPT_MAX_SOURCES)
+    .map((source) => `### ${source.label}\n${source.content.slice(0, KB_EXCERPT_CHARS_PER_SOURCE)}`);
+
+  return ["", "Uddrag fra virksomhedens vidensbase (til baggrund — gengiv dem ikke i prompten):", ...parts].join("\n");
+}

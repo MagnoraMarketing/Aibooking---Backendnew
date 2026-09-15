@@ -51,6 +51,7 @@ export default async function AgentConfigurePage({ params }: { params: { id: str
     customerCreatedAt: customer!.created_at,
     subscriptionStatus: subscription?.status ?? null,
     balanceSeconds,
+    widgetLaunchPaidAt: customer!.widget_launch_paid_at,
   });
 
   return (

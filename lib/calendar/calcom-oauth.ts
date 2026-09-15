@@ -1,6 +1,7 @@
 import "server-only";
 import { ApiError } from "@/types/errors";
 import type { OAuthTokenResult } from "./types";
+import { getPublicAppUrl } from "@/lib/app-url";
 
 const AUTH_URL = "https://app.cal.com/oauth/authorize";
 const TOKEN_URL = "https://api.cal.com/oauth/token";
@@ -17,7 +18,7 @@ function getCredentials(): { clientId: string; clientSecret: string } {
 }
 
 function redirectUri(): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const base = getPublicAppUrl();
   return `${base}/api/customer/calendar/calcom/callback`;
 }
 

@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import type { LLMModel, Package, VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "./agent-configurator";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { WizardVoiceStep } from "./agent-tabs/wizard-voice-step";
 import { WizardCalendarStep } from "./agent-tabs/wizard-calendar-step";
-import { EmbedCodeTab } from "./agent-tabs/embed-code";
+import { TestAgentTab } from "./agent-tabs/test-agent";
+import { WizardPaymentStep } from "./agent-tabs/wizard-payment-step";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
 type AgentType = "widget" | "phone";
@@ -44,15 +46,49 @@ function typeOptionsFor(t: Translate): {
 // side is still incomplete.
 const WIDGET_LLM_PROVIDER = "vapi";
 
-function stepsFor(agentType: AgentType | null, t: Translate) {
-  const lastStep = agentType === "phone" ? t("agent.wizard.step.phone") : t("agent.wizard.step.embedCode");
-  return [
-    t("agent.wizard.step.nameType"),
-    t("agent.wizard.step.prompt"),
-    t("agent.wizard.step.voice"),
-    t("agent.wizard.step.calendar"),
-    lastStep,
-  ] as const;
+type StepKey = "basics" | "knowledge" | "prompt" | "voice" | "calendar" | "test" | "payment" | "phone";
+
+interface WizardStep {
+  key: StepKey;
+  label: string;
+}
+
+// One continuous flow instead of a set of tabs: name -> knowledge -> prompt
+// -> voice -> calendar, then try the agent for real, then pay to put it
+// live. Trying it *before* the payment step is the point of that order —
+// nobody should be asked to pay for something they haven't heard talk.
+//
+// Knowledge comes before the prompt for the same kind of reason: the
+// generated prompt is written with the attached sources in view (see
+// app/api/customer/widgets/[id]/generate-prompt), so a customer who pastes
+// their website first gets a draft about their actual business rather than
+// one about whatever fits in four form fields.
+//
+// Phone agents keep their own tail (a number to call, not an embed to pay
+// for): the Test step previews a website embed, which a phone agent has no
+// use for, and the number itself is ordered from the Inbound page.
+//
+// A customer who already has access (an active subscription, or a launch
+// offer paid for an earlier widget) gets the same step labelled as what it
+// actually shows them — the embed code, with nothing to pay.
+function stepsFor(agentType: AgentType | null, embedCodeUnlocked: boolean, t: Translate): WizardStep[] {
+  const steps: WizardStep[] = [
+    { key: "basics", label: t("agent.wizard.step.nameType") },
+    { key: "knowledge", label: t("agent.wizard.step.knowledge") },
+    { key: "prompt", label: t("agent.wizard.step.prompt") },
+    { key: "voice", label: t("agent.wizard.step.voice") },
+    { key: "calendar", label: t("agent.wizard.step.calendar") },
+  ];
+  if (agentType === "phone") {
+    steps.push({ key: "phone", label: t("agent.wizard.step.phone") });
+    return steps;
+  }
+  steps.push({ key: "test", label: t("agent.wizard.step.test") });
+  steps.push({
+    key: "payment",
+    label: embedCodeUnlocked ? t("agent.wizard.step.embedCode") : t("agent.wizard.step.payment"),
+  });
+  return steps;
 }
 
 interface AgentCreationWizardProps {
@@ -70,11 +106,11 @@ interface AgentCreationWizardProps {
   fixedType?: AgentType;
 }
 
-function StepProgress({ step, steps }: { step: number; steps: readonly string[] }) {
+function StepProgress({ step, steps }: { step: number; steps: WizardStep[] }) {
   return (
     <div className="flex items-center gap-2">
-      {steps.map((label, i) => (
-        <div key={label} className="flex flex-1 items-center gap-2">
+      {steps.map(({ key, label }, i) => (
+        <div key={key} className="flex flex-1 items-center gap-2">
           <div className="flex items-center gap-2">
             <span
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
@@ -99,11 +135,13 @@ function StepProgress({ step, steps }: { step: number; steps: readonly string[] 
 }
 
 // The first-run "very simple steps" flow: create the agent, then walk it
-// through prompt -> voice -> embed code one screen at a time, reusing the
-// same tab components (PromptLabTab, EmbedCodeTab) the full agent config
-// page uses later — a widget saved mid-wizard is exactly as valid/complete
-// as one saved from the tabs, so abandoning partway never leaves anything
-// broken, just unfinished.
+// through prompt -> voice -> calendar -> test -> payment one screen at a
+// time, reusing the same tab components (PromptLabTab, TestAgentTab) the
+// full agent config page uses later — a widget saved mid-wizard is exactly
+// as valid/complete as one saved from the tabs, so abandoning partway never
+// leaves anything broken, just unfinished. Leaving to pay is the one exit
+// that comes back: Stripe returns the customer to their agent with the
+// minutes already credited (app/dashboard/checkout/return/page.tsx).
 export function AgentCreationWizard({
   llmModels,
   voiceModels,
@@ -124,8 +162,12 @@ export function AgentCreationWizard({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const steps = stepsFor(agentType, t);
+  const steps = stepsFor(agentType, embedCodeUnlocked, t);
   const typeOptions = typeOptionsFor(t);
+  // Steps are addressed by name, not index — the widget flow has two more
+  // than the phone one, so an index alone says nothing about what to render.
+  const currentKey = steps[step]?.key;
+  const goNext = () => setStep((prev) => Math.min(prev + 1, steps.length - 1));
 
   const savePatch: SavePatch = async (patch) => {
     if (!widget) return false;
@@ -188,7 +230,7 @@ export function AgentCreationWizard({
     <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <StepProgress step={step} steps={steps} />
 
-      {step === 0 ? (
+      {currentKey === "basics" ? (
         <div className="space-y-4">
           <div>
             <label htmlFor="agent-name" className="mb-1 block text-sm font-medium text-slate-700">
@@ -258,20 +300,29 @@ export function AgentCreationWizard({
         </div>
       ) : null}
 
-      {step === 1 && widget ? (
+      {currentKey === "knowledge" && widget ? (
         <div className="space-y-4">
-          <PromptLabTab widget={widget} savePatch={savePatch} />
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">{t("agent.wizard.knowledgeTitle")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t("agent.wizard.knowledgeDescription")}</p>
+          </div>
+          <KnowledgeBaseTab
+            widget={widget}
+            onSourcesChange={(knowledgeBase) =>
+              setWidget((prev) => (prev ? { ...prev, extra: { ...prev.extra, knowledgeBase } } : prev))
+            }
+          />
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setStep(2)}
+              onClick={goNext}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               {t("common.skip")}
             </button>
             <button
               type="button"
-              onClick={() => setStep(2)}
+              onClick={goNext}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
             >
               {t("agent.wizard.nextArrow")}
@@ -280,18 +331,48 @@ export function AgentCreationWizard({
         </div>
       ) : null}
 
-      {step === 2 && widget ? (
+      {currentKey === "prompt" && widget ? (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">{t("agent.wizard.promptTitle")}</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {(widget.extra.knowledgeBase?.length ?? 0) > 0
+                ? t("agent.wizard.promptDescriptionWithKnowledge", { count: widget.extra.knowledgeBase!.length })
+                : t("agent.wizard.promptDescription")}
+            </p>
+          </div>
+          <PromptLabTab widget={widget} savePatch={savePatch} />
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={goNext}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {t("common.skip")}
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              {t("agent.wizard.nextArrow")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {currentKey === "voice" && widget ? (
         <div className="space-y-4">
           <WizardVoiceStep
             widget={widget}
             llmModels={llmModels}
             voiceModels={voiceModels}
             savePatch={savePatch}
-            onNext={() => setStep(3)}
+            onNext={goNext}
           />
           <button
             type="button"
-            onClick={() => setStep(3)}
+            onClick={goNext}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             {t("common.skip")}
@@ -299,15 +380,66 @@ export function AgentCreationWizard({
         </div>
       ) : null}
 
-      {step === 3 && widget ? <WizardCalendarStep widget={widget} onNext={() => setStep(4)} /> : null}
+      {currentKey === "calendar" && widget ? <WizardCalendarStep widget={widget} onNext={goNext} /> : null}
 
-      {step === 4 && widget ? (
+      {/* Try the finished agent on a stand-in website before being asked to
+          pay for it — the same preview the Test Agent tab shows later. */}
+      {currentKey === "test" && widget ? (
         <div className="space-y-4">
-          {agentType === "phone" ? (
-            <WizardPhoneStep widget={widget} />
-          ) : (
-            <EmbedCodeTab widget={widget} unlocked={embedCodeUnlocked} trialDaysRemaining={trialDaysRemaining} pkg={pkg} />
-          )}
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">{t("agent.wizard.testTitle")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t("agent.wizard.testDescription")}</p>
+          </div>
+          <TestAgentTab widget={widget} />
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setStep((prev) => Math.max(prev - 1, 0))}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {t("agent.wizard.backArrow")}
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              {t("agent.wizard.testDoneNext")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {currentKey === "payment" && widget ? (
+        <div className="space-y-4">
+          <WizardPaymentStep
+            widget={widget}
+            unlocked={embedCodeUnlocked}
+            trialDaysRemaining={trialDaysRemaining}
+            pkg={pkg}
+          />
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setStep((prev) => Math.max(prev - 1, 0))}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {t("agent.wizard.backArrow")}
+            </button>
+            <button
+              type="button"
+              onClick={handleFinish}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {t("agent.wizard.finish")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {currentKey === "phone" && widget ? (
+        <div className="space-y-4">
+          <WizardPhoneStep widget={widget} />
           <button
             type="button"
             onClick={handleFinish}

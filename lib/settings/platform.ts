@@ -101,7 +101,8 @@ export async function setKnowledgeBaseSecondsPer1000Chars(seconds: number): Prom
   if (error) throw new Error(`Failed to update knowledge base pricing: ${error.message}`);
 }
 
-export type VapiVoiceGender = "male" | "female";
+export type { VapiVoiceGender } from "@/lib/vapi/voice-gender";
+import type { VapiVoiceGender } from "@/lib/vapi/voice-gender";
 
 function vapiVoiceTemplateKey(gender: VapiVoiceGender): string {
   return `vapi_${gender}_voice_template_assistant_id`;

@@ -58,6 +58,7 @@ export default async function AgentListPage() {
         customerCreatedAt: customer.created_at,
         subscriptionStatus: subscription?.status ?? null,
         balanceSeconds,
+        widgetLaunchPaidAt: customer.widget_launch_paid_at,
       })
     : false;
 

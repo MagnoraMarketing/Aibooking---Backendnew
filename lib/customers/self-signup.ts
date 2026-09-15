@@ -17,6 +17,7 @@ const DEFAULT_VOICE_GENDER = "female";
 export interface SelfSignupParams {
   companyName: string;
   email: string;
+  phone?: string;
   password: string;
   language: string;
 }
@@ -71,7 +72,7 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
 
   const { data: customer, error: customerError } = await supabase
     .from("customers")
-    .insert({ name: params.companyName, email: params.email, status: "active" })
+    .insert({ name: params.companyName, email: params.email, phone: params.phone ?? null, status: "active" })
     .select("*")
     .single();
 
