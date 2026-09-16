@@ -112,3 +112,30 @@ describe("the language directive", () => {
     expect(toolWaitText("en")).toBe("One moment.");
   });
 });
+
+// The setup guidance a customer follows is part of the product: every wrong
+// turn there comes back as "the agent says there's a technical problem".
+describe("the Shopify setup link", () => {
+  it("points into the customer's own store admin", async () => {
+    const { shopifyDevelopAppsUrl } = await import("@/components/dashboard/agent-tabs/webshop-tab");
+    expect(shopifyDevelopAppsUrl("frisorstuen.myshopify.com")).toBe(
+      "https://admin.shopify.com/store/frisorstuen/settings/apps/development"
+    );
+  });
+
+  it("takes the handle from whatever shape they typed", async () => {
+    const { shopifyDevelopAppsUrl } = await import("@/components/dashboard/agent-tabs/webshop-tab");
+    expect(shopifyDevelopAppsUrl("  https://Frisorstuen.myshopify.com  ")).toBe(
+      "https://admin.shopify.com/store/frisorstuen/settings/apps/development"
+    );
+  });
+
+  // A link to a store that doesn't exist is worse than no link: it sends the
+  // customer to a Shopify 404 while they're already unsure what to do.
+  it("gives no link at all when the field is empty or not a store address", async () => {
+    const { shopifyDevelopAppsUrl } = await import("@/components/dashboard/agent-tabs/webshop-tab");
+    for (const input of ["", "   ", ".myshopify.com", "https://"]) {
+      expect(shopifyDevelopAppsUrl(input)).toBeNull();
+    }
+  });
+});

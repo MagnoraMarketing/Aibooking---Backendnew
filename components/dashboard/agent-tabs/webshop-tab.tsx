@@ -18,6 +18,17 @@ interface WebshopTabProps {
   widget: WidgetWithExtras;
 }
 
+// Shopify's app-development screen lives under the store's own admin, so the
+// link only exists once we know which store. Typed as "dinbutik.myshopify.com"
+// in the field above, the admin path wants just "dinbutik" — the same handle,
+// without the domain. Anything that doesn't look like a store address yields
+// no link rather than a broken one.
+export function shopifyDevelopAppsUrl(shopDomain: string): string | null {
+  const handle = shopDomain.trim().toLowerCase().replace(/^https?:\/\//, "").split(".")[0];
+  if (!handle || !/^[a-z0-9][a-z0-9-]*$/.test(handle)) return null;
+  return `https://admin.shopify.com/store/${handle}/settings/apps/development`;
+}
+
 export function WebshopTab({ widget }: WebshopTabProps) {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
@@ -122,6 +133,9 @@ export function WebshopTab({ widget }: WebshopTabProps) {
     setBusy(null);
   }
 
+  // Recomputed as they type, so the setup link points into their own store the
+  // moment the domain field above is filled in.
+  const developAppsUrl = shopifyDevelopAppsUrl(shopDomain);
   const connected = connection?.status === "connected";
 
   return (
@@ -216,10 +230,25 @@ export function WebshopTab({ widget }: WebshopTabProps) {
                 works before a platform Shopify app exists. */}
             <div className="space-y-2 rounded-xl border border-slate-200 p-4">
               <p className="text-sm font-medium text-slate-700">{t("agent.webshop.tokenTitle")}</p>
-              <ol className="space-y-1 text-sm text-slate-600">
-                <li>{t("agent.webshop.tokenStep1")}</li>
+              <ol className="space-y-2 text-sm text-slate-600">
+                <li>
+                  {t("agent.webshop.tokenStep1")}{" "}
+                  {developAppsUrl ? (
+                    <a
+                      href={developAppsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-brand-600 hover:underline"
+                    >
+                      {t("agent.webshop.tokenStep1Link")}
+                    </a>
+                  ) : (
+                    <span className="text-slate-500">{t("agent.webshop.tokenStep1NeedsDomain")}</span>
+                  )}
+                </li>
                 <li>{t("agent.webshop.tokenStep2")}</li>
                 <li>{t("agent.webshop.tokenStep3")}</li>
+                <li>{t("agent.webshop.tokenStep4")}</li>
               </ol>
               <label className="block text-sm font-medium text-slate-700" htmlFor="shopify-access-token">
                 {t("agent.webshop.tokenLabel")}

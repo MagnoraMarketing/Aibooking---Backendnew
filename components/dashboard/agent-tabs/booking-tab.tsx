@@ -60,6 +60,7 @@ const STATUS_LABEL: Record<BookingSetupRequestStatus, string> = {
 };
 
 const CALCOM_API_KEYS_URL = "https://app.cal.com/settings/developer/api-keys";
+const CALCOM_EVENT_TYPES_URL = "https://app.cal.com/event-types";
 
 async function errorMessage(res: Response, fallback: string): Promise<string> {
   const data = await res.json().catch(() => null);
@@ -417,9 +418,9 @@ export function BookingTab({ widget }: BookingTabProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              <ol className="space-y-1 text-sm text-slate-600">
+              <ol className="space-y-2 text-sm text-slate-600">
                 <li>
-                  1. Opret en API-nøgle på{" "}
+                  <span className="font-medium text-slate-700">1. Hent en API-nøgle.</span> Åbn{" "}
                   <a
                     href={CALCOM_API_KEYS_URL}
                     target="_blank"
@@ -427,14 +428,37 @@ export function BookingTab({ widget }: BookingTabProps) {
                     className="font-medium text-brand-600 hover:underline"
                   >
                     Cal.com → Settings → Developer → API keys
-                  </a>
-                  .
+                  </a>{" "}
+                  og tryk <span className="font-medium">Add</span>. Vælg <span className="font-medium">Never expires</span>,
+                  så forbindelsen ikke holder op med at virke af sig selv. Kopiér nøglen med det samme — den starter med{" "}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">cal_live_</code> og vises kun én gang.
                 </li>
-                <li>2. Indsæt nøglen herunder.</li>
                 <li>
-                  3. Angiv event-type ID&apos;et for den kalender agenten skal booke i — det står i URL&apos;en på
-                  Cal.com, når I åbner event-typen. Lader I feltet stå tomt, vælges jeres første event-type, og I kan
-                  skifte bagefter.
+                  <span className="font-medium text-slate-700">2. Indsæt nøglen</span> i feltet herunder.
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">3. Find event-type ID&apos;et.</span> Åbn{" "}
+                  <a
+                    href={CALCOM_EVENT_TYPES_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-brand-600 hover:underline"
+                  >
+                    Cal.com → Event Types
+                  </a>{" "}
+                  og klik på den ydelse agenten skal booke. ID&apos;et er tallet sidst i adressen —{" "}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">app.cal.com/event-types/1234567</code>{" "}
+                  betyder <span className="font-medium">1234567</span>. Lader I feltet stå tomt, vælges jeres første
+                  event-type, og I kan skifte bagefter.
+                </li>
+                <li>
+                  <span className="font-medium text-slate-700">4. Tjek event-typens Placering.</span> Under{" "}
+                  <span className="font-medium">Event Setup → Placering</span> skal der stå noget agenten selv kan
+                  udfylde: <span className="font-medium">In Person (Organizer Address)</span> med jeres egen adresse,{" "}
+                  <span className="font-medium">Cal Video</span> eller et telefonnummer. Vælger I{" "}
+                  <span className="font-medium">Attendee Address</span> eller{" "}
+                  <span className="font-medium">Attendee Phone Number</span>, kræver Cal.com at kunden selv oplyser
+                  adressen, og så afviser den hver eneste booking agenten prøver at lave.
                 </li>
               </ol>
 
