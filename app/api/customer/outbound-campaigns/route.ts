@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, outboundCampaignInputSchema } from "@/lib/security";
+import { outboundNumberIssue } from "@/lib/phone-numbers";
+import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -41,16 +43,18 @@ export const POST = withErrorHandling(async (request) => {
 
   const { data: phoneNumber, error: phoneNumberError } = await supabase
     .from("phone_numbers")
-    .select("id, customer_id, direction")
+    .select("id, customer_id, purchase_status, released_at, vapi_phone_number_id, twilio_sid")
     .eq("id", body.phoneNumberId)
     .maybeSingle();
   if (phoneNumberError) throw phoneNumberError;
   if (!phoneNumber || phoneNumber.customer_id !== customerId) {
     throw ApiError.notFound("Phone number not found");
   }
-  if (phoneNumber.direction === "inbound") {
-    throw ApiError.badRequest("Dette telefonnummer er kun sat op til inbound og kan ikke bruges til outbound-opkald");
-  }
+
+  // Any of the customer's numbers, not just one bound to this agent — see
+  // lib/phone-numbers/outbound.ts for what actually decides it.
+  const issue = outboundNumberIssue(phoneNumber, { usesVapi: !(await widgetDialsThroughTwilio(widget.id)) });
+  if (issue) throw ApiError.badRequest(issue);
 
   const { data: campaign, error } = await supabase
     .from("outbound_campaigns")

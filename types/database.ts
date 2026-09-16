@@ -263,7 +263,10 @@ export interface PhoneNumber {
   id: string;
   customer_id: string;
   widget_id: string;
-  vapi_phone_number_id: string;
+  // Null until the number exists in Vapi — a Twilio number bought before
+  // inbound moved to Vapi never gets one (the column is nullable; this type
+  // said otherwise).
+  vapi_phone_number_id: string | null;
   phone_number: string;
   label: string | null;
   source: PhoneNumberSource;

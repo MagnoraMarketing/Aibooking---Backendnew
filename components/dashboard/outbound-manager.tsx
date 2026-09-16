@@ -4,12 +4,19 @@ import { useMemo, useState } from "react";
 import type { Widget } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import type { CampaignRow } from "@/app/dashboard/outbound/page";
+// The submodule, not the @/lib/phone-numbers barrel — that one also pulls in
+// the server-only service module (Twilio, admin DB client).
+import { canPlaceOutboundFrom } from "@/lib/phone-numbers/outbound";
 import { useTranslation } from "@/components/i18n/language-provider";
 
 interface OutboundManagerProps {
   widgets: Widget[];
   phoneNumbers: PhoneNumberRow[];
   initialCampaigns: CampaignRow[];
+  // Agents that dial through the customer's own Twilio subaccount instead of
+  // through Vapi — they can only call from a Twilio number. Resolved on the
+  // server, where the llm_models row is (see lib/widgets/provider.ts).
+  twilioDirectWidgetIds: string[];
 }
 
 // One line per contact: "+4512345678" or "+4512345678, Navn"
@@ -25,7 +32,12 @@ function parseContacts(raw: string): { phoneNumber: string; name?: string }[] {
     });
 }
 
-export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: OutboundManagerProps) {
+export function OutboundManager({
+  widgets,
+  phoneNumbers,
+  initialCampaigns,
+  twilioDirectWidgetIds,
+}: OutboundManagerProps) {
   const { t } = useTranslation();
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [showForm, setShowForm] = useState(initialCampaigns.length === 0);
@@ -37,10 +49,15 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
   const [launchingId, setLaunchingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const numbersForWidget = useMemo(
-    () => phoneNumbers.filter((p) => p.widget_id === widgetId),
-    [phoneNumbers, widgetId]
-  );
+  // Any of the customer's numbers, not only one bound to this agent: every
+  // Vapi number is handed out as that agent's inbound line, so requiring a
+  // match left an agent without its own number unable to run a campaign at
+  // all. What is still filtered out is a number this agent physically cannot
+  // dial from — see lib/phone-numbers/outbound.ts.
+  const usableNumbers = useMemo(() => {
+    const usesVapi = !twilioDirectWidgetIds.includes(widgetId);
+    return phoneNumbers.filter((p) => canPlaceOutboundFrom(p, { usesVapi }));
+  }, [phoneNumbers, widgetId, twilioDirectWidgetIds]);
 
   function widgetName(id: string): string {
     return widgets.find((w) => w.id === id)?.name ?? t("dashboardPages.shared.unknownAgent");
@@ -158,10 +175,7 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
               <select
                 id="campaign-widget"
                 value={widgetId}
-                onChange={(e) => {
-                  setWidgetId(e.target.value);
-                  setPhoneNumberId("");
-                }}
+                onChange={(e) => setWidgetId(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               >
                 {widgets.map((widget) => (
@@ -182,15 +196,20 @@ export function OutboundManager({ widgets, phoneNumbers, initialCampaigns }: Out
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               >
                 <option value="">{t("dashboardPages.outbound.chooseNumberPlaceholder")}</option>
-                {numbersForWidget.map((phoneNumber) => (
+                {usableNumbers.map((phoneNumber) => (
                   <option key={phoneNumber.id} value={phoneNumber.id}>
-                    {phoneNumber.label || phoneNumber.phone_number}
+                    {phoneNumber.label
+                      ? `${phoneNumber.label} · ${phoneNumber.phone_number}`
+                      : phoneNumber.phone_number}
+                    {phoneNumber.widget_id ? ` (${widgetName(phoneNumber.widget_id)})` : ""}
                   </option>
                 ))}
               </select>
-              {numbersForWidget.length === 0 ? (
-                <p className="mt-1 text-xs text-amber-600">{t("dashboardPages.outbound.noNumberForAgent")}</p>
-              ) : null}
+              {usableNumbers.length === 0 ? (
+                <p className="mt-1 text-xs text-amber-600">{t("dashboardPages.outbound.noUsableNumber")}</p>
+              ) : (
+                <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.numberIsWhatTheySee")}</p>
+              )}
             </div>
           </div>
 

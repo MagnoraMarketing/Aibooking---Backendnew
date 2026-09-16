@@ -23,7 +23,8 @@ export default async function OutboundPage() {
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
-  const [{ data: widgets }, { data: phoneNumbers }, { data: campaigns }] = await Promise.all([
+  const [{ data: widgets }, { data: phoneNumbers }, { data: campaigns }, { data: twilioDirectModels }] =
+    await Promise.all([
     supabase
       .from("widgets")
       .select("*")
@@ -42,6 +43,10 @@ export default async function OutboundPage() {
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false })
       .returns<CampaignRow[]>(),
+    // Which models dial Twilio directly rather than through Vapi — the split
+    // lib/widgets/provider.ts makes server-side for the routes. The picker
+    // needs it too, so it never offers a number the agent cannot dial from.
+    supabase.from("llm_models").select("id").eq("provider", "anthropic").returns<{ id: string }[]>(),
   ]);
 
   // Telefon (Inbound/Outbound) agents only — same split as the Inbound page
@@ -49,11 +54,17 @@ export default async function OutboundPage() {
   // outbound calling campaigns.
   const phoneAgents = (widgets ?? []).filter((w) => w.agent_type === "phone");
 
+  const twilioDirectModelIds = new Set((twilioDirectModels ?? []).map((model) => model.id));
+  const twilioDirectWidgetIds = phoneAgents
+    .filter((widget) => widget.llm_model_id && twilioDirectModelIds.has(widget.llm_model_id))
+    .map((widget) => widget.id);
+
   return (
     <OutboundManager
       widgets={phoneAgents}
       phoneNumbers={phoneNumbers ?? []}
       initialCampaigns={campaigns ?? []}
+      twilioDirectWidgetIds={twilioDirectWidgetIds}
     />
   );
 }
