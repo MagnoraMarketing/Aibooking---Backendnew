@@ -65,6 +65,9 @@ export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<st
     console.error("Failed to resolve Shopify tools for assistant sync:", err);
   }
 
+  const silenceTimeoutSeconds = typeof extra.silenceTimeoutSeconds === "number" ? extra.silenceTimeoutSeconds : null;
+  const maxDurationSeconds = typeof extra.maxDurationSeconds === "number" ? extra.maxDurationSeconds : null;
+
   try {
     await updateVapiAssistant(
       vapiAssistantId,
@@ -73,6 +76,8 @@ export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<st
         systemPrompt,
         firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
         voiceGender,
+        silenceTimeoutSeconds,
+        maxDurationSeconds,
       },
       includeBookingTools,
       shopifyTools

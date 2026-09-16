@@ -14,6 +14,11 @@ export interface VapiAssistantParams {
   // template assistant (see resolveVoiceConfig below); null/undefined falls
   // back to the platform's original fixed voice.
   voiceGender?: VapiVoiceGender | null;
+  // Vapi's own call limits. Omitted rather than sent as null when unset, so
+  // an assistant keeps whatever Vapi defaults to instead of being handed a
+  // value we invented.
+  silenceTimeoutSeconds?: number | null;
+  maxDurationSeconds?: number | null;
 }
 
 // Fixed to a fast/cheap Claude model rather than getSummarizationModelName
@@ -242,6 +247,10 @@ async function buildAssistantBody(
       model: "stt-rt-v5",
     },
     voice: await resolveVoiceConfig(params.voiceGender),
+    ...(typeof params.silenceTimeoutSeconds === "number"
+      ? { silenceTimeoutSeconds: params.silenceTimeoutSeconds }
+      : {}),
+    ...(typeof params.maxDurationSeconds === "number" ? { maxDurationSeconds: params.maxDurationSeconds } : {}),
     ...webhookConfig(),
   };
 }

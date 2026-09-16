@@ -39,6 +39,8 @@ export interface WidgetExtra {
   agentMute?: boolean;
   vapiAssistantId?: string | null;
   voiceGender?: "male" | "female" | null;
+  silenceTimeoutSeconds?: number | null;
+  maxDurationSeconds?: number | null;
   promptInputs?: PromptInputs | null;
   knowledgeBase?: KnowledgeBaseSource[];
 }

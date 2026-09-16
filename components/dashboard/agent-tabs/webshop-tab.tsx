@@ -25,8 +25,10 @@ export function WebshopTab({ widget }: WebshopTabProps) {
   const [connection, setConnection] = useState<ShopifyConnectionSummary | null>(null);
   const [oauthAvailable, setOauthAvailable] = useState(true);
   const [shopDomain, setShopDomain] = useState("");
-  const [busy, setBusy] = useState<"connect" | "disconnect" | null>(null);
+  const [accessToken, setAccessToken] = useState("");
+  const [busy, setBusy] = useState<"connect" | "save" | "disconnect" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [missingScopes, setMissingScopes] = useState<string[]>([]);
 
   // Set by the OAuth callback's redirect (app/api/customer/shopify/callback):
   // the customer comes back here from Shopify, so this is where they get told
@@ -58,6 +60,52 @@ export function WebshopTab({ widget }: WebshopTabProps) {
     window.location.href = `/api/customer/shopify/connect?widgetId=${encodeURIComponent(
       widget.id
     )}&shop=${encodeURIComponent(trimmed)}`;
+  }
+
+  // The path for a platform with no Shopify app of its own: the merchant
+  // makes a custom app in their own Shopify admin and pastes its Admin API
+  // token. The server verifies it against Shopify before storing anything, so
+  // a bad token fails here rather than mid-conversation with a customer.
+  async function handleSaveToken() {
+    const shop = shopDomain.trim();
+    const token = accessToken.trim();
+    if (!shop) {
+      setError(t("agent.webshop.errorInvalidShopDomain"));
+      return;
+    }
+    if (!token) {
+      setError(t("agent.webshop.errorTokenRequired"));
+      return;
+    }
+
+    setBusy("save");
+    setError(null);
+    setMissingScopes([]);
+
+    const res = await fetch(`/api/customer/widgets/${widget.id}/shopify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shop, accessToken: token }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const code = String(data?.error?.message ?? "");
+      if (code === "invalid_shop_domain") setError(t("agent.webshop.errorInvalidShopDomain"));
+      else if (code === "invalid_token") setError(t("agent.webshop.errorInvalidToken"));
+      else if (code.startsWith("missing_scopes:")) {
+        setError(t("agent.webshop.errorMissingScopes", { scopes: code.slice("missing_scopes:".length) }));
+      } else setError(t("agent.webshop.errorVerificationFailed"));
+      setBusy(null);
+      return;
+    }
+
+    const data = await res.json();
+    setConnection(data.connection ?? null);
+    setMissingScopes(data.missingScopes ?? []);
+    // Never keep the token in component state once it is stored.
+    setAccessToken("");
+    setBusy(null);
   }
 
   async function handleDisconnect() {
@@ -113,16 +161,17 @@ export function WebshopTab({ widget }: WebshopTabProps) {
         ) : null}
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-        {!oauthAvailable ? (
-          <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            {t("agent.webshop.oauthUnavailable")}
-          </p>
-        ) : connected ? (
+        {connected ? (
           <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <p className="text-sm text-emerald-800">
               {t("agent.webshop.storeLabel")}: <strong>{connection?.shopDomain}</strong>
             </p>
             <p className="text-sm text-emerald-700">{t("agent.webshop.connectedExplainer")}</p>
+            {missingScopes.length > 0 ? (
+              <p className="text-sm text-amber-700">
+                {t("agent.webshop.missingScopesNotice", { scopes: missingScopes.join(", ") })}
+              </p>
+            ) : null}
             <button
               type="button"
               onClick={handleDisconnect}
@@ -133,28 +182,67 @@ export function WebshopTab({ widget }: WebshopTabProps) {
             </button>
           </div>
         ) : (
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700" htmlFor="shopify-shop-domain">
-              {t("agent.webshop.shopDomainLabel")}
-            </label>
-            <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700" htmlFor="shopify-shop-domain">
+                {t("agent.webshop.shopDomainLabel")}
+              </label>
               <input
                 id="shopify-shop-domain"
                 value={shopDomain}
                 onChange={(e) => setShopDomain(e.target.value)}
                 placeholder={t("agent.webshop.shopDomainPlaceholder")}
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               />
+              <p className="text-xs text-slate-500">{t("agent.webshop.shopDomainHelp")}</p>
+            </div>
+
+            {/* The one-click path, only when the platform has a Shopify app. */}
+            {oauthAvailable ? (
+              <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm text-slate-600">{t("agent.webshop.oauthIntro")}</p>
+                <button
+                  type="button"
+                  onClick={handleConnect}
+                  disabled={busy !== null}
+                  className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+                >
+                  {busy === "connect" ? t("agent.webshop.connecting") : t("agent.webshop.connectButton")}
+                </button>
+              </div>
+            ) : null}
+
+            {/* The token path. Always available — it is the only one that
+                works before a platform Shopify app exists. */}
+            <div className="space-y-2 rounded-xl border border-slate-200 p-4">
+              <p className="text-sm font-medium text-slate-700">{t("agent.webshop.tokenTitle")}</p>
+              <ol className="space-y-1 text-sm text-slate-600">
+                <li>{t("agent.webshop.tokenStep1")}</li>
+                <li>{t("agent.webshop.tokenStep2")}</li>
+                <li>{t("agent.webshop.tokenStep3")}</li>
+              </ol>
+              <label className="block text-sm font-medium text-slate-700" htmlFor="shopify-access-token">
+                {t("agent.webshop.tokenLabel")}
+              </label>
+              <input
+                id="shopify-access-token"
+                type="password"
+                autoComplete="off"
+                value={accessToken}
+                onChange={(e) => setAccessToken(e.target.value)}
+                placeholder="shpat_…"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              />
+              <p className="text-xs text-slate-500">{t("agent.webshop.tokenHelp")}</p>
               <button
                 type="button"
-                onClick={handleConnect}
+                onClick={handleSaveToken}
                 disabled={busy !== null}
                 className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {busy === "connect" ? t("agent.webshop.connecting") : t("agent.webshop.connectButton")}
+                {busy === "save" ? t("agent.webshop.saving") : t("agent.webshop.saveTokenButton")}
               </button>
             </div>
-            <p className="text-xs text-slate-500">{t("agent.webshop.shopDomainHelp")}</p>
           </div>
         )}
       </div>

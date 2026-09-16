@@ -159,6 +159,12 @@ export const widgetExtraSettingsSchema = z
     // resolveVoiceConfig in lib/vapi/assistants.ts. The raw template ids
     // themselves are never sent to the customer-facing UI.
     voiceGender: z.enum(["male", "female"]).nullable(),
+    // Call limits handed straight to the Vapi assistant. Bounds are Vapi's
+    // own: below them the API rejects the assistant update, so validating
+    // here turns a failed background sync into a form error the customer can
+    // see and fix.
+    silenceTimeoutSeconds: z.number().int().min(10).max(3600).nullable(),
+    maxDurationSeconds: z.number().int().min(10).max(43200).nullable(),
     // What the customer typed into Prompt Lab's "om virksomheden" fields,
     // kept so the generated prompt can be regenerated or adjusted later
     // instead of the answers being thrown away the moment the draft lands
@@ -401,6 +407,15 @@ export const updateBookingSetupRequestSchema = z.object({
 // wants to authorize. The access token is never an input — it only ever
 // arrives from Shopify's own token endpoint, server-side.
 // ---------------------------------------------------------------------------
+// Connecting a shop by pasting a custom-app Admin API token, for merchants
+// whose platform has no Shopify app configured — the same shape Cal.com uses.
+// The token is verified against Shopify before anything is stored, and is
+// encrypted at rest; it is never read back out to the browser.
+export const shopifyManualConnectSchema = z.object({
+  shop: z.string().trim().min(1).max(255),
+  accessToken: z.string().trim().min(10).max(500),
+});
+
 export const shopifyConnectQuerySchema = z.object({
   widgetId: z.string().uuid(),
   // Validated again as a real *.myshopify.com domain in lib/shopify/domain.ts
