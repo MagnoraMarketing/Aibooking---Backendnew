@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, importPhoneNumberInputSchema } from "@/lib/security";
-import { importTwilioPhoneNumber } from "@/lib/vapi";
+import { importTwilioPhoneNumber, ensureInboundAssistant } from "@/lib/vapi";
 import { findIncomingPhoneNumberSid, configureDirectVoiceWebhook } from "@/lib/twilio";
 import { assertTwilioWebhookBaseUrlConfigured, twilioWebhookUrls } from "@/lib/telephony/urls";
 import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
@@ -93,12 +93,13 @@ export const POST = withErrorHandling(async (request) => {
       .select("extra")
       .eq("widget_id", widget.id)
       .maybeSingle();
-    const assistantId = (settings?.extra as Record<string, unknown> | null)?.vapiAssistantId;
-    if (typeof assistantId !== "string") {
-      throw ApiError.badRequest(
-        "Denne agent har ikke en Vapi-assistent endnu, så den kan ikke tage imod opkald. Åbn agenten og gem den én gang, så oprettes assistenten."
-      );
-    }
+    // An older phone agent has no assistant and no way to get one from the
+    // dashboard — it is given one rather than refused. See
+    // ensureInboundAssistant.
+    const assistantId =
+      typeof (settings?.extra as Record<string, unknown> | null)?.vapiAssistantId === "string"
+        ? ((settings!.extra as Record<string, unknown>).vapiAssistantId as string)
+        : await ensureInboundAssistant(widget.id);
 
     const imported = await importTwilioPhoneNumber({
       twilioAccountSid: body.twilioAccountSid,
