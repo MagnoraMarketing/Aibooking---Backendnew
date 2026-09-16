@@ -9,6 +9,7 @@ import { WIDGET_LAUNCH_MINUTES } from "@/lib/billing/widget-launch-offer";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { SettingsTab } from "./agent-tabs/settings-tab";
 import { TestAgentTab } from "./agent-tabs/test-agent";
+import { TestCallTab } from "./agent-tabs/test-call";
 import { CustomizeWidgetTab } from "./agent-tabs/customize-widget";
 import { EmbedCodeTab } from "./agent-tabs/embed-code";
 import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
@@ -180,7 +181,12 @@ export function AgentConfigurator({
           }
         />
       ) : null}
-      {activeTab === "test" ? <TestAgentTab widget={widget} /> : null}
+      {/* A phone agent is tested as a call, not as a chat bubble on a
+          simulated web page — that preview is what a website visitor sees,
+          and this agent has no website visitors. */}
+      {activeTab === "test" ? (
+        isPhoneType ? <TestCallTab widget={widget} /> : <TestAgentTab widget={widget} />
+      ) : null}
       {activeTab === "customize" ? <CustomizeWidgetTab widget={widget} savePatch={savePatch} /> : null}
       {activeTab === "embed" ? (
         <EmbedCodeTab
