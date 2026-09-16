@@ -321,11 +321,21 @@ export const calendarOAuthConnectQuerySchema = z.object({
   widgetId: z.string().uuid(),
 });
 
-export const calcomConnectInputSchema = z.object({
-  widgetId: z.string().uuid(),
-  apiKey: z.string().trim().min(1).max(500),
-  eventTypeId: z.number().int().positive().optional(),
-});
+// Either a freshly pasted key, or another of the customer's agents whose
+// Cal.com connection this one should share. Cal.com shows an API key exactly
+// once, so a customer who connected their widget weeks ago cannot paste the
+// same key again for their phone agent — the copy path is the only way to
+// put two agents on one calendar without issuing a second key.
+export const calcomConnectInputSchema = z
+  .object({
+    widgetId: z.string().uuid(),
+    apiKey: z.string().trim().min(1).max(500).optional(),
+    fromConnectionId: z.string().uuid().optional(),
+    eventTypeId: z.number().int().positive().optional(),
+  })
+  .refine((body) => !!body.apiKey !== !!body.fromConnectionId, {
+    message: "Angiv enten en API-nøgle eller en kalender at genbruge — ikke begge.",
+  });
 
 // Switching which Event Type an already-connected Cal.com account books
 // against — see app/api/customer/calendar/[id]/route.ts's PATCH.
