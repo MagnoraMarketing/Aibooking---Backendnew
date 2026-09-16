@@ -77,7 +77,13 @@ describe("the knowledge base reaches the agent's prompt", () => {
   it("sends the prompt alone when there is no knowledge base, with no empty scaffolding", async () => {
     await syncWidgetToVapiAssistant(WIDGET, { vapiAssistantId: "asst_1", knowledgeBase: [] });
 
-    expect(promptSentToVapi()).toBe("Du er receptionist for Bageren.");
+    const prompt = promptSentToVapi();
+    expect(prompt).toContain("Du er receptionist for Bageren.");
+    // No source headings and no "don't invent anything beyond these sources"
+    // rule when there are no sources to speak of. The language directive that
+    // follows the prompt is not scaffolding — every agent carries it.
+    expect(prompt).not.toContain("###");
+    expect(prompt).not.toContain("Opfind ikke information");
   });
 
   it("tells the agent not to invent anything beyond those sources", async () => {

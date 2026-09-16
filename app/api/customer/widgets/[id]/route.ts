@@ -118,6 +118,7 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
         systemPrompt: withLanguageDirective(basePrompt, data.language),
         firstMessage: data.opening_message ?? defaultGreeting(data.language),
         voiceGender,
+        language: data.language,
       });
       extra = { ...extra, voiceGender, vapiAssistantId: assistant.id };
       await supabase.from("widget_settings").upsert({ widget_id: widgetId, extra });

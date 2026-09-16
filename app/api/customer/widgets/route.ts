@@ -87,6 +87,7 @@ export const POST = withErrorHandling(async (request) => {
         systemPrompt: withLanguageDirective(systemPrompt, widget.language),
         firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
         voiceGender: DEFAULT_VOICE_GENDER,
+        language: widget.language,
       });
       await supabase
         .from("widget_settings")

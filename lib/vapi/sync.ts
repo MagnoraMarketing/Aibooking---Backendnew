@@ -91,6 +91,7 @@ export async function syncWidgetToVapiAssistant(
         voiceGender,
         silenceTimeoutSeconds,
         maxDurationSeconds,
+        language: widget.language,
       },
       includeBookingTools,
       shopifyTools

@@ -2,6 +2,7 @@ import "server-only";
 import { getVapiVoiceTemplateAssistantId } from "@/lib/settings/platform";
 import { DEFAULT_VOICE_GENDER, FALLBACK_VOICE_BY_GENDER, type VapiVoiceGender } from "./voice-gender";
 import { getPublicAppUrl, isPubliclyReachableAppUrl } from "@/lib/app-url";
+import { toolWaitText, toolFailedText } from "@/lib/i18n/agent-content";
 import { vapiFetch } from "./client";
 
 export type { VapiVoiceGender };
@@ -19,6 +20,9 @@ export interface VapiAssistantParams {
   // value we invented.
   silenceTimeoutSeconds?: number | null;
   maxDurationSeconds?: number | null;
+  // The widget's configured language (widgets.language). Decides what the
+  // assistant says out loud while a tool runs — see withSpokenToolMessages.
+  language?: string | null;
 }
 
 // The model the widget agent runs on is not a customer choice: it is
@@ -239,6 +243,32 @@ function buildBookingTools() {
   ];
 }
 
+// Vapi speaks a filler the instant a tool fires, before the model has said
+// anything — and a tool that carries no `messages` of its own gets Vapi's
+// built-in ones, which are English whatever language the agent is speaking.
+// That is where "Hold on a sec." came from in the middle of a Danish call.
+//
+// Attached here, to every tool in the payload, rather than in each tool
+// builder: booking tools and Shopify tools are assembled in different modules
+// (lib/vapi/assistants.ts and lib/shopify/tool-definitions.ts), and a filler
+// in the wrong language is exactly the kind of thing that gets forgotten when
+// the next tool is added somewhere else. A builder that sets its own
+// `messages` keeps them.
+function withSpokenToolMessages(tools: unknown[], language: string | null | undefined): unknown[] {
+  return tools.map((tool) => {
+    const record = (tool ?? {}) as Record<string, unknown>;
+    if (Array.isArray(record.messages)) return tool;
+
+    return {
+      ...record,
+      messages: [
+        { type: "request-start", content: toolWaitText(language) },
+        { type: "request-failed", content: toolFailedText(language) },
+      ],
+    };
+  });
+}
+
 // Transcriber is still fixed (Soniox STT RT v5) — voice and model both come
 // from whichever male/female template the customer's widget is set to (see
 // VapiAssistantParams.voiceGender), read in a single fetch.
@@ -264,7 +294,10 @@ async function buildAssistantBody(
   // `extraTools` is how the Shopify integration adds its own tools without
   // this module having to know anything about webshops; lib/vapi/sync.ts
   // decides which ones a given widget gets.
-  model.tools = [...(includeBookingTools ? buildBookingTools() : []), ...extraTools];
+  model.tools = withSpokenToolMessages(
+    [...(includeBookingTools ? buildBookingTools() : []), ...extraTools],
+    params.language
+  );
 
   return {
     name: params.name,
