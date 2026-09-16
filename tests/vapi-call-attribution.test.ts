@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { outboundAssistantId } from "@/lib/vapi/assistant-owner";
 
 // Three real inbound calls arrived, were answered, and vanished: no
 // phone_calls row, no billing, nothing in the log. The number had been
@@ -45,7 +46,7 @@ function dataFor(table: string): Row | null {
   return null;
 }
 
-const deductPhoneCallCost = vi.fn(async () => {});
+const deductPhoneCallCost = vi.fn(async (..._args: unknown[]) => {});
 vi.mock("@/lib/credits", () => ({
   deductPhoneCallCost: (...args: unknown[]) => deductPhoneCallCost(...args),
 }));
@@ -155,5 +156,31 @@ describe("attributing a Vapi call", () => {
 
     expect(recordedCall()).toBeUndefined();
     expect(console.error).toHaveBeenCalledWith(expect.stringMatching(/belongs to no agent/));
+  });
+});
+
+// Placing a campaign call is not the same conversation as answering the
+// phone, so an agent may keep a second assistant for it — written by hand in
+// Vapi and never synced over, which is the whole point of having one.
+describe("choosing the assistant for a campaign call", () => {
+  it("uses the agent's own outbound persona when it has one", () => {
+    expect(
+      outboundAssistantId({ vapiAssistantId: "asst_inbound", vapiOutboundAssistantId: "asst_outbound" })
+    ).toBe("asst_outbound");
+  });
+
+  it("falls back to the one that answers the phone when there is only the one", () => {
+    expect(outboundAssistantId({ vapiAssistantId: "asst_inbound" })).toBe("asst_inbound");
+  });
+
+  // A blank left behind by a cleared field is not an assistant id.
+  it("ignores an empty outbound id rather than dialling nothing", () => {
+    expect(outboundAssistantId({ vapiAssistantId: "asst_inbound", vapiOutboundAssistantId: "   " })).toBe(
+      "asst_inbound"
+    );
+  });
+
+  it("reports an agent with no assistant at all, instead of guessing", () => {
+    expect(outboundAssistantId({})).toBeNull();
   });
 });

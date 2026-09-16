@@ -8,6 +8,7 @@ import { createTwilioOutboundCall, getOrCreateSubaccount } from "@/lib/twilio";
 import { twilioWebhookUrls } from "@/lib/telephony/urls";
 import { outboundNumberIssue } from "@/lib/phone-numbers";
 import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
+import { outboundAssistantId } from "@/lib/vapi/assistant-owner";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -51,11 +52,14 @@ export const POST = withErrorHandling(async (_request, { params }) => {
       .select("extra")
       .eq("widget_id", campaign.widget_id)
       .maybeSingle();
-    const rawAssistantId = (settings?.extra as Record<string, unknown> | null)?.vapiAssistantId;
-    if (typeof rawAssistantId !== "string") {
+    // An agent may keep a separate persona for campaign calls — placing one
+    // is not the same conversation as answering the phone. Falls back to the
+    // assistant that answers when there is only the one.
+    const resolved = outboundAssistantId((settings?.extra as Record<string, unknown> | null) ?? {});
+    if (!resolved) {
       throw ApiError.badRequest("Denne agent har ikke en Vapi-assistent");
     }
-    assistantId = rawAssistantId;
+    assistantId = resolved;
   }
 
   // Re-checked at launch, not just at creation: a number can be released or

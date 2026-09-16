@@ -176,6 +176,12 @@ export const widgetExtraSettingsSchema = z
     // assistant is a separate resource in Vapi, unlike the shared
     // llm_models row that just marks the widget as using Vapi at all.
     vapiAssistantId: z.string().trim().min(1).max(200).nullable(),
+    // A second assistant, for outbound campaign calls only. Placing a call
+    // is not the same conversation as answering one, so an agent may keep a
+    // separate persona for it — written by hand in Vapi's own dashboard and
+    // never synced over by us (see lib/vapi/assistant-owner.ts). Unset means
+    // campaigns use the assistant that answers the phone.
+    vapiOutboundAssistantId: z.string().trim().min(1).max(200).nullable(),
     // Which admin-configured Vapi voice template ("Mand"/"Dame") the
     // widget's own assistant clones its voice from — see
     // resolveVoiceConfig in lib/vapi/assistants.ts. The raw template ids
