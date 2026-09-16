@@ -25,6 +25,10 @@ interface CalendarConnection {
   external_account_email: string | null;
   calcom_event_type_id: string | null;
   created_at: string;
+  // Which agent this calendar is attached to — the only way to tell two of
+  // the customer's calendars apart when offering to reuse one.
+  widget_name: string | null;
+  widget_agent_type: string | null;
 }
 
 interface CalcomEventType {
@@ -81,6 +85,12 @@ export function BookingTab({ widget }: BookingTabProps) {
   // the tab reflects the change without a page reload.
   const [live, setLive] = useState(widget.booking_enabled);
   const [connection, setConnection] = useState<CalendarConnection | null>(null);
+  // The customer's other agents' Cal.com calendars. Offered before the paste
+  // form, because a second agent booking into the same calendar is the
+  // common case — and the key that set the first one up is unrecoverable.
+  const [reusable, setReusable] = useState<CalendarConnection[]>([]);
+  const [reuseId, setReuseId] = useState<string | null>(null);
+  const [showNewCalendar, setShowNewCalendar] = useState(false);
   const [eventTypes, setEventTypes] = useState<CalcomEventType[]>([]);
   const [apiKey, setApiKey] = useState("");
   const [eventTypeIdInput, setEventTypeIdInput] = useState("");
@@ -118,10 +128,18 @@ export function BookingTab({ widget }: BookingTabProps) {
 
     if (calendarRes.ok) {
       const data = await calendarRes.json();
-      const own = (data.connections as CalendarConnection[] | undefined)?.find(
-        (c) => c.widget_id === widget.id && c.provider === "calcom"
-      );
+      const all = (data.connections as CalendarConnection[] | undefined) ?? [];
+      const own = all.find((c) => c.widget_id === widget.id && c.provider === "calcom");
       setConnection(own ?? null);
+
+      // A calendar in an error state is not one to spread to a second agent
+      // — it would take the failure with it.
+      const others = all.filter(
+        (c) => c.widget_id !== widget.id && c.provider === "calcom" && c.status === "connected"
+      );
+      setReusable(others);
+      setReuseId((current) => current ?? others[0]?.id ?? null);
+
       if (own) await loadEventTypes(own.id);
     }
 
@@ -131,6 +149,44 @@ export function BookingTab({ widget }: BookingTabProps) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Both ways in — a pasted key and a reused calendar — end the same way:
+  // the connection is stored on this agent and booking is live for it.
+  function applyConnected(data: { connection: CalendarConnection; eventTypes?: CalcomEventType[] }, notice: string) {
+    setConnection(data.connection);
+    setEventTypes(data.eventTypes ?? []);
+    setApiKey("");
+    setEventTypeIdInput("");
+    setLive(true);
+    setCalendarNotice(notice);
+  }
+
+  // Puts this agent on a calendar one of the customer's other agents already
+  // books into. The key is never handed to the browser — the server copies
+  // the stored one — so this works long after Cal.com stopped showing it.
+  async function handleReuse() {
+    if (!reuseId) return;
+    setConnecting(true);
+    setCalendarError(null);
+    setCalendarNotice(null);
+
+    const res = await fetch("/api/customer/calendar/calcom", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ widgetId: widget.id, fromConnectionId: reuseId }),
+    });
+    setConnecting(false);
+
+    if (!res.ok) {
+      setCalendarError(await errorMessage(res, "Kunne ikke bruge den kalender. Prøv igen."));
+      return;
+    }
+
+    applyConnected(
+      await res.json(),
+      "Agenten booker nu i samme kalender som den anden agent."
+    );
+  }
 
   async function handleConnect() {
     if (!apiKey.trim()) {
@@ -169,13 +225,7 @@ export function BookingTab({ widget }: BookingTabProps) {
       return;
     }
 
-    const data = await res.json();
-    setConnection(data.connection);
-    setEventTypes(data.eventTypes ?? []);
-    setApiKey("");
-    setEventTypeIdInput("");
-    setLive(true);
-    setCalendarNotice("Kalenderen er forbundet, og agenten kan nu booke tider.");
+    applyConnected(await res.json(), "Kalenderen er forbundet, og agenten kan nu booke tider.");
   }
 
   async function handleManualEventTypeSave() {
@@ -269,6 +319,9 @@ export function BookingTab({ widget }: BookingTabProps) {
     return <p className="text-sm text-slate-500">Henter…</p>;
   }
 
+  // A phone agent's callers never see a website, so the copy that told them
+  // bookings happen "fra hjemmesiden" described the wrong product.
+  const isPhone = widget.agent_type === "phone";
   const stepsDone = live ? SETUP_STEPS.length : request ? STEPS_DONE[request.status] : 0;
   const selectedEventTypeId = connection?.calcom_event_type_id ? Number(connection.calcom_event_type_id) : null;
   const conciergeInProgress = !!request && request.status !== "cancelled" && !live;
@@ -315,7 +368,9 @@ export function BookingTab({ widget }: BookingTabProps) {
               <p className="mt-1 text-sm text-slate-500">
                 {connection
                   ? "Agenten booker i denne kalender."
-                  : "Forbind jeres Cal.com-konto, så agenten kan booke møder direkte fra hjemmesiden."}
+                  : isPhone
+                    ? "Forbind jeres Cal.com-konto, så agenten kan booke tider mens kunden er i røret."
+                    : "Forbind jeres Cal.com-konto, så agenten kan booke møder direkte fra hjemmesiden."}
               </p>
             </div>
             {connection ? (
@@ -417,7 +472,83 @@ export function BookingTab({ widget }: BookingTabProps) {
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-5">
+              {/* Reuse before paste: a customer adding a phone agent to a
+                  business whose widget already books has one calendar, not
+                  two, and the key that connected it is not retrievable. */}
+              {reusable.length > 0 ? (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">Brug en kalender I allerede har</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Agenten booker i samme kalender som den valgte agent — samme Cal.com-konto og samme ledige
+                      tider, så de to agenter ikke dobbeltbooker hinanden. I skal ikke finde API-nøglen frem igen.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {reusable.map((other) => (
+                      <label
+                        key={other.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${
+                          reuseId === other.id ? "border-brand-500 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="reuse-calendar"
+                          value={other.id}
+                          checked={reuseId === other.id}
+                          onChange={() => setReuseId(other.id)}
+                          className="mt-1"
+                        />
+                        <span>
+                          <span className="font-medium text-slate-800">{other.widget_name ?? "Agent"}</span>
+                          <span className="text-slate-500">
+                            {" · "}
+                            {other.widget_agent_type === "phone" ? "Telefonagent" : "Widget-agent"}
+                          </span>
+                          <span className="block text-xs text-slate-500">
+                            {other.external_account_email ?? "Cal.com"}
+                            {other.calcom_event_type_id ? ` · event-type ${other.calcom_event_type_id}` : ""}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void handleReuse()}
+                    disabled={connecting || !reuseId}
+                    className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+                  >
+                    {connecting ? "Forbinder…" : "Brug denne kalender"}
+                  </button>
+
+                  {!showNewCalendar ? (
+                    <p className="text-sm text-slate-600">
+                      Skal agenten booke et andet sted?{" "}
+                      <button
+                        type="button"
+                        onClick={() => setShowNewCalendar(true)}
+                        className="font-medium text-brand-600 hover:underline"
+                      >
+                        Forbind en ny Cal.com-konto
+                      </button>
+                      .
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {reusable.length === 0 || showNewCalendar ? (
+                <div className="space-y-3">
+                  {reusable.length > 0 ? (
+                    <p className="border-t border-slate-200 pt-4 text-sm font-medium text-slate-700">
+                      Forbind en ny Cal.com-konto
+                    </p>
+                  ) : null}
               <ol className="space-y-2 text-sm text-slate-600">
                 <li>
                   <span className="font-medium text-slate-700">1. Hent en API-nøgle.</span> Åbn{" "}
@@ -508,6 +639,8 @@ export function BookingTab({ widget }: BookingTabProps) {
               >
                 {connecting ? "Forbinder…" : "Forbind kalender"}
               </button>
+                </div>
+              ) : null}
             </div>
           )}
 
