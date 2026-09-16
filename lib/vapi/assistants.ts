@@ -269,6 +269,20 @@ export async function createVapiAssistant(
   return { id: data.id };
 }
 
+// Vapi retires voices, and it refuses the whole PATCH when one is named:
+//
+//   "The Lily voice is part of a legacy voice set that is being phased out,
+//    and assistants cannot be updated to use this voice."
+//
+// That took the rest of the update down with it — the system prompt, the
+// knowledge base and the Shopify/booking tools all travel in the same PATCH,
+// so a stale voice name silently stopped every one of them from reaching the
+// assistant. The voice is the least important thing in that payload.
+function isVoiceRejection(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /voice/i.test(message) && /(400|not supported|phased out|legacy)/i.test(message);
+}
+
 export async function updateVapiAssistant(
   assistantId: string,
   params: VapiAssistantParams,
@@ -276,8 +290,25 @@ export async function updateVapiAssistant(
   extraTools: unknown[] = []
 ): Promise<void> {
   const modelName = await resolveModelName();
-  await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, {
-    method: "PATCH",
-    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools, extraTools)),
-  });
+  const body = await buildAssistantBody(params, modelName, includeBookingTools, extraTools);
+  const path = `/assistant/${encodeURIComponent(assistantId)}`;
+
+  try {
+    await vapiFetch(path, { method: "PATCH", body: JSON.stringify(body) });
+  } catch (err) {
+    if (!isVoiceRejection(err)) throw err;
+
+    // Retry without the voice: the assistant keeps whatever voice it already
+    // had, and everything else in the update still lands. Loud, because the
+    // configured voice is now wrong and someone has to pick another one.
+    const { voice: rejectedVoice, ...withoutVoice } = body;
+    console.error(
+      `[vapi] Assistant ${assistantId}: voice rejected (${JSON.stringify(rejectedVoice)}). ` +
+        "Retrying without it so the prompt, knowledge base and tools still sync. " +
+        "Configure the voice templates, or set VAPI_FALLBACK_VOICE_FEMALE / VAPI_FALLBACK_VOICE_MALE " +
+        "to a voice Vapi still supports.",
+      err
+    );
+    await vapiFetch(path, { method: "PATCH", body: JSON.stringify(withoutVoice) });
+  }
 }
