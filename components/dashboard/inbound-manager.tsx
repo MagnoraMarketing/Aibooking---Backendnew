@@ -53,7 +53,6 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
   const [showForm, setShowForm] = useState(initialPhoneNumbers.length === 0);
   const [widgetId, setWidgetId] = useState(widgets[0]?.id ?? "");
   const [label, setLabel] = useState("");
-  const [areaCode, setAreaCode] = useState("");
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -73,7 +72,6 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
       body: JSON.stringify({
         widgetId,
         ...(label.trim() ? { label: label.trim() } : {}),
-        ...(areaCode.trim() ? { areaCode: areaCode.trim() } : {}),
       }),
     });
     setRequesting(false);
@@ -87,7 +85,6 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
     const { phoneNumber } = await res.json();
     setPhoneNumbers((prev) => [phoneNumber, ...prev]);
     setLabel("");
-    setAreaCode("");
     setShowForm(false);
   }
 
@@ -177,33 +174,21 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
             </select>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="phone-label" className="mb-1 block text-sm font-medium text-slate-700">
-                {t("dashboardPages.inbound.labelOptional")}
-              </label>
-              <input
-                id="phone-label"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder={t("dashboardPages.inbound.labelPlaceholder")}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-              />
-            </div>
-            <div>
-              <label htmlFor="area-code" className="mb-1 block text-sm font-medium text-slate-700">
-                {t("dashboardPages.inbound.areaCodeLabel")}
-              </label>
-              <input
-                id="area-code"
-                value={areaCode}
-                onChange={(e) => setAreaCode(e.target.value)}
-                inputMode="numeric"
-                placeholder="415"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-              />
-              <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.inbound.areaCodeHelp")}</p>
-            </div>
+          {/* No area code field: the numbers happen to be American, but which
+              US area code a Danish salon's forwarding target sits in is not a
+              decision anyone here can make an informed choice about. The
+              server picks one (see lib/vapi/phone-numbers.ts). */}
+          <div>
+            <label htmlFor="phone-label" className="mb-1 block text-sm font-medium text-slate-700">
+              {t("dashboardPages.inbound.labelOptional")}
+            </label>
+            <input
+              id="phone-label"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder={t("dashboardPages.inbound.labelPlaceholder")}
+              className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
           </div>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}

@@ -1319,12 +1319,12 @@ export const dashboardPages: Namespace = {
     de: "Vorwahl (optional)",
   },
   "inbound.areaCodeHelp": {
-    da: "Numrene er amerikanske. Lad feltet stå tomt, så vælger Vapi selv et.",
-    en: "The numbers are US ones. Leave it blank and Vapi picks one itself.",
-    es: "Los números son de EE. UU. Déjelo en blanco y Vapi elegirá uno.",
-    fr: "Les numéros sont américains. Laissez le champ vide et Vapi en choisit un.",
-    pt: "Os números são dos EUA. Deixe em branco e a Vapi escolhe um.",
-    de: "Die Nummern sind US-Nummern. Lassen Sie das Feld leer, dann wählt Vapi selbst eine aus.",
+    da: "Numrene er amerikanske. Lad feltet stå tomt, så vælger vi et for jer.",
+    en: "The numbers are US ones. Leave it blank and we'll pick one for you.",
+    es: "Los números son de EE. UU. Déjelo en blanco y elegiremos uno por usted.",
+    fr: "Les numéros sont américains. Laissez le champ vide et nous en choisirons un pour vous.",
+    pt: "Os números são dos EUA. Deixe em branco e escolhemos um por si.",
+    de: "Die Nummern sind US-Nummern. Lassen Sie das Feld leer, dann wählen wir eine für Sie aus.",
   },
   "inbound.getNumber": {
     da: "Få nummer",
