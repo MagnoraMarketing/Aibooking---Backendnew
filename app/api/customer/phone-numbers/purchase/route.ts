@@ -10,6 +10,7 @@ import {
   getClientIp,
 } from "@/lib/security";
 import { provisionPurchasedNumber, PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
+import { ensureInboundAssistant } from "@/lib/vapi";
 import { ApiError } from "@/types/errors";
 
 export const dynamic = "force-dynamic";
@@ -57,22 +58,17 @@ export const POST = withErrorHandling(async (request) => {
     ? await supabase.from("llm_models").select("provider").eq("id", widget.llm_model_id).maybeSingle()
     : { data: null };
 
-  // Checked here, before any money moves: an inbound number answers through
-  // a Vapi assistant (see lib/phone-numbers/service.ts), so an agent without
-  // one cannot take the calls this number is being bought for. Failing after
-  // payment would leave the customer with a charged card and a dead number.
+  // Settled here, before any money moves: an inbound number answers through a
+  // Vapi assistant (see lib/phone-numbers/service.ts), so an agent without one
+  // cannot take the calls this number is being bought for. Failing during
+  // provisioning instead would leave the customer with a charged card and a
+  // dead number.
+  //
+  // An older phone agent has no assistant and no way to get one from the
+  // dashboard, so it is given one here rather than refused — see
+  // ensureInboundAssistant for what that changes.
   if (body.direction === "inbound" || llmModel?.provider === "vapi") {
-    const { data: settings } = await supabase
-      .from("widget_settings")
-      .select("extra")
-      .eq("widget_id", widget.id)
-      .maybeSingle();
-    const assistantId = (settings?.extra as Record<string, unknown> | null)?.vapiAssistantId;
-    if (typeof assistantId !== "string") {
-      throw ApiError.badRequest(
-        "Denne agent har ikke en Vapi-assistent endnu, så den kan ikke tage imod opkald. Åbn agenten og gem den én gang, så oprettes assistenten."
-      );
-    }
+    await ensureInboundAssistant(widget.id);
   }
 
   const { data: phoneNumberRow, error } = await supabase
