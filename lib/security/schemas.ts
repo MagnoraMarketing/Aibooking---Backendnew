@@ -141,6 +141,11 @@ export const vapiNumberInputSchema = z.object({
     .trim()
     .regex(/^\d{3}$/, "Områdenummeret skal være tre cifre")
     .optional(),
+  // A number already in the platform's Vapi account, chosen from
+  // /api/customer/phone-numbers/vapi/available. Given one, the route attaches
+  // it rather than asking Vapi for a new one — which is the difference
+  // between free and needing a card on file.
+  vapiPhoneNumberId: z.string().trim().min(1).max(100).optional(),
 });
 
 export const createWidgetSchema = widgetUpdateSchema.extend({

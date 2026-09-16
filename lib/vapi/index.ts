@@ -31,4 +31,10 @@ export function getVapiCallConfig(assistantId: string | null | undefined): VapiC
   return { publicKey: getPublicKey(), assistantId };
 }
 export { ensureInboundAssistant } from "./ensure-assistant";
-export { createVapiManagedNumber, attachAssistantToVapiNumber, isVapiBillingRefusal } from "./phone-numbers";
+export {
+  createVapiManagedNumber,
+  attachAssistantToVapiNumber,
+  isVapiBillingRefusal,
+  listVapiPhoneNumbers,
+  type VapiAccountNumber,
+} from "./phone-numbers";
