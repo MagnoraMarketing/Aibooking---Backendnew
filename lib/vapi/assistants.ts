@@ -210,7 +210,8 @@ function buildBookingTools() {
 async function buildAssistantBody(
   params: VapiAssistantParams,
   modelName: string,
-  includeBookingTools: boolean = false
+  includeBookingTools: boolean = false,
+  extraTools: unknown[] = []
 ) {
   const model: Record<string, unknown> = {
     provider: "anthropic",
@@ -218,10 +219,14 @@ async function buildAssistantBody(
     messages: [{ role: "system", content: params.systemPrompt }],
   };
 
-  // Sent as an empty list when booking is off, not omitted — a PATCH that
+  // Sent as an empty list when nothing is enabled, not omitted — a PATCH that
   // leaves the key out would let tools linger on an assistant whose booking
-  // was switched back off.
-  model.tools = includeBookingTools ? buildBookingTools() : [];
+  // (or webshop) was switched back off.
+  //
+  // `extraTools` is how the Shopify integration adds its own tools without
+  // this module having to know anything about webshops; lib/vapi/sync.ts
+  // decides which ones a given widget gets.
+  model.tools = [...(includeBookingTools ? buildBookingTools() : []), ...extraTools];
 
   return {
     name: params.name,
@@ -243,12 +248,13 @@ async function buildAssistantBody(
 
 export async function createVapiAssistant(
   params: VapiAssistantParams,
-  includeBookingTools = false
+  includeBookingTools = false,
+  extraTools: unknown[] = []
 ): Promise<{ id: string }> {
   const modelName = await resolveModelName();
   const response = await vapiFetch("/assistant", {
     method: "POST",
-    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools)),
+    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools, extraTools)),
   });
   const data = (await response.json()) as { id: string };
   return { id: data.id };
@@ -257,11 +263,12 @@ export async function createVapiAssistant(
 export async function updateVapiAssistant(
   assistantId: string,
   params: VapiAssistantParams,
-  includeBookingTools = false
+  includeBookingTools = false,
+  extraTools: unknown[] = []
 ): Promise<void> {
   const modelName = await resolveModelName();
   await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, {
     method: "PATCH",
-    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools)),
+    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools, extraTools)),
   });
 }

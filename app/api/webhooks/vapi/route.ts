@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/database/admin";
 import { deductPhoneCallCost } from "@/lib/credits";
 import { executeBookingTool, resolveToolContext } from "@/lib/vapi/booking-tools";
+import { executeShopifyTool, isShopifyToolName } from "@/lib/shopify/agent-tools";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -163,7 +164,13 @@ async function handleToolCalls(message: Record<string, unknown>): Promise<NextRe
 
       const args = parseToolArguments(toolCall.function?.arguments ?? toolCall.arguments);
       try {
-        return { toolCallId, result: await executeBookingTool(name, args, ctx) };
+        // Which widget's webshop a tool may read is taken from `ctx` — resolved
+        // from the call's assistantId above — never from the tool arguments, so
+        // one customer's agent cannot ask about another's orders.
+        const result = isShopifyToolName(name)
+          ? await executeShopifyTool(name, args, ctx.widgetId)
+          : await executeBookingTool(name, args, ctx);
+        return { toolCallId, result };
       } catch (err) {
         // Nothing thrown here may escape: an unhandled rejection would make
         // this a 500, and Vapi would be left mid-call with no tool result at

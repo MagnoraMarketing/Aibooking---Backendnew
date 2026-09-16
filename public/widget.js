@@ -47,6 +47,41 @@
     });
   }
 
+  // Errors that reach a customer-visible status line arrive in whatever shape
+  // their source felt like. An Error has a string `message`; a Vapi call
+  // error can carry `error.message` that is the *parsed body* of a failed
+  // HTTP request — an object, not a string. Concatenating one of those into
+  // a status line produced the literal "Fejl: [object Object]": visible to
+  // the customer, useless to everyone, and hiding the one piece of text that
+  // says what actually went wrong.
+  //
+  // Walk the usual nesting for the first real string, and fall back to
+  // compact JSON rather than to nothing, so even an unfamiliar shape says
+  // something. Returns null only when there is genuinely nothing to show.
+  function describeError(value, depth) {
+    depth = depth || 0;
+    if (value == null || depth > 4) return null;
+    if (typeof value === "string") return value.trim() || null;
+    if (typeof value !== "object") return String(value);
+
+    var keys = ["message", "errorMsg", "msg", "error", "reason", "statusText", "description"];
+    for (var i = 0; i < keys.length; i++) {
+      var nested = describeError(value[keys[i]], depth + 1);
+      if (nested) return nested;
+    }
+
+    try {
+      var json = JSON.stringify(value);
+      if (json && json !== "{}" && json !== "[]") {
+        return json.length > 300 ? json.slice(0, 300) + "…" : json;
+      }
+    } catch (circular) {
+      // A circular object can't be serialised — the console.error at the
+      // call site still has the real thing.
+    }
+    return null;
+  }
+
   // Ends a usage session — the only thing that bills its minutes against the
   // customer's credit ledger and closes the conversation (see
   // finalizeUsageSession in lib/usage/session.ts).
@@ -128,6 +163,77 @@
       node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
     });
     return node;
+  }
+
+
+  // Renders an agent message into a bubble, turning product links into
+  // something the customer can actually click.
+  //
+  // Two forms are recognised, and nothing else: a markdown link
+  // "[Se produkt](https://…)", which the Shopify product tool asks the agent
+  // to emit, and a bare https:// URL. Both become real <a> elements; every
+  // other character stays a text node.
+  //
+  // Built with createElement and createTextNode, never innerHTML: the text
+  // comes from a model that is in turn quoting a merchant's product data, so
+  // it is never treated as markup. The scheme is checked too — an href is only
+  // written when the URL parses as http(s), so a "javascript:" link in the
+  // message can never become a clickable one in the widget.
+  var MESSAGE_LINK_PATTERN = /\[([^\]\n]{1,80})\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"')\]]+)/g;
+
+  function isSafeHttpUrl(value) {
+    try {
+      var parsed = new URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function buildLink(href, label, primaryColor, asButton) {
+    var anchor = document.createElement("a");
+    anchor.setAttribute("href", href);
+    anchor.setAttribute("target", "_blank");
+    // noopener keeps the opened page from reaching back into the widget via
+    // window.opener; noreferrer keeps the customer's page out of the referrer.
+    anchor.setAttribute("rel", "noopener noreferrer");
+    anchor.style.cssText = asButton
+      ? "display:inline-block;margin-top:6px;padding:7px 14px;border-radius:999px;background:" +
+        primaryColor +
+        ";color:#fff;font-weight:600;font-size:13px;text-decoration:none;"
+      : "color:inherit;text-decoration:underline;word-break:break-all;";
+    anchor.appendChild(document.createTextNode(label));
+    return anchor;
+  }
+
+  function appendMessageContent(node, text, primaryColor) {
+    var value = typeof text === "string" ? text : String(text == null ? "" : text);
+    var lastIndex = 0;
+    var match;
+
+    MESSAGE_LINK_PATTERN.lastIndex = 0;
+    while ((match = MESSAGE_LINK_PATTERN.exec(value)) !== null) {
+      if (match.index > lastIndex) {
+        node.appendChild(document.createTextNode(value.slice(lastIndex, match.index)));
+      }
+
+      var label = match[1];
+      var href = match[2] || match[3];
+
+      if (href && isSafeHttpUrl(href)) {
+        // A labelled link is the product CTA the agent was asked for, so it
+        // gets the button treatment; a bare URL stays inline.
+        node.appendChild(buildLink(href, label || href, primaryColor, Boolean(label)));
+      } else {
+        node.appendChild(document.createTextNode(match[0]));
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < value.length) {
+      node.appendChild(document.createTextNode(value.slice(lastIndex)));
+    }
   }
 
   // Shared by all three UI builders below (text chat, OpenAI Realtime, Vapi)
@@ -335,8 +441,9 @@
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
               : "align-self:flex-start;background:#f1f1f1;color:#222;"),
         },
-        [text]
+        []
       );
+      appendMessageContent(bubble, text, config.primaryColor);
       messagesEl.appendChild(bubble);
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
@@ -490,8 +597,9 @@
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
               : "align-self:flex-start;background:#f1f1f1;color:#222;"),
         },
-        [text]
+        []
       );
+      appendMessageContent(bubble, text, config.primaryColor);
       transcriptEl.appendChild(bubble);
       transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
@@ -634,7 +742,7 @@
           statusEl.textContent =
             err.status === 402
               ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
+              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
         });
     }
 
@@ -771,8 +879,9 @@
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
               : "align-self:flex-start;background:#f1f1f1;color:#222;"),
         },
-        [text]
+        []
       );
+      appendMessageContent(bubble, text, config.primaryColor);
       transcriptEl.appendChild(bubble);
       transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
@@ -841,8 +950,7 @@
                 // dead-end generic message, and always log the raw object so
                 // it's visible in devtools even when no readable text exists.
                 console.error("Vapi call error:", e);
-                var detail =
-                  (e && (e.message || e.errorMsg || (e.error && e.error.message))) || null;
+                var detail = describeError(e);
                 statusEl.textContent = detail
                   ? "Fejl: " + detail
                   : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
@@ -861,7 +969,7 @@
           statusEl.textContent =
             err.status === 402
               ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
+              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
         });
     }
 
@@ -1008,8 +1116,12 @@
           return loadTwilioSdk().then(function (Twilio) {
             if (!call.device) {
               call.device = new Twilio.Device(data.token);
-              call.device.on("error", function () {
-                statusEl.textContent = "Der opstod en fejl under samtalen.";
+              call.device.on("error", function (e) {
+                console.error("Twilio device error:", e);
+                var detail = describeError(e);
+                statusEl.textContent = detail
+                  ? "Fejl: " + detail
+                  : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
               });
             } else {
               call.device.updateToken(data.token);
@@ -1027,8 +1139,12 @@
             callBtn.textContent = "⏹";
           });
           twilioCall.on("disconnect", handleCallEnd);
-          twilioCall.on("error", function () {
-            statusEl.textContent = "Der opstod en fejl under samtalen.";
+          twilioCall.on("error", function (e) {
+            console.error("Twilio call error:", e);
+            var detail = describeError(e);
+            statusEl.textContent = detail
+              ? "Fejl: " + detail
+              : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
           });
         })
         .catch(function (err) {
@@ -1036,7 +1152,7 @@
           statusEl.textContent =
             err.status === 402
               ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
+              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
         });
     }
 
