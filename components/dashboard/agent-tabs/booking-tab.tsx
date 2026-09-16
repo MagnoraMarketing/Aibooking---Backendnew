@@ -82,6 +82,7 @@ export function BookingTab({ widget }: BookingTabProps) {
   const [connection, setConnection] = useState<CalendarConnection | null>(null);
   const [eventTypes, setEventTypes] = useState<CalcomEventType[]>([]);
   const [apiKey, setApiKey] = useState("");
+  const [eventTypeIdInput, setEventTypeIdInput] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [calendarNotice, setCalendarNotice] = useState<string | null>(null);
@@ -135,10 +136,26 @@ export function BookingTab({ widget }: BookingTabProps) {
     setCalendarError(null);
     setCalendarNotice(null);
 
+    // The event type decides WHICH calendar and which service the agent
+    // books — left blank the server picks the account's first one, which is a
+    // guess, and a shop with several event types would have the agent booking
+    // into the wrong one.
+    const trimmedEventTypeId = eventTypeIdInput.trim();
+    const parsedEventTypeId = trimmedEventTypeId ? Number(trimmedEventTypeId) : undefined;
+    if (trimmedEventTypeId && (!Number.isInteger(parsedEventTypeId) || (parsedEventTypeId ?? 0) <= 0)) {
+      setCalendarError("Event-type ID skal være et tal — det står i URL'en på Cal.com under Event Types.");
+      setConnecting(false);
+      return;
+    }
+
     const res = await fetch("/api/customer/calendar/calcom", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ widgetId: widget.id, apiKey: apiKey.trim() }),
+      body: JSON.stringify({
+        widgetId: widget.id,
+        apiKey: apiKey.trim(),
+        ...(parsedEventTypeId ? { eventTypeId: parsedEventTypeId } : {}),
+      }),
     });
     setConnecting(false);
 
@@ -151,6 +168,7 @@ export function BookingTab({ widget }: BookingTabProps) {
     setConnection(data.connection);
     setEventTypes(data.eventTypes ?? []);
     setApiKey("");
+    setEventTypeIdInput("");
     setLive(true);
     setCalendarNotice("Kalenderen er forbundet, og agenten kan nu booke tider.");
   }
@@ -374,8 +392,12 @@ export function BookingTab({ widget }: BookingTabProps) {
                   </a>
                   .
                 </li>
-                <li>2. Indsæt nøglen herunder og tryk Forbind.</li>
-                <li>3. Vælg den event-type agenten skal booke. Så er I klar.</li>
+                <li>2. Indsæt nøglen herunder.</li>
+                <li>
+                  3. Angiv event-type ID&apos;et for den kalender agenten skal booke i — det står i URL&apos;en på
+                  Cal.com, når I åbner event-typen. Lader I feltet stå tomt, vælges jeres første event-type, og I kan
+                  skifte bagefter.
+                </li>
               </ol>
 
               <div>
@@ -393,6 +415,26 @@ export function BookingTab({ widget }: BookingTabProps) {
                 />
                 <p className="mt-1 text-xs text-slate-500">
                   Nøglen gemmes krypteret og vises aldrig igen — hverken her eller andre steder i dashboardet.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="calcom-event-type-id" className="mb-1 block text-sm font-medium text-slate-700">
+                  Cal.com event-type ID <span className="font-normal text-slate-500">(valgfrit)</span>
+                </label>
+                <input
+                  id="calcom-event-type-id"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={eventTypeIdInput}
+                  onChange={(e) => setEventTypeIdInput(e.target.value)}
+                  placeholder="fx 1234567"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Bestemmer hvilken kalender og ydelse agenten booker i. Findes i Cal.com under Event Types — ID&apos;et
+                  står sidst i adressen, fx …/event-types/1234567.
                 </p>
               </div>
 

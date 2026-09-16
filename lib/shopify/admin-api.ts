@@ -91,3 +91,56 @@ export async function shopifyAdminGraphQL<T>(params: {
   if (!payload.data) throw new ShopifyAdminApiError("Shopify Admin API returned no data", "graphql_error");
   return payload.data;
 }
+
+// The scopes a token actually carries, straight from Shopify.
+//
+// Used when a merchant pastes a custom-app token instead of running the OAuth
+// install: there is no grant response to read the scopes out of, and the
+// agent's tools are gated on them (lib/shopify/agent-tools.ts). Asking
+// Shopify is also the cheapest way to prove the token works at all, so this
+// doubles as the "test the credentials" step before anything is stored.
+//
+// This one endpoint has no GraphQL equivalent — a GraphQL probe would have to
+// guess a query the token might not be scoped for, and a 403 would be
+// indistinguishable from a bad token.
+export async function fetchShopifyAccessScopes(params: {
+  shopDomain: string;
+  accessToken: string;
+}): Promise<string[]> {
+  if (!isMyshopifyDomain(params.shopDomain)) {
+    throw new ShopifyAdminApiError("Refusing to send an access token to a non-Shopify domain", "request_failed");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`https://${params.shopDomain}/admin/oauth/access_scopes.json`, {
+      signal: controller.signal,
+      headers: { "X-Shopify-Access-Token": params.accessToken, Accept: "application/json" },
+    });
+  } catch (err) {
+    throw new ShopifyAdminApiError(
+      `Shopify Admin API request failed: ${err instanceof Error ? err.message : "unknown error"}`,
+      "request_failed"
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    throw new ShopifyAdminApiError("Shopify rejected the access token", "unauthorized");
+  }
+  if (!response.ok) {
+    throw new ShopifyAdminApiError(`Shopify returned ${response.status}`, "request_failed");
+  }
+
+  const payload = (await response.json().catch(() => null)) as
+    | { access_scopes?: { handle?: string }[] }
+    | null;
+
+  return (payload?.access_scopes ?? [])
+    .map((scope) => scope?.handle?.trim())
+    .filter((handle): handle is string => Boolean(handle));
+}
