@@ -2,7 +2,7 @@ import "server-only";
 import { getVapiVoiceTemplateAssistantId } from "@/lib/settings/platform";
 import { DEFAULT_VOICE_GENDER, FALLBACK_VOICE_BY_GENDER, type VapiVoiceGender } from "./voice-gender";
 import { getPublicAppUrl, isPubliclyReachableAppUrl } from "@/lib/app-url";
-import { toolWaitText, toolFailedText } from "@/lib/i18n/agent-content";
+import { toolWaitText, toolFailedText, withNoBookingDirective } from "@/lib/i18n/agent-content";
 import { vapiFetch } from "./client";
 
 export type { VapiVoiceGender };
@@ -282,9 +282,18 @@ async function buildAssistantBody(
   const gender = params.voiceGender ?? DEFAULT_VOICE_GENDER;
   const template = await resolveTemplate(gender);
 
+  // An agent with no booking tools is told so, in its own language. The
+  // customer's prompt describes a receptionist who takes appointments; only
+  // the tool list knows whether it can — and without this the agent invents
+  // the booking rather than admitting it cannot make one. See
+  // NO_BOOKING_DIRECTIVE in lib/i18n/agent-content.ts.
+  const systemPrompt = includeBookingTools
+    ? params.systemPrompt
+    : withNoBookingDirective(params.systemPrompt, params.language);
+
   const model: Record<string, unknown> = {
     ...resolveModelConfig(template, gender),
-    messages: [{ role: "system", content: params.systemPrompt }],
+    messages: [{ role: "system", content: systemPrompt }],
   };
 
   // Sent as an empty list when nothing is enabled, not omitted — a PATCH that

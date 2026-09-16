@@ -102,3 +102,58 @@ describe("the model a widget assistant runs on", () => {
     expect(bodyOf(1).voice).toEqual({ provider: "11labs", voiceId: "Ida" });
   });
 });
+
+// A customer's prompt describes a receptionist who takes appointments; the
+// tool list decides whether it can. Those come apart the moment no calendar
+// is connected, and a real test call showed what that costs: the agent
+// confirmed a haircut for 14:00, read the caller's number back, wished them
+// well — and booked nothing, because there was nowhere to book it.
+describe("an agent that has no calendar", () => {
+  // A single shared Response can only be read once, and these tests let the
+  // template fetch fall through to it — so hand out a fresh one per call.
+  beforeEach(() => {
+    vapiFetchMock.mockImplementation(() => Promise.resolve(new Response("{}")));
+  });
+
+  const systemMessage = (callIndex: number) => {
+    const model = bodyOf(callIndex).model as { messages: { role: string; content: string }[] };
+    return model.messages[0]!.content;
+  };
+
+  it("is told it cannot book, in its own language", async () => {
+    await createVapiAssistant({ ...PARAMS, language: "da" });
+
+    expect(systemMessage(1)).toContain("prompt");
+    expect(systemMessage(1)).toContain("Du kan ikke booke");
+    expect(systemMessage(1)).toMatch(/Bekræft aldrig et tidspunkt/);
+  });
+
+  it("says it in English for an English agent", async () => {
+    await createVapiAssistant({ ...PARAMS, language: "en" });
+
+    expect(systemMessage(1)).toContain("You cannot book");
+  });
+
+  it("carries no booking tools either way", async () => {
+    await createVapiAssistant(PARAMS);
+
+    const model = bodyOf(1).model as { tools: unknown[] };
+    expect(model.tools).toEqual([]);
+  });
+
+  // The directive is about a missing capability, not a missing calendar
+  // connection in general — an agent that CAN book must never be told it
+  // cannot, or it would refuse callers while holding a working calendar.
+  it("is never added to an agent that does have the tools", async () => {
+    await createVapiAssistant({ ...PARAMS, language: "da" }, true);
+
+    expect(systemMessage(1)).toBe("prompt");
+    expect((bodyOf(1).model as { tools: unknown[] }).tools.length).toBeGreaterThan(0);
+  });
+
+  it("reaches an existing assistant through an update too", async () => {
+    await updateVapiAssistant("asst_1", { ...PARAMS, language: "da" });
+
+    expect(systemMessage(1)).toContain("Du kan ikke booke");
+  });
+});

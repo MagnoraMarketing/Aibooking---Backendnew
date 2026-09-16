@@ -92,6 +92,35 @@ export function toolFailedText(widgetLanguage: string | null | undefined): strin
   return TOOL_FAILED[resolveLocale(widgetLanguage)];
 }
 
+// What the agent is told when it has no booking tools at all.
+//
+// A customer's prompt describes the job ("du hjælper kunder med at bestille
+// tider"), and the tools decide what the agent can actually do. Those two
+// come apart the moment a calendar is not connected: the assistant is built
+// with no booking tools, nothing in the prompt says so, and the agent plays
+// the part the prompt gave it. A real test call confirmed a haircut for
+// 14:00, read the caller's number back, wished them well — and booked
+// nothing, because there was nowhere to book it. The caller would have
+// turned up to a salon with no appointment.
+//
+// The same reasoning is already applied to webshop tools in lib/vapi/sync.ts
+// ("giving the assistant a tool it can't fulfil would just teach it to
+// promise things"); this is the other direction — a promise in the prompt
+// with no tool behind it.
+const NO_BOOKING_DIRECTIVE: Record<Locale, string> = {
+  da: "### Du kan ikke booke\nDu har ikke adgang til en kalender, så du kan hverken se ledige tider eller oprette, flytte eller aflyse en aftale — uanset hvad der ellers står i denne prompt. Beder kunden om en tid, så sig det ligeud: du kan ikke booke selv, men du kan notere navn og telefonnummer, så en medarbejder ringer tilbage og bekræfter. Bekræft aldrig et tidspunkt, og sig aldrig at du har booket, noteret eller reserveret noget i kalenderen.",
+  en: "### You cannot book\nYou have no calendar access, so you can neither see available times nor create, move or cancel an appointment — whatever else this prompt says. If the customer asks for a time, say so plainly: you cannot book yourself, but you can take their name and phone number so a colleague calls back to confirm. Never confirm a time, and never say you have booked, noted or reserved anything in the calendar.",
+  es: "### No puedes reservar\nNo tienes acceso a un calendario, así que no puedes ver horas disponibles ni crear, cambiar o cancelar una cita, diga lo que diga el resto de este mensaje. Si el cliente pide una hora, dilo claramente: tú no puedes reservar, pero puedes anotar su nombre y teléfono para que un compañero le llame y lo confirme. Nunca confirmes una hora ni digas que has reservado o anotado algo en el calendario.",
+  fr: "### Vous ne pouvez pas réserver\nVous n'avez aucun accès à un agenda : vous ne pouvez ni voir les disponibilités ni créer, déplacer ou annuler un rendez-vous, quoi que dise le reste de ce message. Si le client demande un créneau, dites-le clairement : vous ne pouvez pas réserver, mais vous pouvez noter son nom et son numéro pour qu'un collègue rappelle et confirme. Ne confirmez jamais un horaire et ne dites jamais que vous avez réservé ou noté quelque chose dans l'agenda.",
+  pt: "### Não podes marcar\nNão tens acesso a um calendário, por isso não podes ver horários disponíveis nem criar, alterar ou cancelar uma marcação — independentemente do que diga o resto desta mensagem. Se o cliente pedir uma hora, diz isso claramente: não podes marcar, mas podes anotar o nome e o telefone para que um colega ligue de volta a confirmar. Nunca confirmes um horário nem digas que marcaste ou anotaste algo no calendário.",
+  de: "### Sie können nicht buchen\nSie haben keinen Kalenderzugriff und können daher weder freie Zeiten sehen noch einen Termin anlegen, verschieben oder absagen — unabhängig davon, was sonst in dieser Eingabeaufforderung steht. Fragt der Kunde nach einem Termin, sagen Sie es offen: Sie können nicht selbst buchen, aber Sie können Name und Telefonnummer notieren, damit ein Kollege zurückruft und bestätigt. Bestätigen Sie niemals eine Uhrzeit und sagen Sie nie, Sie hätten etwas im Kalender gebucht, notiert oder reserviert.",
+};
+
+// Appended to the system prompt of an agent whose booking tools are absent.
+export function withNoBookingDirective(systemPrompt: string, widgetLanguage: string | null | undefined): string {
+  return `${systemPrompt}\n\n${NO_BOOKING_DIRECTIVE[resolveLocale(widgetLanguage)]}`;
+}
+
 // The literal first thing an agent says, spoken before any AI turn runs —
 // used whenever a widget has no opening_message/welcome_message of its own
 // yet (a freshly created agent). Unlike the system prompt, there's no
