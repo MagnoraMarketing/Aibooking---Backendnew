@@ -2148,13 +2148,24 @@ export const dashboardPages: Namespace = {
     pt: "Escolher um número…",
     de: "Nummer wählen…",
   },
-  "outbound.noNumberForAgent": {
-    da: "Denne agent har intet telefonnummer endnu.",
-    en: "This agent doesn't have a phone number yet.",
-    es: "Este agente aún no tiene un número de teléfono.",
-    fr: "Cet agent n'a pas encore de numéro de téléphone.",
-    pt: "Este agente ainda não tem um número de telefone.",
-    de: "Dieser Agent hat noch keine Telefonnummer.",
+  // Replaced outbound.noNumberForAgent: a campaign may now call from any of
+  // the customer's numbers, so the agent having one of its own says nothing
+  // about whether it can dial.
+  "outbound.noUsableNumber": {
+    da: "I har ingen numre, denne agent kan ringe ud fra. Tildel et nummer under Inbound.",
+    en: "You have no numbers this agent can call from. Assign one under Inbound.",
+    es: "No tenéis números desde los que este agente pueda llamar. Asigna uno en Inbound.",
+    fr: "Vous n'avez aucun numéro depuis lequel cet agent peut appeler. Attribuez-en un dans Inbound.",
+    pt: "Não têm números a partir dos quais este agente possa ligar. Atribua um em Inbound.",
+    de: "Sie haben keine Nummer, von der dieser Agent anrufen kann. Weisen Sie unter Inbound eine zu.",
+  },
+  "outbound.numberIsWhatTheySee": {
+    da: "Det er dette nummer, modtageren ser på displayet.",
+    en: "This is the number the person you call sees.",
+    es: "Este es el número que ve la persona a la que llamáis.",
+    fr: "C'est le numéro que voit la personne appelée.",
+    pt: "É este o número que a pessoa contactada vê.",
+    de: "Das ist die Nummer, die der Angerufene sieht.",
   },
   "outbound.contactsLabel": {
     da: "Numre der skal ringes op (ét pr. linje, maks. 100)",

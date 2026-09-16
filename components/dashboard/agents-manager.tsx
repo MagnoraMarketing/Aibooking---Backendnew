@@ -8,6 +8,7 @@ import type { WidgetWithExtras } from "./agent-configurator";
 import { AgentCreationWizard } from "./agent-creation-wizard";
 import { useTranslation } from "@/components/i18n/language-provider";
 import { WIDGET_LAUNCH_MINUTES } from "@/lib/billing/widget-launch-offer";
+import { agentSectionPath } from "./agent-sections";
 
 interface AgentsManagerProps {
   initialWidgets: Widget[];
@@ -33,6 +34,10 @@ export function AgentsManager({
   agentType,
 }: AgentsManagerProps) {
   const { t } = useTranslation();
+  // Configure the agent inside the section it was opened from, so the top
+  // menu does not jump to Widget Agents when a phone agent is opened from
+  // Inbound — see components/dashboard/agent-configure-page.tsx.
+  const agentBasePath = agentSectionPath(agentType);
   const HEADING_BY_TYPE = {
     widget: {
       title: t("dashboardPages.agents-manager.widgetTitle"),
@@ -144,7 +149,7 @@ export function AgentsManager({
                 key={widget.id}
                 className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
-                <Link href={`/dashboard/agent/${widget.id}`} className="flex-1">
+                <Link href={`${agentBasePath}/${widget.id}`} className="flex-1">
                   <p className="text-sm font-semibold text-slate-800">{widget.name}</p>
                   <p className="text-xs text-slate-500">
                     {t("dashboardPages.agents-manager.createdOn", {

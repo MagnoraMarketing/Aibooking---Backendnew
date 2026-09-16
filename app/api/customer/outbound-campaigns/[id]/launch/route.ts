@@ -6,6 +6,8 @@ import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { createOutboundCall } from "@/lib/vapi";
 import { createTwilioOutboundCall, getOrCreateSubaccount } from "@/lib/twilio";
 import { twilioWebhookUrls } from "@/lib/telephony/urls";
+import { outboundNumberIssue } from "@/lib/phone-numbers";
+import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -40,15 +42,7 @@ export const POST = withErrorHandling(async (_request, { params }) => {
     throw ApiError.paymentRequired("No minutes remaining on this account");
   }
 
-  const { data: widget } = await supabase
-    .from("widgets")
-    .select("llm_model_id")
-    .eq("id", campaign.widget_id)
-    .maybeSingle();
-  const { data: llmModel } = widget?.llm_model_id
-    ? await supabase.from("llm_models").select("provider").eq("id", widget.llm_model_id).maybeSingle()
-    : { data: null };
-  const isTwilioDirect = llmModel?.provider === "anthropic";
+  const isTwilioDirect = await widgetDialsThroughTwilio(campaign.widget_id);
 
   let assistantId: string | null = null;
   if (!isTwilioDirect) {
@@ -64,19 +58,22 @@ export const POST = withErrorHandling(async (_request, { params }) => {
     assistantId = rawAssistantId;
   }
 
+  // Re-checked at launch, not just at creation: a number can be released or
+  // fail between drafting a campaign and sending it. The customer check is
+  // this route's own — the campaign is theirs, but the number id on it is
+  // only as trustworthy as whoever wrote that row.
   const { data: phoneNumber, error: phoneNumberError } = await supabase
     .from("phone_numbers")
-    .select("phone_number, vapi_phone_number_id, direction, purchase_status")
+    .select("customer_id, phone_number, vapi_phone_number_id, twilio_sid, purchase_status, released_at")
     .eq("id", campaign.phone_number_id)
     .maybeSingle();
   if (phoneNumberError) throw phoneNumberError;
-  if (!phoneNumber) throw ApiError.badRequest("Phone number no longer exists");
-  if (phoneNumber.purchase_status !== "active") {
-    throw ApiError.badRequest("Dette telefonnummer er ikke aktivt endnu");
+  if (!phoneNumber || phoneNumber.customer_id !== customerId) {
+    throw ApiError.badRequest("Phone number no longer exists");
   }
-  if (phoneNumber.direction === "inbound") {
-    throw ApiError.badRequest("Dette telefonnummer er kun sat op til inbound og kan ikke bruges til outbound-opkald");
-  }
+
+  const numberIssue = outboundNumberIssue(phoneNumber, { usesVapi: !isTwilioDirect });
+  if (numberIssue) throw ApiError.badRequest(numberIssue);
 
   const twilioCredentials = isTwilioDirect ? await getOrCreateSubaccount(customerId) : null;
 

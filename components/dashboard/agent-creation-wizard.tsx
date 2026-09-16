@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { LLMModel, Package, VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "./agent-configurator";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { agentSectionPath } from "./agent-sections";
 import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { WizardVoiceStep } from "./agent-tabs/wizard-voice-step";
@@ -227,7 +228,8 @@ export function AgentCreationWizard({
   function handleFinish() {
     if (!widget) return;
     onComplete(widget);
-    router.push(`/dashboard/agent/${widget.id}`);
+    // Into the new agent's own section, not always Widget Agents.
+    router.push(`${agentSectionPath(agentType ?? "widget")}/${widget.id}`);
   }
 
   return (
