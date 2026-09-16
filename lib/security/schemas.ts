@@ -130,6 +130,19 @@ export const widgetUpdateSchema = z.object({
   maxResponseChars: z.number().int().min(50).max(2000).optional(),
 });
 
+// Asking Vapi for an inbound number (app/api/customer/phone-numbers/vapi).
+// The area code is optional and US-only — Vapi picks one itself when it is
+// left out, which is what the dashboard does.
+export const vapiNumberInputSchema = z.object({
+  widgetId: z.string().uuid(),
+  label: z.string().trim().max(100).optional(),
+  areaCode: z
+    .string()
+    .trim()
+    .regex(/^\d{3}$/, "Områdenummeret skal være tre cifre")
+    .optional(),
+});
+
 export const createWidgetSchema = widgetUpdateSchema.extend({
   name: z.string().trim().min(1).max(200).default("Main widget"),
   // What the agent is, sent by the creation wizard. Defaults to "widget"
