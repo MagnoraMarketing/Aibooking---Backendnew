@@ -53,12 +53,13 @@ vi.mock("@/lib/auth", () => ({
 const syncWidgetToVapiAssistant = vi.fn();
 vi.mock("@/lib/vapi", () => ({ syncWidgetToVapiAssistant: (...args: unknown[]) => syncWidgetToVapiAssistant(...args) }));
 
+// Mutable so a test can put Cal.com in the state where it reports no event
+// types at all — a team-scoped key does exactly that.
+let eventTypesResult: Array<{ id: number; title: string }> = [];
+
 vi.mock("@/lib/calendar", () => ({
   fetchCalcomMe: async () => ({ email: "kunde@example.dk", username: "kunde", timezone: "Europe/Copenhagen" }),
-  fetchCalcomEventTypes: async () => [
-    { id: 42, title: "Intro-møde" },
-    { id: 43, title: "Opfølgning" },
-  ],
+  fetchCalcomEventTypes: async () => eventTypesResult,
 }));
 
 vi.mock("@/lib/security", async (importOriginal) => {
@@ -85,6 +86,10 @@ beforeEach(() => {
   recorded = [];
   syncWidgetToVapiAssistant.mockClear();
   widgetRow = { id: "widget-a", customer_id: "cust-a", booking_enabled: false, llm_model_id: "llm-1" };
+  eventTypesResult = [
+    { id: 42, title: "Intro-møde" },
+    { id: 43, title: "Opfølgning" },
+  ];
 });
 
 describe("connecting Cal.com from the dashboard", () => {
@@ -127,6 +132,31 @@ describe("connecting Cal.com from the dashboard", () => {
 
   it("rejects an event type that isn't on the customer's Cal.com account", async () => {
     const res = await POST(connectRequest({ ...VALID_BODY, eventTypeId: 999 }), { params: {} });
+
+    expect(res.status).toBe(400);
+    expect(recorded.some((r) => r.op === "upsert")).toBe(false);
+  });
+
+  // Cal.com's /event-types only reports the personal types behind a key. A
+  // customer whose booking lives on a team sees an empty list, and used to be
+  // told to "create an event type first" on an account that already had one —
+  // with no way past the error. The id they can read off the Cal.com URL is
+  // the answer, so the connect route takes it on trust: the key itself is
+  // already proven by fetchCalcomMe.
+  it("accepts an event type id the customer typed when Cal.com lists none", async () => {
+    eventTypesResult = [];
+
+    const res = await POST(connectRequest({ ...VALID_BODY, eventTypeId: 1234567 }), { params: {} });
+
+    expect(res.status).toBe(201);
+    const upsert = recorded.find((r) => r.table === "calendar_connections" && r.op === "upsert");
+    expect(upsert?.payload).toMatchObject({ calcom_event_type_id: "1234567" });
+  });
+
+  it("still refuses when Cal.com lists none and the customer named none either", async () => {
+    eventTypesResult = [];
+
+    const res = await POST(connectRequest(VALID_BODY), { params: {} });
 
     expect(res.status).toBe(400);
     expect(recorded.some((r) => r.op === "upsert")).toBe(false);
