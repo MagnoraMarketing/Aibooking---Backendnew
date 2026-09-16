@@ -10,7 +10,11 @@ vi.mock("@/lib/vapi/client", () => ({
   vapiFetch: (...args: unknown[]) => vapiFetchMock(...args),
 }));
 
-import { createVapiManagedNumber, attachAssistantToVapiNumber } from "@/lib/vapi/phone-numbers";
+import {
+  createVapiManagedNumber,
+  attachAssistantToVapiNumber,
+  isVapiBillingRefusal,
+} from "@/lib/vapi/phone-numbers";
 
 function callAt(index: number): { url: string; init: RequestInit } {
   const call = vapiFetchMock.mock.calls[index]!;
@@ -98,5 +102,28 @@ describe("pointing a number at another assistant", () => {
     expect(callAt(0).url).toBe("/phone-number/num_1");
     expect(callAt(0).init.method).toBe("PATCH");
     expect(bodyAt(0)).toEqual({ assistantId: "asst_2" });
+  });
+});
+
+// Not every failure deserves another area code. A missing payment method on
+// the platform's Vapi account fails identically whichever code is asked for,
+// and retrying turns one clear rejection into five wasted calls.
+describe("when the failure is not about the area code", () => {
+  it("stops at the first refusal instead of trying every fallback", async () => {
+    vapiFetchMock.mockRejectedValue(
+      new Error(
+        'Vapi afviste anmodningen (400): {"message":"You must provide a credit card payment method to create additional phone numbers."}'
+      )
+    );
+
+    await expect(createVapiManagedNumber({ assistantId: "asst_1" })).rejects.toThrow(/credit card/);
+    expect(vapiFetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("recognises a billing refusal so it is not shown to the customer as their mistake", async () => {
+    expect(
+      isVapiBillingRefusal(new Error("You must provide a credit card payment method to create additional phone numbers."))
+    ).toBe(true);
+    expect(isVapiBillingRefusal(new Error("no numbers available in area code 415"))).toBe(false);
   });
 });

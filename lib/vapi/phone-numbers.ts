@@ -79,6 +79,15 @@ async function requestNumber(params: CreateVapiNumberParams, areaCode: string): 
   return { id: data.id, number: data.number ?? "" };
 }
 
+// Only one kind of failure is worth trying another area code for: that area
+// code having no numbers left. A missing payment method, a bad key or a
+// rate limit fails identically five times over, and retrying turns one clear
+// rejection into five wasted calls and a five-fold slower error.
+function isAreaCodeExhausted(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /no .*numbers? (are )?available|out of numbers|no matching numbers/i.test(message);
+}
+
 export async function createVapiManagedNumber(params: CreateVapiNumberParams): Promise<VapiPhoneNumber> {
   // A code the customer typed is theirs: they get that one or the real
   // reason it failed, never a number in a different city than they asked for.
@@ -89,10 +98,22 @@ export async function createVapiManagedNumber(params: CreateVapiNumberParams): P
     try {
       return await requestNumber(params, areaCode);
     } catch (err) {
+      if (!isAreaCodeExhausted(err)) throw err;
       lastError = err;
     }
   }
   throw lastError;
+}
+
+// Vapi refuses to hand out a number when the platform's own Vapi account has
+// no payment method on file — its free allowance is one number, and every
+// one after that is billed. That is a fact about OUR account, not about the
+// customer clicking the button, so it must not reach them as their mistake
+// or leak which vendor sits behind the agent. The real message goes to the
+// log, where whoever can actually add the card will read it.
+export function isVapiBillingRefusal(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /credit card|payment method|billing/i.test(message);
 }
 
 // Points an existing Vapi number at a different assistant — used when an
