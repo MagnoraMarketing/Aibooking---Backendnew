@@ -39,6 +39,10 @@ export interface WidgetExtra {
   showLeadForm?: boolean;
   agentMute?: boolean;
   vapiAssistantId?: string | null;
+  // A second assistant used only for outbound campaign calls — maintained in
+  // Vapi by hand and never synced over. Unset means campaigns use the one
+  // that answers the phone.
+  vapiOutboundAssistantId?: string | null;
   voiceGender?: "male" | "female" | null;
   silenceTimeoutSeconds?: number | null;
   maxDurationSeconds?: number | null;
