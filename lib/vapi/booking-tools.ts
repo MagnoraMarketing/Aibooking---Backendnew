@@ -1,5 +1,6 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
+import { findWidgetIdForAssistant } from "./assistant-owner";
 import { decryptSecret } from "@/lib/security";
 import {
   fetchCalcomAvailability,
@@ -28,24 +29,20 @@ export interface BookingToolContext {
 }
 
 // Maps a Vapi assistant back to the widget (and therefore the customer) it
-// belongs to. This is the isolation boundary for tool calls: assistant ids
-// are minted by us and stored on widget_settings.extra.vapiAssistantId, so
-// an assistant can only ever resolve to its own customer's widget. The same
-// lookup already backs phone-call billing in app/api/webhooks/vapi.
+// belongs to. This is the isolation boundary for tool calls — see
+// findWidgetIdForAssistant, which also matches an agent's separate outbound
+// assistant, so a campaign call can book too. The same lookup backs
+// phone-call billing in app/api/webhooks/vapi.
 export async function resolveToolContext(assistantId: string): Promise<BookingToolContext | null> {
   const supabase = getAdminClient();
 
-  const { data: settingsRow } = await supabase
-    .from("widget_settings")
-    .select("widget_id")
-    .eq("extra->>vapiAssistantId", assistantId)
-    .maybeSingle();
-  if (!settingsRow) return null;
+  const widgetId = await findWidgetIdForAssistant(assistantId, supabase);
+  if (!widgetId) return null;
 
   const { data: widget } = await supabase
     .from("widgets")
     .select("id, customer_id, booking_enabled")
-    .eq("id", settingsRow.widget_id)
+    .eq("id", widgetId)
     .maybeSingle();
   if (!widget) return null;
 

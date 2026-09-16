@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/database/admin";
 import { deductPhoneCallCost } from "@/lib/credits";
 import { executeBookingTool, resolveToolContext } from "@/lib/vapi/booking-tools";
+import { findWidgetIdForAssistant } from "@/lib/vapi/assistant-owner";
 import { executeShopifyTool, isShopifyToolName } from "@/lib/shopify/agent-tools";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -41,17 +42,13 @@ async function resolveCallOwner(
   assistantId: string,
   phoneNumberRow: { widget_id: string; customer_id: string; released_at: string | null } | null
 ): Promise<{ id: string; customer_id: string } | null> {
-  const { data: settingsRow } = await supabase
-    .from("widget_settings")
-    .select("widget_id")
-    .eq("extra->>vapiAssistantId", assistantId)
-    .maybeSingle();
+  const widgetId = await findWidgetIdForAssistant(assistantId, supabase);
 
-  if (settingsRow) {
+  if (widgetId) {
     const { data: widget } = await supabase
       .from("widgets")
       .select("id, customer_id")
-      .eq("id", settingsRow.widget_id)
+      .eq("id", widgetId)
       .maybeSingle();
     if (widget) return widget;
   }
