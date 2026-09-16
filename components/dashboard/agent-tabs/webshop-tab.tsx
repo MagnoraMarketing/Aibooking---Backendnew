@@ -6,44 +6,16 @@ import { useTranslation } from "@/components/i18n/language-provider";
 import type { ShopifyConnectionSummary } from "@/lib/shopify/types";
 import type { WidgetWithExtras } from "../agent-configurator";
 
-// The Webshop / Shopify tab. Two numbered steps and nothing else on screen:
-// paste the shop address, then approve the Shopify connection. The customer
-// never sees a token, a scope or an API version — the setup they are asked to
-// understand is "which shop" and "may we look things up in it".
+// The Webshop / Shopify integration. One button and one field: which shop, and
+// approve. The customer never sees a token, a scope or an API version.
 //
-// Step 2 is the one that matters most: products, prices, sizes, stock and
-// orders are all live Shopify lookups, so until it is connected the agent can
-// answer about delivery and returns but not about a single product.
-//
-// Everything this component knows about the connection comes from
-// ShopifyConnectionSummary, which by construction carries no credential.
+// There is nothing to sync and nothing to index — once connected, the agent
+// reads products, stock, policies and orders from Shopify at the moment a
+// customer asks. So this tab has no catalogue state to show, only whether the
+// shop is connected.
 
 interface WebshopTabProps {
   widget: WidgetWithExtras;
-}
-
-// The server answers failures with short codes rather than prose, so the
-// message the customer reads is translated here rather than being whatever
-// English a crawler happened to throw.
-const ERROR_KEYS: Record<string, string> = {
-  invalid_url: "agent.webshop.errorInvalidUrl",
-  unreachable: "agent.webshop.errorCrawlFailed",
-  failed: "agent.webshop.errorCrawlFailed",
-  not_shopify: "agent.webshop.errorNotShopify",
-  invalid_shop_domain: "agent.webshop.errorInvalidShopDomain",
-};
-
-function StatusPill({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
-        ok ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
-      }`}
-    >
-      <span aria-hidden>{ok ? "✓" : "•"}</span>
-      {label}
-    </span>
-  );
 }
 
 export function WebshopTab({ widget }: WebshopTabProps) {
@@ -52,11 +24,9 @@ export function WebshopTab({ widget }: WebshopTabProps) {
 
   const [connection, setConnection] = useState<ShopifyConnectionSummary | null>(null);
   const [oauthAvailable, setOauthAvailable] = useState(true);
-  const [shopUrl, setShopUrl] = useState("");
   const [shopDomain, setShopDomain] = useState("");
-  const [busy, setBusy] = useState<"save" | "refresh" | "remove" | "connect" | "disconnect" | null>(null);
+  const [busy, setBusy] = useState<"connect" | "disconnect" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
 
   // Set by the OAuth callback's redirect (app/api/customer/shopify/callback):
   // the customer comes back here from Shopify, so this is where they get told
@@ -65,87 +35,15 @@ export function WebshopTab({ widget }: WebshopTabProps) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/customer/widgets/${widget.id}/shopify`);
-    if (!res.ok) {
-      setLoaded(true);
-      return;
-    }
+    if (!res.ok) return;
     const data = await res.json();
     setConnection(data.connection ?? null);
     setOauthAvailable(data.oauthAvailable !== false);
-    if (data.connection?.shopUrl) setShopUrl(data.connection.shopUrl);
-    setLoaded(true);
   }, [widget.id]);
 
   useEffect(() => {
     void load();
   }, [load]);
-
-  async function readError(res: Response): Promise<string> {
-    const data = await res.json().catch(() => null);
-    const code = data?.error?.message as string | undefined;
-    return code && ERROR_KEYS[code] ? t(ERROR_KEYS[code]!) : t("agent.webshop.errorGeneric");
-  }
-
-  async function handleSave() {
-    const trimmed = shopUrl.trim();
-    if (!trimmed) return;
-    setBusy("save");
-    setError(null);
-
-    const res = await fetch(`/api/customer/widgets/${widget.id}/shopify`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shopUrl: trimmed }),
-    });
-
-    if (!res.ok) {
-      setError(await readError(res));
-      setBusy(null);
-      return;
-    }
-
-    const data = await res.json();
-    setConnection(data.connection ?? null);
-    // A crawl can fail without the request failing — the row is saved either
-    // way, and the customer needs to know their shop wasn't read.
-    if (data.sync && !data.sync.ok) {
-      const key = ERROR_KEYS[data.sync.failure as string];
-      setError(key ? t(key) : t("agent.webshop.errorCrawlFailed"));
-    }
-    setBusy(null);
-  }
-
-  async function handleRefresh() {
-    setBusy("refresh");
-    setError(null);
-    const res = await fetch(`/api/customer/widgets/${widget.id}/shopify/sync`, { method: "POST" });
-    if (!res.ok) {
-      setError(await readError(res));
-      setBusy(null);
-      return;
-    }
-    const data = await res.json();
-    setConnection(data.connection ?? null);
-    if (data.sync && !data.sync.ok) {
-      const key = ERROR_KEYS[data.sync.failure as string];
-      setError(key ? t(key) : t("agent.webshop.errorCrawlFailed"));
-    }
-    setBusy(null);
-  }
-
-  async function handleRemove() {
-    if (!window.confirm(t("agent.webshop.removeConfirm"))) return;
-    setBusy("remove");
-    setError(null);
-    const res = await fetch(`/api/customer/widgets/${widget.id}/shopify`, { method: "DELETE" });
-    if (res.ok) {
-      setConnection(null);
-      setShopUrl("");
-    } else {
-      setError(await readError(res));
-    }
-    setBusy(null);
-  }
 
   function handleConnect() {
     const trimmed = shopDomain.trim();
@@ -162,30 +60,21 @@ export function WebshopTab({ widget }: WebshopTabProps) {
     )}&shop=${encodeURIComponent(trimmed)}`;
   }
 
-  async function handleDisconnectOrderTracking() {
+  async function handleDisconnect() {
+    if (!window.confirm(t("agent.webshop.disconnectConfirm"))) return;
     setBusy("disconnect");
     setError(null);
-    const res = await fetch(`/api/customer/widgets/${widget.id}/shopify/order-tracking`, { method: "DELETE" });
+    const res = await fetch(`/api/customer/widgets/${widget.id}/shopify`, { method: "DELETE" });
     if (res.ok) {
-      const data = await res.json();
-      setConnection(data.connection ?? null);
+      setConnection(null);
+      setShopDomain("");
     } else {
-      setError(await readError(res));
+      setError(t("agent.webshop.errorGeneric"));
     }
     setBusy(null);
   }
 
-  const webshopConnected = Boolean(connection?.shopUrl && connection.crawlStatus === "ok");
-  const ordersConnected = connection?.status === "connected";
-  const lastSynced = connection?.lastSyncAt
-    ? new Date(connection.lastSyncAt).toLocaleString(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : null;
+  const connected = connection?.status === "connected";
 
   return (
     <div className="space-y-6">
@@ -197,20 +86,14 @@ export function WebshopTab({ widget }: WebshopTabProps) {
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-slate-500">{t("agent.webshop.description")}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <StatusPill
-              ok={webshopConnected}
-              label={webshopConnected ? t("agent.webshop.statusConnected") : t("agent.webshop.statusNotConnected")}
-            />
-            <StatusPill
-              ok={ordersConnected}
-              label={
-                ordersConnected
-                  ? t("agent.webshop.orderTrackingEnabled")
-                  : t("agent.webshop.statusNotConnected")
-              }
-            />
-          </div>
+          <span
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+              connected ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            <span aria-hidden>{connected ? "✓" : "•"}</span>
+            {connected ? t("agent.webshop.statusConnected") : t("agent.webshop.statusNotConnected")}
+          </span>
         </div>
 
         {oauthResult === "connected" ? (
@@ -229,84 +112,24 @@ export function WebshopTab({ widget }: WebshopTabProps) {
           </p>
         ) : null}
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      </div>
-
-      {/* 1. Webshop — the public half. Works on its own. */}
-      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-800">{t("agent.webshop.step1Title")}</h3>
-          <p className="mt-1 text-sm text-slate-500">{t("agent.webshop.step1Description")}</p>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <input
-            value={shopUrl}
-            onChange={(e) => setShopUrl(e.target.value)}
-            placeholder={t("agent.webshop.urlPlaceholder")}
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          />
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={busy !== null || !shopUrl.trim()}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-          >
-            {busy === "save" ? t("agent.webshop.saving") : t("agent.webshop.saveButton")}
-          </button>
-        </div>
-
-        {connection?.shopUrl ? (
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
-              <span>{t("agent.webshop.pagesIndexed", { count: connection.pageCount })}</span>
-              {lastSynced ? <span>{t("agent.webshop.lastSynced", { date: lastSynced })}</span> : null}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={busy !== null}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
-              >
-                {busy === "refresh" ? t("agent.webshop.refreshing") : t("agent.webshop.refreshButton")}
-              </button>
-              <button
-                type="button"
-                onClick={handleRemove}
-                disabled={busy !== null}
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-60"
-              >
-                {t("agent.webshop.removeButton")}
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      {/* 2. Order tracking — the private half, behind Shopify's own consent. */}
-      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-800">{t("agent.webshop.step2Title")}</h3>
-          <p className="mt-1 text-sm text-slate-500">{t("agent.webshop.step2Description")}</p>
-        </div>
 
         {!oauthAvailable ? (
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
             {t("agent.webshop.oauthUnavailable")}
           </p>
-        ) : ordersConnected ? (
+        ) : connected ? (
           <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-            <p className="text-sm font-medium text-emerald-800">{t("agent.webshop.connectedNotice")}</p>
-            <p className="text-sm text-emerald-700">
-              {t("agent.webshop.storeLabel")}: {connection?.shopDomain}
+            <p className="text-sm text-emerald-800">
+              {t("agent.webshop.storeLabel")}: <strong>{connection?.shopDomain}</strong>
             </p>
+            <p className="text-sm text-emerald-700">{t("agent.webshop.connectedExplainer")}</p>
             <button
               type="button"
-              onClick={handleDisconnectOrderTracking}
+              onClick={handleDisconnect}
               disabled={busy !== null}
-              className="rounded-lg px-1 py-0.5 text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-60"
+              className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-60"
             >
-              {t("agent.webshop.disconnectOrderTracking")}
+              {t("agent.webshop.disconnect")}
             </button>
           </div>
         ) : (
@@ -332,9 +155,6 @@ export function WebshopTab({ widget }: WebshopTabProps) {
               </button>
             </div>
             <p className="text-xs text-slate-500">{t("agent.webshop.shopDomainHelp")}</p>
-            {loaded && !connection?.shopUrl ? (
-              <p className="text-xs text-slate-500">{t("agent.webshop.saveWebshopFirst")}</p>
-            ) : null}
           </div>
         )}
       </div>

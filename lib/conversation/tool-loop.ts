@@ -65,6 +65,12 @@ function buildToolGuidance(
     );
   }
 
+  if (shopify?.capabilities.policies) {
+    parts.push(
+      "Spørgsmål om levering, leveringstid, fragtpris, retur eller betingelser besvarer du med get_shopify_shop_info — butikken redigerer selv teksterne, så gæt aldrig."
+    );
+  }
+
   if (shopify?.capabilities.orders) {
     parts.push(
       "Du kan slå ordrestatus og tracking op med get_shopify_order_status. Spørg altid kunden om deres ordrenummer først, og oplys kun om den ordre de selv har nævnt."

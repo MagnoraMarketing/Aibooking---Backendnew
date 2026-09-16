@@ -10,10 +10,16 @@ import type { ShopifyCapabilities } from "./agent-tools";
 // actually reads: never invent a product, a price or a link, never guess at an
 // order, and never read an order out to someone who hasn't given its number.
 //
-// They also carry the product-link rule. The tool returns the product's real
+// They also carry the product-link rule. The tools return the product's real
 // `url` straight from Shopify, and the agent must use that exact string or no
 // link at all — a plausible-looking URL built from the product name is a 404
 // in front of a customer who was ready to buy.
+//
+// And they carry the rule that makes this integration API-first: the agent has
+// no stored knowledge of the shop, so every question about a product, a price,
+// stock, delivery or returns has to become a tool call. Each description says
+// so in its own words, because "look it up, don't remember" is the behaviour
+// that keeps a customer from being quoted last month's price.
 
 interface ShopifyToolDefinition {
   name: string;
@@ -43,6 +49,45 @@ const DEFINITIONS: ShopifyToolDefinition[] = [
         },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "get_shopify_product",
+    requires: "products",
+    description:
+      "Henter alle detaljer om ÉT bestemt produkt: beskrivelse, pris, alle varianter med størrelse, farve, SKU og lagerantal, hvilke kollektioner det ligger i, og produktets 'url'. " +
+      "Brug den når du allerede ved hvilket produkt kunden mener — typisk efter search_shopify_products — og har brug for flere detaljer, fx alle tilgængelige størrelser eller den fulde beskrivelse. " +
+      "Skal du finde produktet først, så brug search_shopify_products i stedet. " +
+      "Nævner du produktet i en chat, afslutter du med [Se produkt](url) med 'url' kopieret ordret. Er 'url' null, er produktet ikke online, og så nævner du intet link.",
+    parameters: {
+      type: "object",
+      properties: {
+        identifier: {
+          type: "string",
+          description:
+            "Produktets 'handle' eller 'url' fra et tidligere tool-svar, eller produktets præcise navn. Gæt aldrig et handle.",
+        },
+      },
+      required: ["identifier"],
+    },
+  },
+  {
+    name: "get_shopify_shop_info",
+    requires: "policies",
+    description:
+      "Henter webshoppens egne betingelser direkte fra Shopify: levering og leveringstid, fragtpriser, retur og refusion, handelsbetingelser og privatlivspolitik. " +
+      "Brug den når kunden spørger om levering, fragt, returret, bytte eller betingelser — svar aldrig på den slags ud fra hukommelsen, da butikken selv redigerer teksterne. " +
+      "Svaret er JSON med 'policies', hver med 'title', 'body' og 'url'. Sig det væsentlige med dine egne ord, og henvis til 'url' hvis kunden vil læse det hele.",
+    parameters: {
+      type: "object",
+      properties: {
+        topics: {
+          type: "array",
+          items: { type: "string", enum: ["shipping", "refund", "terms", "privacy"] },
+          description:
+            "Hvilke betingelser der er brug for. Udelad for at hente dem alle. Spørger kunden om levering, så vælg 'shipping'; om retur eller bytte, 'refund'.",
+        },
+      },
     },
   },
   {

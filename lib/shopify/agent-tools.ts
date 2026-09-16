@@ -2,7 +2,8 @@ import "server-only";
 import { ShopifyAdminApiError } from "./admin-api";
 import { loadAdminCredentials, markConnectionNeedsReauth } from "./connection";
 import { lookupShopifyOrder, type ShopifyOrderStatus } from "./orders";
-import { searchShopifyProducts, type ShopifyProductResult } from "./products";
+import { getShopifyProduct, searchShopifyProducts, type ShopifyProductResult } from "./products";
+import { fetchShopifyShopInfo, type ShopifyPolicyKind, type ShopifyShopInfo } from "./shop-info";
 
 // The two tools the agent may call about a webshop, and the one place they
 // execute. Both pipelines — the Vapi voice assistant (via
@@ -10,12 +11,18 @@ import { searchShopifyProducts, type ShopifyProductResult } from "./products";
 // lib/conversation/tool-loop.ts) — call straight into here, so voice and chat
 // cannot drift apart in what they can do or what they are allowed to see.
 //
-// Both tools are live Shopify Admin GraphQL lookups, scoped to the question
-// being asked. Nothing about the shop's products, prices or stock is held in
-// the agent's prompt: a customer asking about a size gets today's stock level,
-// not a snapshot from whenever a sync last ran.
+// Every tool is a live Shopify Admin GraphQL lookup, scoped to the question
+// being asked. Nothing about the shop — products, prices, stock, policies —
+// is crawled, indexed or held in the agent's prompt: a customer asking about a
+// size gets today's stock level, and one asking about delivery gets the
+// policy the merchant has in Shopify right now.
 
-export const SHOPIFY_TOOL_NAMES = ["search_shopify_products", "get_shopify_order_status"] as const;
+export const SHOPIFY_TOOL_NAMES = [
+  "search_shopify_products",
+  "get_shopify_product",
+  "get_shopify_shop_info",
+  "get_shopify_order_status",
+] as const;
 export type ShopifyToolName = (typeof SHOPIFY_TOOL_NAMES)[number];
 
 export function isShopifyToolName(name: string): name is ShopifyToolName {
@@ -27,9 +34,11 @@ export interface ShopifyCapabilities {
   products: boolean;
   /** The app was granted read_orders, so orders can be looked up. */
   orders: boolean;
+  /** The app was granted read_legal_policies, so delivery/returns can be quoted. */
+  policies: boolean;
 }
 
-const NO_CAPABILITIES: ShopifyCapabilities = { products: false, orders: false };
+const NO_CAPABILITIES: ShopifyCapabilities = { products: false, orders: false, policies: false };
 
 // Which Shopify tools this widget should be given at all. Derived from the
 // scopes Shopify actually granted, not from what we asked for: a merchant who
@@ -43,6 +52,7 @@ export async function resolveShopifyCapabilities(widgetId: string): Promise<Shop
   return {
     products: granted.includes("read_products"),
     orders: granted.includes("read_orders"),
+    policies: granted.includes("read_legal_policies"),
   };
 }
 
@@ -96,6 +106,61 @@ export async function searchProducts(widgetId: string, query: string): Promise<S
   }
 }
 
+export interface ShopifyProductDetailResult {
+  found: boolean;
+  product?: ShopifyProductResult;
+  error?: "not_connected" | "reauth_required" | "unavailable" | "missing_identifier";
+}
+
+export async function getProduct(widgetId: string, identifier: string | undefined): Promise<ShopifyProductDetailResult> {
+  if (!identifier?.trim()) return { found: false, error: "missing_identifier" };
+
+  const credentials = await loadAdminCredentials(widgetId);
+  if (!credentials) return { found: false, error: "not_connected" };
+
+  try {
+    const product = await getShopifyProduct({
+      shopDomain: credentials.shopDomain,
+      accessToken: credentials.accessToken,
+      identifier,
+    });
+    return product ? { found: true, product } : { found: false };
+  } catch (err) {
+    return { found: false, error: await handleLookupFailure(err, credentials.connectionId, "Shopify product lookup") };
+  }
+}
+
+export type ShopifyShopInfoResult = Partial<ShopifyShopInfo> & {
+  found: boolean;
+  error?: "not_connected" | "reauth_required" | "unavailable";
+};
+
+const POLICY_KINDS: ShopifyPolicyKind[] = ["shipping", "refund", "terms", "privacy"];
+
+function parsePolicyKinds(raw: unknown): ShopifyPolicyKind[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const kinds = raw.filter((value): value is ShopifyPolicyKind =>
+    typeof value === "string" && (POLICY_KINDS as string[]).includes(value)
+  );
+  return kinds.length > 0 ? kinds : undefined;
+}
+
+export async function getShopInfo(widgetId: string, which?: ShopifyPolicyKind[]): Promise<ShopifyShopInfoResult> {
+  const credentials = await loadAdminCredentials(widgetId);
+  if (!credentials) return { found: false, error: "not_connected" };
+
+  try {
+    const info = await fetchShopifyShopInfo({
+      shopDomain: credentials.shopDomain,
+      accessToken: credentials.accessToken,
+      which,
+    });
+    return { found: info.policies.length > 0, ...info };
+  } catch (err) {
+    return { found: false, error: await handleLookupFailure(err, credentials.connectionId, "Shopify shop info lookup") };
+  }
+}
+
 export type ShopifyOrderLookupResult = ShopifyOrderStatus & {
   error?: "not_connected" | "reauth_required" | "unavailable" | "missing_order_number";
 };
@@ -136,6 +201,13 @@ export async function executeShopifyTool(
     if (name === "search_shopify_products") {
       const query = typeof args.query === "string" ? args.query : "";
       return JSON.stringify(await searchProducts(widgetId, query));
+    }
+    if (name === "get_shopify_product") {
+      const identifier = typeof args.identifier === "string" ? args.identifier : undefined;
+      return JSON.stringify(await getProduct(widgetId, identifier));
+    }
+    if (name === "get_shopify_shop_info") {
+      return JSON.stringify(await getShopInfo(widgetId, parsePolicyKinds(args.topics)));
     }
     if (name === "get_shopify_order_status") {
       const orderNumber = typeof args.order_number === "string" ? args.order_number : undefined;

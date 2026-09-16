@@ -1,7 +1,12 @@
-export { normalizeShopUrl, normalizeMyshopifyDomain, isMyshopifyDomain, normalizeOrderNumber, orderNameMatches } from "./domain";
+export { normalizeMyshopifyDomain, isMyshopifyDomain, normalizeOrderNumber, orderNameMatches } from "./domain";
 export { parseProductQuery, variantMatchesTerms } from "./product-search";
-export { searchShopifyProducts, type ShopifyProductResult } from "./products";
-export { formatShopifyKnowledge, replaceShopifySource, SHOPIFY_SOURCE_ID } from "./knowledge";
+export {
+  searchShopifyProducts,
+  getShopifyProduct,
+  productHandleFromIdentifier,
+  type ShopifyProductResult,
+} from "./products";
+export { fetchShopifyShopInfo, type ShopifyPolicy, type ShopifyPolicyKind } from "./shop-info";
 export { buildShopifyVapiTools, buildShopifyAnthropicTools } from "./tool-definitions";
 export {
   SHOPIFY_TOOL_NAMES,
@@ -9,11 +14,12 @@ export {
   executeShopifyTool,
   resolveShopifyCapabilities,
   searchProducts,
+  getProduct,
+  getShopInfo,
   getOrderStatus,
   type ShopifyCapabilities,
 } from "./agent-tools";
 export { getConnectionSummary, loadOwnedWidget, loadAdminCredentials, toSummary } from "./connection";
-export { syncShopifyWebshop, removeShopifyKnowledge, type ShopifySyncResult } from "./sync";
 export {
   buildShopifyAuthorizeUrl,
   exchangeShopifyCode,
@@ -23,4 +29,4 @@ export {
   isShopifyOAuthConfigured,
   SHOPIFY_SCOPES,
 } from "./oauth";
-export type { ShopifyConnectionSummary, ShopifyConnectionStatus, ShopifyCrawlStatus } from "./types";
+export type { ShopifyConnectionSummary, ShopifyConnectionStatus } from "./types";

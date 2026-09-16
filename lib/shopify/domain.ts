@@ -41,39 +41,6 @@ export function normalizeMyshopifyDomain(raw: string | null | undefined): string
   return isMyshopifyDomain(value) ? value : null;
 }
 
-export interface NormalizedShopUrl {
-  /** Scheme + host, no trailing slash — what every crawl request is built on. */
-  origin: string;
-  hostname: string;
-}
-
-// The customer's public webshop address. Unlike the admin domain above this
-// may be any custom domain (shop.dk, www.shop.dk) — a Shopify store almost
-// always sits behind one, and asking for the .myshopify.com address instead
-// would be asking them for something they don't know.
-export function normalizeShopUrl(raw: string): NormalizedShopUrl | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-
-  // "yourshop.com" with no scheme is what people paste; assume https rather
-  // than rejecting it.
-  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-
-  let url: URL;
-  try {
-    url = new URL(withScheme);
-  } catch {
-    return null;
-  }
-
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-  // A hostname with no dot is a bare word, not a domain — and would resolve
-  // to an internal name on the deploy host if we ever tried to fetch it.
-  if (!url.hostname.includes(".")) return null;
-
-  return { origin: `${url.protocol}//${url.host}`, hostname: url.hostname };
-}
-
 // Shopify order names carry a store-configurable prefix/suffix and are
 // usually shown as "#10482". A caller reads it out loud as "ten four eight
 // two", types it as "10482", or reads the receipt as "#10482" — all three

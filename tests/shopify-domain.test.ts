@@ -3,7 +3,6 @@ import {
   isMyshopifyDomain,
   normalizeMyshopifyDomain,
   normalizeOrderNumber,
-  normalizeShopUrl,
   orderNameMatches,
 } from "@/lib/shopify/domain";
 
@@ -35,26 +34,6 @@ describe("normalizeMyshopifyDomain", () => {
   });
 });
 
-describe("normalizeShopUrl", () => {
-  it("assumes https when the scheme is left off, as people paste it", () => {
-    expect(normalizeShopUrl("yourshop.com")).toEqual({ origin: "https://yourshop.com", hostname: "yourshop.com" });
-  });
-
-  it("keeps the host and drops path, query and trailing slash", () => {
-    expect(normalizeShopUrl("https://shop.dk/collections/all?page=2")?.origin).toBe("https://shop.dk");
-    expect(normalizeShopUrl("https://www.shop.dk/")?.origin).toBe("https://www.shop.dk");
-  });
-
-  it("rejects what isn't a webshop address", () => {
-    expect(normalizeShopUrl("")).toBeNull();
-    expect(normalizeShopUrl("   ")).toBeNull();
-    // A bare word has no dot: it would resolve to an internal name on the
-    // deploy host rather than to anyone's shop.
-    expect(normalizeShopUrl("localhost")).toBeNull();
-    expect(normalizeShopUrl("javascript:alert(1)")).toBeNull();
-    expect(normalizeShopUrl("file:///etc/passwd")).toBeNull();
-  });
-});
 
 describe("normalizeOrderNumber", () => {
   // The requirement that started this: "10482" and "#10482" are the same order.

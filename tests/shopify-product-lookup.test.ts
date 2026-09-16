@@ -167,3 +167,63 @@ describe("searchShopifyProducts", () => {
     expect(result.products[0]).toMatchObject({ name: "Bare produkt", url: null, price: null, available: false });
   });
 });
+
+describe("productHandleFromIdentifier", () => {
+  it("accepts the product URL the agent was just given", async () => {
+    const { productHandleFromIdentifier } = await import("@/lib/shopify/products");
+    expect(productHandleFromIdentifier("https://shop.dk/products/nike-air-max")).toBe("nike-air-max");
+    expect(productHandleFromIdentifier("https://shop.dk/products/nike-air-max?variant=1#reviews")).toBe("nike-air-max");
+  });
+
+  it("accepts a bare handle", async () => {
+    const { productHandleFromIdentifier } = await import("@/lib/shopify/products");
+    expect(productHandleFromIdentifier("nike-air-max")).toBe("nike-air-max");
+  });
+
+  // A title is not a handle. Treating "Nike Air Max" as one would query for a
+  // handle that doesn't exist and answer "we don't stock it".
+  it("returns null for a product title, so it is matched as a title instead", async () => {
+    const { productHandleFromIdentifier } = await import("@/lib/shopify/products");
+    expect(productHandleFromIdentifier("Nike Air Max")).toBeNull();
+    expect(productHandleFromIdentifier("https://shop.dk/collections/all")).toBeNull();
+    expect(productHandleFromIdentifier("")).toBeNull();
+  });
+});
+
+describe("getShopifyProduct", () => {
+  it("looks a product up by its exact handle", async () => {
+    const { getShopifyProduct } = await import("@/lib/shopify/products");
+    graphQLMock.mockResolvedValueOnce(
+      productsResponse([{ ...NIKE, description: "Let løbesko til asfalt.", collections: { nodes: [{ title: "Sko" }] } }])
+    );
+
+    const product = await getShopifyProduct({ ...CREDENTIALS, identifier: "https://shop.dk/products/nike-air-max" });
+
+    const call = graphQLMock.mock.calls[0]![0] as { variables: { query: string } };
+    expect(call.variables.query).toBe("handle:nike-air-max");
+    expect(product).toMatchObject({
+      name: "Nike Air Max",
+      description: "Let løbesko til asfalt.",
+      collections: ["Sko"],
+      url: "https://shop.dk/products/nike-air-max",
+    });
+  });
+
+  it("matches an exact title when no handle was given, rather than free-text searching", async () => {
+    const { getShopifyProduct } = await import("@/lib/shopify/products");
+    graphQLMock.mockResolvedValueOnce(productsResponse([NIKE]));
+
+    await getShopifyProduct({ ...CREDENTIALS, identifier: 'Nike "Air" Max' });
+
+    const call = graphQLMock.mock.calls[0]![0] as { variables: { query: string } };
+    // The quotes the customer's text carried are stripped, so they cannot end
+    // the term early and change which product is returned.
+    expect(call.variables.query).toBe('title:"Nike Air Max"');
+  });
+
+  it("returns null when the shop has no such product", async () => {
+    const { getShopifyProduct } = await import("@/lib/shopify/products");
+    graphQLMock.mockResolvedValueOnce(productsResponse([]));
+    expect(await getShopifyProduct({ ...CREDENTIALS, identifier: "findes-ikke" })).toBeNull();
+  });
+});

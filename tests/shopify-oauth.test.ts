@@ -42,8 +42,8 @@ describe("buildShopifyAuthorizeUrl", () => {
     // Products and orders, both read-only. Nothing here may write, and nothing
     // else may be requested — a merchant sees this list on the consent screen,
     // and every extra scope is one more thing to have to justify.
-    expect(SHOPIFY_SCOPES).toBe("read_products,read_orders");
-    expect(url.searchParams.get("scope")).toBe("read_products,read_orders");
+    expect(SHOPIFY_SCOPES).toBe("read_products,read_orders,read_legal_policies");
+    expect(url.searchParams.get("scope")).toBe("read_products,read_orders,read_legal_policies");
     expect(SHOPIFY_SCOPES).not.toMatch(/write_/);
     // Empty grant_options[] = offline token, which is what a background order
     // lookup needs.

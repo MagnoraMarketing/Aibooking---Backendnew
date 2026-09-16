@@ -4,19 +4,14 @@ import { decryptSecret } from "@/lib/security/crypto";
 import type { ShopifyConnectionSummary } from "./types";
 
 // One place that reads and writes shopify_connections, so every caller gets
-// the same two guarantees: a row is only ever reachable through the widget
-// that owns it, and the access token is decrypted exactly where it is used
-// and never anywhere else.
+// the same two guarantees: a connection is only ever reachable through the
+// widget that owns it, and the access token is decrypted exactly where it is
+// used and never anywhere else.
 
 export interface ShopifyConnectionRow {
   id: string;
   customer_id: string;
   widget_id: string;
-  shop_url: string | null;
-  crawl_status: string;
-  crawl_error: string | null;
-  crawled_page_count: number;
-  last_sync_at: string | null;
   shop_domain: string | null;
   access_token: string | null;
   scopes: string | null;
@@ -29,13 +24,13 @@ export interface ShopifyConnectionRow {
 // row into something a route might return, so the ciphertext cannot be
 // selected by accident.
 const PUBLIC_COLUMNS =
-  "id, customer_id, widget_id, shop_url, crawl_status, crawl_error, crawled_page_count, last_sync_at, shop_domain, scopes, status, status_error, connected_at";
+  "id, customer_id, widget_id, shop_domain, scopes, status, status_error, connected_at";
 
 type SupabaseAdmin = ReturnType<typeof getAdminClient>;
 
 // The ownership check every Shopify route starts with. Resolving the customer
 // from the widget — rather than trusting a customer id in the request — is
-// what makes one customer's webshop unreachable from another's session.
+// what makes one customer's shop unreachable from another's session.
 export async function loadOwnedWidget(
   supabase: SupabaseAdmin,
   widgetId: string,
@@ -65,14 +60,9 @@ export async function getConnectionSummary(widgetId: string): Promise<ShopifyCon
 
 export function toSummary(row: Omit<ShopifyConnectionRow, "access_token">): ShopifyConnectionSummary {
   return {
-    shopUrl: row.shop_url,
     shopDomain: row.shop_domain,
     status: row.status as ShopifyConnectionSummary["status"],
     statusError: row.status_error,
-    crawlStatus: row.crawl_status as ShopifyConnectionSummary["crawlStatus"],
-    crawlError: row.crawl_error,
-    pageCount: row.crawled_page_count,
-    lastSyncAt: row.last_sync_at,
     connectedAt: row.connected_at,
   };
 }
@@ -85,10 +75,10 @@ export interface ShopifyAdminCredentials {
   scopes: string | null;
 }
 
-// The Admin API half. Returns null — never throws — whenever this widget
-// simply cannot look an order up: no row, no completed install, or a
-// connection already marked as needing reconnection. Callers turn that into an
-// honest "I can't check orders" instead of an error.
+// Returns null — never throws — whenever this widget simply cannot reach
+// Shopify: no row, no completed install, or a connection already marked as
+// needing reconnection. Callers turn that into an honest "I can't look that
+// up" instead of an error.
 export async function loadAdminCredentials(widgetId: string): Promise<ShopifyAdminCredentials | null> {
   const supabase = getAdminClient();
   const { data } = await supabase
@@ -123,7 +113,7 @@ export async function loadAdminCredentials(widgetId: string): Promise<ShopifyAdm
 // Called when Shopify itself tells us the token is no longer good (the
 // merchant uninstalled or revoked the app). Flipping the status is what makes
 // the dashboard show "needs reconnecting" instead of silently failing every
-// order lookup from then on.
+// lookup from then on.
 export async function markConnectionNeedsReauth(connectionId: string, reason: string): Promise<void> {
   const supabase = getAdminClient();
   await supabase

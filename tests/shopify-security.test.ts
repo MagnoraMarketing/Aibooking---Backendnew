@@ -49,14 +49,9 @@ const CONNECTED_ROW = {
   id: "conn-1",
   customer_id: "cust-a",
   widget_id: "widget-a",
-  shop_url: "https://shop-a.dk",
-  crawl_status: "ok",
-  crawl_error: null,
-  crawled_page_count: 4,
-  last_sync_at: "2026-09-15T18:30:00Z",
   shop_domain: "shop-a.myshopify.com",
   access_token: "cipher:shpat_supersecret",
-  scopes: "read_products,read_orders",
+  scopes: "read_products,read_orders,read_legal_policies",
   status: "connected",
   status_error: null,
   connected_at: "2026-09-15T18:00:00Z",
@@ -86,16 +81,11 @@ describe("the access token never reaches the dashboard", () => {
     expect(Object.keys(summary!)).not.toContain("accessToken");
   });
 
-  it("returns only status, shop identity and counts", async () => {
+  it("returns only the shop identity and connection status", async () => {
     expect(await getConnectionSummary("widget-a")).toEqual({
-      shopUrl: "https://shop-a.dk",
       shopDomain: "shop-a.myshopify.com",
       status: "connected",
       statusError: null,
-      crawlStatus: "ok",
-      crawlError: null,
-      pageCount: 4,
-      lastSyncAt: "2026-09-15T18:30:00Z",
       connectedAt: "2026-09-15T18:00:00Z",
     });
   });
@@ -132,7 +122,7 @@ describe("loadAdminCredentials", () => {
       connectionId: "conn-1",
       shopDomain: "shop-a.myshopify.com",
       accessToken: "shpat_supersecret",
-      scopes: "read_products,read_orders",
+      scopes: "read_products,read_orders,read_legal_policies",
     });
   });
 

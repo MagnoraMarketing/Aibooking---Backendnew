@@ -397,15 +397,10 @@ export const updateBookingSetupRequestSchema = z.object({
 
 // ---------------------------------------------------------------------------
 // Shopify / webshop integration (see 0035_shopify_integration.sql and
-// lib/shopify). Two inputs only, and neither is a credential: the public
-// webshop URL the customer pastes, and the shop they want to authorize. The
-// access token is never an input — it only ever arrives from Shopify's own
-// token endpoint, server-side.
+// lib/shopify). One input, and it is not a credential: which shop the customer
+// wants to authorize. The access token is never an input — it only ever
+// arrives from Shopify's own token endpoint, server-side.
 // ---------------------------------------------------------------------------
-export const shopifyWebshopInputSchema = z.object({
-  shopUrl: z.string().trim().min(1).max(500),
-});
-
 export const shopifyConnectQuerySchema = z.object({
   widgetId: z.string().uuid(),
   // Validated again as a real *.myshopify.com domain in lib/shopify/domain.ts

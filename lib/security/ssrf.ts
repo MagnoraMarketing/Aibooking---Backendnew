@@ -1,8 +1,7 @@
 import "server-only";
 
-// Pragmatic SSRF guard for customer-supplied URLs. Lifted out of
-// lib/knowledge-base/url.ts when the Shopify crawler became a second caller:
-// one list of blocked hostnames beats two that drift apart.
+// Pragmatic SSRF guard for customer-supplied URLs — the knowledge base's own
+// "import this page" feature (lib/knowledge-base/url.ts) is what feeds it.
 //
 // Not a DNS-rebinding-proof solution (that needs resolving the hostname and
 // checking the IP right before connecting) — reasonable for an
@@ -24,14 +23,5 @@ export function assertSafeHttpUrl(url: URL): void {
   }
   if (BLOCKED_HOSTNAME_PATTERNS.some((pattern) => pattern.test(url.hostname))) {
     throw new Error("This URL points to a private/internal address and can't be imported");
-  }
-}
-
-export function isSafeHttpUrl(url: URL): boolean {
-  try {
-    assertSafeHttpUrl(url);
-    return true;
-  } catch {
-    return false;
   }
 }

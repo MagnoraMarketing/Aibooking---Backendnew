@@ -8,6 +8,8 @@ const loadAdminCredentialsMock = vi.fn((..._args: unknown[]) => Promise.resolve<
 const markReauthMock = vi.fn((..._args: unknown[]) => Promise.resolve<void>(undefined));
 const lookupOrderMock = vi.fn((..._args: unknown[]) => Promise.resolve<unknown>(null));
 const searchProductsMock = vi.fn((..._args: unknown[]) => Promise.resolve<unknown>(null));
+const getProductMock = vi.fn((..._args: unknown[]) => Promise.resolve<unknown>(null));
+const shopInfoMock = vi.fn((..._args: unknown[]) => Promise.resolve<unknown>(null));
 
 vi.mock("@/lib/shopify/connection", () => ({
   loadAdminCredentials: (...args: unknown[]) => loadAdminCredentialsMock(...args),
@@ -20,6 +22,11 @@ vi.mock("@/lib/shopify/orders", () => ({
 
 vi.mock("@/lib/shopify/products", () => ({
   searchShopifyProducts: (...args: unknown[]) => searchProductsMock(...args),
+  getShopifyProduct: (...args: unknown[]) => getProductMock(...args),
+}));
+
+vi.mock("@/lib/shopify/shop-info", () => ({
+  fetchShopifyShopInfo: (...args: unknown[]) => shopInfoMock(...args),
 }));
 
 import { ShopifyAdminApiError } from "@/lib/shopify/admin-api";
@@ -59,7 +66,7 @@ const CREDENTIALS = {
   connectionId: "conn-1",
   shopDomain: "shop.myshopify.com",
   accessToken: "shpat_x",
-  scopes: "read_products,read_orders",
+  scopes: "read_products,read_orders,read_legal_policies",
 };
 
 function parse(result: string): Record<string, unknown> {
@@ -69,6 +76,15 @@ function parse(result: string): Record<string, unknown> {
 beforeEach(() => {
   loadAdminCredentialsMock.mockReset().mockResolvedValue(CREDENTIALS);
   searchProductsMock.mockReset().mockResolvedValue({ products: [PRODUCT], requested_options: ["42"] });
+  getProductMock.mockReset().mockResolvedValue(PRODUCT);
+  shopInfoMock.mockReset().mockResolvedValue({
+    shop_name: "Shoppen",
+    currency: "DKK",
+    contact_email: "hej@shop.dk",
+    policies: [
+      { kind: "shipping", title: "Levering", body: "Vi sender med DHL på 1-3 hverdage.", url: "https://shop.dk/policies/shipping-policy" },
+    ],
+  });
   // mockReset() alone strips the async implementation, leaving a mock that
   // returns undefined — which would make the production `.catch()` on its
   // promise throw and mask the branch under test.
@@ -78,48 +94,63 @@ beforeEach(() => {
 
 describe("resolveShopifyCapabilities", () => {
   it("follows the scopes Shopify actually granted, not the ones we asked for", async () => {
-    expect(await resolveShopifyCapabilities("widget-a")).toEqual({ products: true, orders: true });
+    expect(await resolveShopifyCapabilities("widget-a")).toEqual({
+      products: true,
+      orders: true,
+      policies: true,
+    });
 
-    // A merchant who installed the app before read_products was requested has
-    // a working order lookup and no product access. Handing the agent a
-    // product tool here would just make it fail mid-conversation.
+    // A merchant who installed the app before a scope was added keeps what
+    // they granted. Handing the agent a tool it cannot fulfil would just make
+    // it fail mid-conversation.
     loadAdminCredentialsMock.mockResolvedValue({ ...CREDENTIALS, scopes: "read_orders" });
-    expect(await resolveShopifyCapabilities("widget-a")).toEqual({ products: false, orders: true });
+    expect(await resolveShopifyCapabilities("widget-a")).toEqual({
+      products: false,
+      orders: true,
+      policies: false,
+    });
 
-    // Shop URL saved, Shopify not connected yet.
+    // Not connected at all.
     loadAdminCredentialsMock.mockResolvedValue(null);
-    expect(await resolveShopifyCapabilities("widget-a")).toEqual({ products: false, orders: false });
+    expect(await resolveShopifyCapabilities("widget-a")).toEqual({
+      products: false,
+      orders: false,
+      policies: false,
+    });
   });
 });
 
 describe("the tools an assistant is given", () => {
   it("offers nothing when no webshop is connected", () => {
-    expect(buildShopifyVapiTools({ products: false, orders: false })).toEqual([]);
-    expect(buildShopifyAnthropicTools({ products: false, orders: false })).toEqual([]);
+    expect(buildShopifyVapiTools({ products: false, orders: false, policies: false })).toEqual([]);
+    expect(buildShopifyAnthropicTools({ products: false, orders: false, policies: false })).toEqual([]);
   });
 
   // Offering a tool the widget can't fulfil teaches the agent to promise
   // something it then fails at — worse than not offering it.
   it("offers only what the granted scopes allow", () => {
-    expect(buildShopifyVapiTools({ products: true, orders: false }).map((tool) => tool.function.name)).toEqual([
-      "search_shopify_products",
-    ]);
-    expect(buildShopifyVapiTools({ products: false, orders: true }).map((tool) => tool.function.name)).toEqual([
-      "get_shopify_order_status",
-    ]);
+    expect(
+      buildShopifyVapiTools({ products: true, orders: false, policies: false }).map((tool) => tool.function.name)
+    ).toEqual(["search_shopify_products", "get_shopify_product"]);
+    expect(
+      buildShopifyVapiTools({ products: false, orders: true, policies: false }).map((tool) => tool.function.name)
+    ).toEqual(["get_shopify_order_status"]);
+    expect(
+      buildShopifyVapiTools({ products: false, orders: false, policies: true }).map((tool) => tool.function.name)
+    ).toEqual(["get_shopify_shop_info"]);
   });
 
   // The agent is told to copy the tool's url verbatim. A description that
   // stopped saying so would let it start building links from product names,
   // which 404 in front of a customer about to buy.
   it("tells the agent to use the product's real link and never invent one", () => {
-    const description = buildShopifyAnthropicTools({ products: true, orders: false })[0]!.description!;
+    const description = buildShopifyAnthropicTools({ products: true, orders: false, policies: false })[0]!.description!;
     expect(description).toContain("[Se produkt](url)");
     expect(description).toMatch(/opfind aldrig et link/i);
   });
 
   it("gives voice and chat exactly the same tools and descriptions", () => {
-    const capabilities = { products: true, orders: true };
+    const capabilities = { products: true, orders: true, policies: true };
     const vapi = buildShopifyVapiTools(capabilities);
     const anthropic = buildShopifyAnthropicTools(capabilities);
 
@@ -252,6 +283,66 @@ describe("get_shopify_order_status", () => {
       accessToken: "shpat_x",
       orderNumber: "10482",
     });
+  });
+});
+
+describe("get_shopify_product", () => {
+  it("returns one product's full detail", async () => {
+    const result = parse(await executeShopifyTool("get_shopify_product", { identifier: "nike-air-max" }, "widget-a"));
+
+    expect(result.found).toBe(true);
+    expect(result.product).toMatchObject({ name: "Nike Air Max", url: "https://shop.dk/products/nike-air-max" });
+    expect(getProductMock).toHaveBeenCalledWith({
+      shopDomain: "shop.myshopify.com",
+      accessToken: "shpat_x",
+      identifier: "nike-air-max",
+    });
+  });
+
+  it("asks for an identifier rather than guessing one", async () => {
+    const result = parse(await executeShopifyTool("get_shopify_product", {}, "widget-a"));
+    expect(result).toEqual({ found: false, error: "missing_identifier" });
+    expect(getProductMock).not.toHaveBeenCalled();
+  });
+
+  it("says not found rather than returning a different product", async () => {
+    getProductMock.mockResolvedValue(null);
+    const result = parse(await executeShopifyTool("get_shopify_product", { identifier: "findes-ikke" }, "widget-a"));
+    expect(result).toEqual({ found: false });
+  });
+});
+
+describe("get_shopify_shop_info", () => {
+  // "Hvor lang tid tager levering?" used to be answered from crawled text in
+  // the prompt. It is a live policy read now, so the agent quotes what the
+  // merchant has in Shopify today.
+  it("returns the shop's own delivery and returns text", async () => {
+    const result = parse(await executeShopifyTool("get_shopify_shop_info", {}, "widget-a"));
+
+    expect(result.found).toBe(true);
+    expect((result.policies as Record<string, unknown>[])[0]).toMatchObject({
+      kind: "shipping",
+      body: "Vi sender med DHL på 1-3 hverdage.",
+      url: "https://shop.dk/policies/shipping-policy",
+    });
+  });
+
+  it("narrows to the policy that was asked about", async () => {
+    await executeShopifyTool("get_shopify_shop_info", { topics: ["shipping"] }, "widget-a");
+    expect(shopInfoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ which: ["shipping"] })
+    );
+  });
+
+  it("ignores a topic value it doesn't recognise instead of passing it through", async () => {
+    await executeShopifyTool("get_shopify_shop_info", { topics: ["nonsense", 42] }, "widget-a");
+    expect(shopInfoMock).toHaveBeenCalledWith(expect.objectContaining({ which: undefined }));
+  });
+
+  it("refuses when Shopify isn't connected", async () => {
+    loadAdminCredentialsMock.mockResolvedValue(null);
+    const result = parse(await executeShopifyTool("get_shopify_shop_info", {}, "widget-a"));
+    expect(result).toMatchObject({ found: false, error: "not_connected" });
   });
 });
 

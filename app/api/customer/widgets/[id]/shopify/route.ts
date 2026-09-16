@@ -1,40 +1,21 @@
 import { NextResponse } from "next/server";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
-import {
-  readJsonBody,
-  withErrorHandling,
-  writeAuditLog,
-  requireParam,
-  shopifyWebshopInputSchema,
-} from "@/lib/security";
-import { normalizeShopUrl } from "@/lib/shopify/domain";
+import { withErrorHandling, writeAuditLog, requireParam } from "@/lib/security";
 import { getConnectionSummary, loadOwnedWidget } from "@/lib/shopify/connection";
-import { syncShopifyWebshop, removeShopifyKnowledge } from "@/lib/shopify/sync";
 import { isShopifyOAuthConfigured } from "@/lib/shopify/oauth";
+import { syncWidgetToVapiAssistant } from "@/lib/vapi";
 import { ApiError } from "@/types/errors";
 import type { Widget } from "@/types/database";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
 export const dynamic = "force-dynamic";
-// Saving a webshop crawls it inline so the customer sees the result rather
-// than a spinner that resolves into nothing. A large shop's product pages plus
-// a dozen policy pages needs more than the default serverless budget.
-export const maxDuration = 60;
 
-// The "1. Webshop" half of the Shopify setup: the customer pastes their public
-// webshop URL, and that is the whole interaction. No API keys, no Shopify
-// login — that is step 2, and deliberately separate (see
-// 0035_shopify_integration.sql).
-
-async function requireOwnWidget(widgetId: string, customerId: string): Promise<Widget> {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase.from("widgets").select("*").eq("id", widgetId).maybeSingle<Widget>();
-  if (error) throw error;
-  if (!data || data.customer_id !== customerId) throw ApiError.notFound("Widget not found");
-  return data;
-}
+// Status and disconnect for one widget's Shopify connection. There is nothing
+// to save here and nothing to sync: connecting is the OAuth redirect in
+// ../../../shopify/connect, and everything the agent knows about the shop is
+// read from the Admin API at the moment a customer asks.
 
 export const GET = withErrorHandling(async (_request, { params }) => {
   const ctx = await requireCustomerAdmin();
@@ -46,76 +27,48 @@ export const GET = withErrorHandling(async (_request, { params }) => {
 
   return NextResponse.json({
     connection: await getConnectionSummary(widgetId),
-    // The dashboard hides the "Connect Shopify" button entirely when the
-    // platform has no Shopify app configured, rather than offering a button
-    // that can only fail.
+    // The dashboard hides the Connect button entirely when the platform has no
+    // Shopify app configured, rather than offering one that can only fail.
     oauthAvailable: isShopifyOAuthConfigured(),
   });
 });
 
-export const PUT = withErrorHandling(async (request, { params }) => {
-  const ctx = await requireCustomerAdmin();
-  const supabase = getAdminClient();
-  const widgetId = requireParam(params, "id");
-  const widget = await requireOwnWidget(widgetId, ctx.profile.customer_id!);
-
-  const body = await readJsonBody(request, shopifyWebshopInputSchema);
-  const normalized = normalizeShopUrl(body.shopUrl);
-  if (!normalized) throw ApiError.badRequest("invalid_url");
-
-  const { error } = await supabase.from("shopify_connections").upsert(
-    {
-      customer_id: widget.customer_id,
-      widget_id: widget.id,
-      shop_url: normalized.origin,
-      crawl_status: "pending",
-      crawl_error: null,
-    },
-    { onConflict: "widget_id" }
-  );
-  if (error) throw error;
-
-  const result = await syncShopifyWebshop({ widget, shopUrl: normalized.origin });
-
-  await writeAuditLog({
-    actorId: ctx.userId,
-    actorRole: ctx.profile.role,
-    customerId: widget.customer_id,
-    action: "shopify.webshop.saved",
-    entityType: "widget",
-    entityId: widget.id,
-    // The URL is the customer's own public shop address, not a secret.
-    metadata: { shopUrl: normalized.origin, ok: result.ok, failure: result.failure ?? null },
-  });
-
-  return NextResponse.json({
-    connection: await getConnectionSummary(widgetId),
-    sync: result,
-  });
-});
-
-// Removes the webshop entirely — the crawled catalogue, the agent's webshop
-// knowledge, and the Shopify Admin connection with it. Anything less would
-// leave the agent still answering product questions from a shop the customer
-// believes they disconnected.
+// Disconnects the shop from this widget. The row goes with it: it holds only
+// the connection, so there is nothing else to clean up.
+//
+// This is the local half of revoking. The merchant uninstalls the app on
+// Shopify's side to revoke it there; either way the next lookup finds no
+// credentials and the agent says it can't check.
 export const DELETE = withErrorHandling(async (_request, { params }) => {
   const ctx = await requireCustomerAdmin();
   const supabase = getAdminClient();
   const widgetId = requireParam(params, "id");
-  const widget = await requireOwnWidget(widgetId, ctx.profile.customer_id!);
 
-  const { error } = await supabase.from("shopify_connections").delete().eq("widget_id", widget.id);
+  const owned = await loadOwnedWidget(supabase, widgetId, ctx.profile.customer_id!);
+  if (!owned) throw ApiError.notFound("Widget not found");
+
+  const { error } = await supabase.from("shopify_connections").delete().eq("widget_id", widgetId);
   if (error) throw error;
 
-  await removeShopifyKnowledge(widget);
+  // The assistant is still holding Shopify tools it can no longer fulfil —
+  // re-syncing drops them.
+  const { data: widget } = await supabase.from("widgets").select("*").eq("id", widgetId).maybeSingle<Widget>();
+  if (widget) {
+    const { data: settings } = await supabase
+      .from("widget_settings")
+      .select("extra")
+      .eq("widget_id", widgetId)
+      .maybeSingle<{ extra: Record<string, unknown> | null }>();
+    await syncWidgetToVapiAssistant(widget, settings?.extra ?? {});
+  }
 
   await writeAuditLog({
     actorId: ctx.userId,
     actorRole: ctx.profile.role,
-    customerId: widget.customer_id,
-    action: "shopify.webshop.removed",
+    customerId: ctx.profile.customer_id,
+    action: "shopify.disconnected",
     entityType: "widget",
-    entityId: widget.id,
+    entityId: widgetId,
   });
 
   return NextResponse.json({ connection: null });

@@ -1,26 +1,16 @@
 -- ---------------------------------------------------------------------------
--- Shopify integration: one connected webshop per widget.
+-- Shopify integration: one connected store per widget.
 --
--- The whole point of this table is that it holds TWO deliberately separate
--- things, and keeping them apart is the design:
+-- This table holds the OAuth connection and nothing else. No products, no
+-- prices, no stock, no policy text, no copy of the storefront.
 --
---   1. The shop's PUBLIC information pages (shop_url, crawl_* columns) —
---      shipping, returns, terms, FAQ. Read from the storefront the same way
---      the knowledge base reads any other URL, and small enough to live in the
---      agent's prompt. No Shopify account involved.
---
---   2. The PRIVATE Admin API connection (shop_domain, access_token, scopes,
---      status). Established through Shopify's own OAuth install flow, and the
---      source of everything a customer asks that has a live answer: products,
---      prices, variants, sizes, colours, SKUs, stock, orders and tracking.
---
--- No product data is stored in this table, by design. Prices and stock change,
--- and an agent quoting a cached price confidently is worse than one that looks
--- it up. Every product answer is a live query made for the question asked.
---
--- A customer can have (1) without (2) — that's the expected first step of the
--- setup flow — which is why every admin-side column is nullable and `status`
--- starts at 'not_connected'.
+-- That absence is the design. Everything a customer asks about the shop —
+-- product names, descriptions, prices, variants, sizes, colours, SKUs, stock,
+-- collections, product URLs, delivery and returns policies, order status and
+-- tracking — is fetched from the Shopify Admin API at the moment the question
+-- is asked, scoped to that question. Nothing is crawled, indexed or cached:
+-- prices and stock change, and an agent confidently quoting a stale price is
+-- worse than one that looks it up.
 --
 -- Shape follows calendar_connections (0014_calendar_integrations.sql): scoped
 -- to both customer_id and widget_id, service-role writes only, and the token
@@ -31,18 +21,14 @@ create table if not exists public.shopify_connections (
   customer_id uuid not null references public.customers (id) on delete cascade,
   widget_id uuid not null references public.widgets (id) on delete cascade,
 
-  -- (1) Public information pages
-  shop_url text,
-  crawl_status text not null default 'pending'
-    check (crawl_status in ('pending', 'running', 'ok', 'error')),
-  crawl_error text,
-  crawled_page_count integer not null default 0,
-  last_sync_at timestamptz,
-
-  -- (2) Private Admin API connection
+  -- The shop's permanent *.myshopify.com domain. The only host an access
+  -- token is ever sent to.
   shop_domain text,
   access_token text,
+  -- What Shopify actually granted, which is not always what was asked for —
+  -- a store connected before a scope was added keeps working without it.
   scopes text,
+
   status text not null default 'not_connected'
     check (status in ('not_connected', 'connected', 'error', 'reauth_required')),
   status_error text,
@@ -56,11 +42,11 @@ create table if not exists public.shopify_connections (
 create index if not exists idx_shopify_connections_customer_id on public.shopify_connections (customer_id);
 create index if not exists idx_shopify_connections_shop_domain on public.shopify_connections (shop_domain);
 
-comment on column public.shopify_connections.access_token is
-  'AES-256-GCM ciphertext (lib/security/crypto.ts), never plaintext. Never selected back into a client-facing response — the dashboard only ever learns connected/not connected, the shop domain, and the last sync time.';
+comment on table public.shopify_connections is
+  'One Shopify OAuth connection per widget. Deliberately stores no shop content: products, stock, policies and orders are read live from the Admin API per question, never crawled or cached.';
 
-comment on column public.shopify_connections.crawled_page_count is
-  'Number of the shop''s own information pages (shipping, returns, terms, FAQ) indexed into the agent prompt. Product and order data is never stored — it is queried live through the Admin API per question.';
+comment on column public.shopify_connections.access_token is
+  'AES-256-GCM ciphertext (lib/security/crypto.ts), never plaintext. Never selected back into a client-facing response — the dashboard only ever learns connected/not connected and the shop domain.';
 
 drop trigger if exists set_updated_at on public.shopify_connections;
 create trigger set_updated_at before update on public.shopify_connections
