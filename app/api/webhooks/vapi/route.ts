@@ -23,6 +23,49 @@ function isValidSecret(received: string | null, expected: string): boolean {
 
 type SupabaseAdmin = ReturnType<typeof getAdminClient>;
 
+// Whose agent a call belongs to.
+//
+// Normally the assistant it ran on: assistants are minted by us and stored
+// on widget_settings.extra.vapiAssistantId. But that mapping can drift —
+// a number re-pointed at another assistant in Vapi's own dashboard, or an
+// agent's stored assistant changed while the number kept ringing the old
+// one — and the lookup then finds nothing. It used to return here, so the
+// call was neither recorded nor billed, and nothing said so.
+//
+// The number the call came in on is the second answer, and a good one: the
+// platform assigns each number to one agent, so a call on it belongs to
+// that agent's customer even when the assistant no longer matches.
+// Attributing by the line beats dropping the call.
+async function resolveCallOwner(
+  supabase: SupabaseAdmin,
+  assistantId: string,
+  phoneNumberRow: { widget_id: string; customer_id: string; released_at: string | null } | null
+): Promise<{ id: string; customer_id: string } | null> {
+  const { data: settingsRow } = await supabase
+    .from("widget_settings")
+    .select("widget_id")
+    .eq("extra->>vapiAssistantId", assistantId)
+    .maybeSingle();
+
+  if (settingsRow) {
+    const { data: widget } = await supabase
+      .from("widgets")
+      .select("id, customer_id")
+      .eq("id", settingsRow.widget_id)
+      .maybeSingle();
+    if (widget) return widget;
+  }
+
+  // A released number's agent is whoever had it last, which is no longer a
+  // claim worth making about a live call.
+  if (!phoneNumberRow || phoneNumberRow.released_at) return null;
+
+  console.error(
+    `Vapi assistant ${assistantId} matches no agent — attributing the call to the agent that owns the number it came in on (widget ${phoneNumberRow.widget_id}). The assistant on that number in Vapi and the one stored for the agent have drifted apart.`
+  );
+  return { id: phoneNumberRow.widget_id, customer_id: phoneNumberRow.customer_id };
+}
+
 // Phone calls (inbound + outbound, see 0013_phone_calling.sql) are billed
 // from *here* rather than from our own start/end session calls, because —
 // unlike the widget — nothing in our own backend is on the line for a phone
@@ -41,19 +84,30 @@ async function recordAndBillCall(supabase: SupabaseAdmin, message: Record<string
   const { data: existing } = await supabase.from("phone_calls").select("id").eq("vapi_call_id", callId).maybeSingle();
   if (existing) return;
 
-  const { data: settingsRow } = await supabase
-    .from("widget_settings")
-    .select("widget_id")
-    .eq("extra->>vapiAssistantId", assistantId)
-    .maybeSingle();
-  if (!settingsRow) return;
+  // The line the call came in on. Looked up once: it is the row stored on
+  // the call, and the fallback for whose agent this is.
+  let phoneNumberRow: { id: string; widget_id: string; customer_id: string; released_at: string | null } | null = null;
+  if (call?.phoneNumberId) {
+    const { data } = await supabase
+      .from("phone_numbers")
+      .select("id, widget_id, customer_id, released_at")
+      .eq("vapi_phone_number_id", call.phoneNumberId)
+      .maybeSingle();
+    phoneNumberRow = data ?? null;
+  }
 
-  const { data: widget } = await supabase
-    .from("widgets")
-    .select("id, customer_id")
-    .eq("id", settingsRow.widget_id)
-    .maybeSingle();
-  if (!widget) return;
+  const widget = await resolveCallOwner(supabase, assistantId, phoneNumberRow);
+  if (!widget) {
+    // Never silent. A call that reaches no agent is one nobody is billed for
+    // and nobody can see happened — the three inbound calls this replaced
+    // went unrecorded for half an hour before anyone noticed.
+    console.error(
+      `Vapi call ${callId} belongs to no agent we know (assistant ${assistantId}, number ${
+        call?.phoneNumberId ?? "unknown"
+      }) — not recorded, not billed.`
+    );
+    return;
+  }
 
   const { data: contact } = await supabase
     .from("outbound_campaign_contacts")
@@ -62,15 +116,7 @@ async function recordAndBillCall(supabase: SupabaseAdmin, message: Record<string
     .maybeSingle();
   const direction = contact ? "outbound" : "inbound";
 
-  let phoneNumberRowId: string | null = null;
-  if (call?.phoneNumberId) {
-    const { data: phoneNumberRow } = await supabase
-      .from("phone_numbers")
-      .select("id")
-      .eq("vapi_phone_number_id", call.phoneNumberId)
-      .maybeSingle();
-    phoneNumberRowId = phoneNumberRow?.id ?? null;
-  }
+  const phoneNumberRowId = phoneNumberRow?.id ?? null;
 
   const { error: insertError } = await supabase.from("phone_calls").insert({
     customer_id: widget.customer_id,
