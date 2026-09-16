@@ -126,9 +126,16 @@ export async function getVapiVoiceTemplateAssistantId(gender: VapiVoiceGender): 
 
 export async function setVapiVoiceTemplateAssistantId(gender: VapiVoiceGender, assistantId: string | null): Promise<void> {
   const supabase = getAdminClient();
-  const { error } = await supabase
-    .from("platform_settings")
-    .upsert({ key: vapiVoiceTemplateKey(gender), value: assistantId });
+  const key = vapiVoiceTemplateKey(gender);
+
+  // Clearing a template means removing the row, not writing null into it:
+  // platform_settings.value is NOT NULL, so the upsert rejected the write and
+  // the admin screen 500'd — which made the one page that configures voices
+  // impossible to clear, on a platform where the voices are what needed
+  // fixing.
+  const { error } = assistantId
+    ? await supabase.from("platform_settings").upsert({ key, value: assistantId })
+    : await supabase.from("platform_settings").delete().eq("key", key);
 
   if (error) throw new Error(`Failed to update Vapi ${gender} voice template: ${error.message}`);
 }
