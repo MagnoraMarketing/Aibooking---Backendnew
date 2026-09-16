@@ -815,6 +815,106 @@ export const agent: Namespace = {
   },
 
   // ---------------------------------------------------------------------
+  // agent-tabs/test-call.tsx
+  // ---------------------------------------------------------------------
+  "testCall.statusIncoming": {
+    da: "Indgående opkald",
+    en: "Incoming call",
+    es: "Llamada entrante",
+    fr: "Appel entrant",
+    pt: "Chamada recebida",
+    de: "Eingehender Anruf",
+  },
+  "testCall.statusRinging": {
+    da: "Forbinder…",
+    en: "Connecting…",
+    es: "Conectando…",
+    fr: "Connexion…",
+    pt: "A ligar…",
+    de: "Verbindung…",
+  },
+  "testCall.statusLive": {
+    da: "I gang",
+    en: "In progress",
+    es: "En curso",
+    fr: "En cours",
+    pt: "Em curso",
+    de: "Läuft",
+  },
+  "testCall.statusEnded": {
+    da: "Opkald afsluttet",
+    en: "Call ended",
+    es: "Llamada finalizada",
+    fr: "Appel terminé",
+    pt: "Chamada terminada",
+    de: "Anruf beendet",
+  },
+  "testCall.incomingSubtitle": {
+    da: "Tryk for at besvare som kunden",
+    en: "Tap to answer as the customer",
+    es: "Pulse para responder como el cliente",
+    fr: "Appuyez pour répondre comme le client",
+    pt: "Toque para atender como o cliente",
+    de: "Tippen, um als Kunde abzunehmen",
+  },
+  "testCall.answer": {
+    da: "Besvar",
+    en: "Answer",
+    es: "Responder",
+    fr: "Répondre",
+    pt: "Atender",
+    de: "Annehmen",
+  },
+  "testCall.hangUp": {
+    da: "Læg på",
+    en: "Hang up",
+    es: "Colgar",
+    fr: "Raccrocher",
+    pt: "Desligar",
+    de: "Auflegen",
+  },
+  "testCall.listening": {
+    da: "Sig noget — agenten lytter.",
+    en: "Say something — the agent is listening.",
+    es: "Diga algo: el agente está escuchando.",
+    fr: "Dites quelque chose — l'agent écoute.",
+    pt: "Diga algo — o agente está a ouvir.",
+    de: "Sagen Sie etwas — der Agent hört zu.",
+  },
+  "testCall.transcriptEmpty": {
+    da: "Samtalen vises her, mens I taler.",
+    en: "The conversation appears here as you talk.",
+    es: "La conversación aparece aquí mientras habla.",
+    fr: "La conversation s'affiche ici pendant que vous parlez.",
+    pt: "A conversa aparece aqui enquanto fala.",
+    de: "Das Gespräch erscheint hier, während Sie sprechen.",
+  },
+  "testCall.description": {
+    da: "Samtalen kører over browseren, så den beviser agenten — prompt, vidensbase og booking — men ikke viderestillingen af en rigtig telefonlinje. Giv mikrofonen adgang, når browseren spørger.",
+    en: "The call runs over the browser, so it proves the agent — prompt, knowledge base and booking — but not the forwarding of a real phone line. Allow microphone access when the browser asks.",
+    es: "La llamada se realiza a través del navegador, por lo que demuestra el agente (indicaciones, base de conocimiento y reservas), pero no el desvío de una línea telefónica real. Permita el acceso al micrófono cuando el navegador lo solicite.",
+    fr: "L'appel passe par le navigateur : il valide l'agent — prompt, base de connaissances et réservation — mais pas le transfert d'une vraie ligne téléphonique. Autorisez le micro lorsque le navigateur le demande.",
+    pt: "A chamada decorre pelo navegador, por isso prova o agente — prompt, base de conhecimento e marcações — mas não o encaminhamento de uma linha telefónica real. Permita o acesso ao microfone quando o navegador pedir.",
+    de: "Das Gespräch läuft über den Browser und belegt damit den Agenten — Prompt, Wissensdatenbank und Buchung — aber nicht die Weiterleitung einer echten Telefonleitung. Erlauben Sie den Mikrofonzugriff, wenn der Browser fragt.",
+  },
+  "testCall.errorNoAssistant": {
+    da: "Agenten har ingen Vapi-assistent endnu, så der er ikke noget at ringe til. Gem agenten én gang, så oprettes den.",
+    en: "The agent has no Vapi assistant yet, so there is nothing to call. Save the agent once and it will be created.",
+    es: "El agente aún no tiene un asistente de Vapi, así que no hay nada a lo que llamar. Guarde el agente una vez y se creará.",
+    fr: "L'agent n'a pas encore d'assistant Vapi, il n'y a donc rien à appeler. Enregistrez l'agent une fois et il sera créé.",
+    pt: "O agente ainda não tem um assistente Vapi, por isso não há nada para ligar. Guarde o agente uma vez e será criado.",
+    de: "Der Agent hat noch keinen Vapi-Assistenten, es gibt also nichts anzurufen. Speichern Sie den Agenten einmal, dann wird er erstellt.",
+  },
+  "testCall.errorDuringCall": {
+    da: "Opkaldet blev afbrudt.",
+    en: "The call was interrupted.",
+    es: "La llamada se interrumpió.",
+    fr: "L'appel a été interrompu.",
+    pt: "A chamada foi interrompida.",
+    de: "Der Anruf wurde unterbrochen.",
+  },
+
+  // ---------------------------------------------------------------------
   // agent-tabs/settings-tab.tsx
   // ---------------------------------------------------------------------
   "settings.voiceLanguageTitle": {
