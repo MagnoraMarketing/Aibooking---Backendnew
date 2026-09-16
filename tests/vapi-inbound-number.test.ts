@@ -14,6 +14,7 @@ import {
   createVapiManagedNumber,
   attachAssistantToVapiNumber,
   isVapiBillingRefusal,
+  listVapiPhoneNumbers,
 } from "@/lib/vapi/phone-numbers";
 
 function callAt(index: number): { url: string; init: RequestInit } {
@@ -125,5 +126,45 @@ describe("when the failure is not about the area code", () => {
       isVapiBillingRefusal(new Error("You must provide a credit card payment method to create additional phone numbers."))
     ).toBe(true);
     expect(isVapiBillingRefusal(new Error("no numbers available in area code 415"))).toBe(false);
+  });
+});
+
+// Vapi's free allowance is a single number and everything after it needs a
+// card, so a number the platform already owns and nobody is answering on is
+// worth more than a new one.
+describe("numbers the platform already owns", () => {
+  it("lists them with the assistant each is currently pointed at", async () => {
+    vapiFetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          { id: "num_a", number: "+15139407163", name: "Indbound frisør", assistantId: "asst_1" },
+          { id: "num_b", number: "+12125550123" },
+        ])
+      )
+    );
+
+    const numbers = await listVapiPhoneNumbers();
+
+    expect(callAt(0).url).toBe("/phone-number");
+    expect(callAt(0).init.method).toBe("GET");
+    expect(numbers).toEqual([
+      { id: "num_a", number: "+15139407163", name: "Indbound frisør", assistantId: "asst_1" },
+      { id: "num_b", number: "+12125550123", name: null, assistantId: null },
+    ]);
+  });
+
+  // A row without an id is not a number we can attach to anything.
+  it("drops entries Vapi returns without an id", async () => {
+    vapiFetchMock.mockResolvedValue(new Response(JSON.stringify([{ number: "+15139407163" }, { id: "num_c" }])));
+
+    const numbers = await listVapiPhoneNumbers();
+
+    expect(numbers).toEqual([{ id: "num_c", number: "", name: null, assistantId: null }]);
+  });
+
+  it("returns nothing rather than throwing when Vapi answers with a non-list", async () => {
+    vapiFetchMock.mockResolvedValue(new Response(JSON.stringify({ message: "nope" })));
+
+    await expect(listVapiPhoneNumbers()).resolves.toEqual([]);
   });
 });

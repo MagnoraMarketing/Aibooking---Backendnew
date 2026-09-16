@@ -125,3 +125,35 @@ export async function attachAssistantToVapiNumber(phoneNumberId: string, assista
     body: JSON.stringify({ assistantId }),
   });
 }
+
+// The numbers already sitting in the platform's Vapi account — bought there,
+// or handed out before. Listing them is what makes "use the one we already
+// have" possible, which matters because Vapi's free allowance is one number
+// and everything after it needs a card on file.
+export interface VapiAccountNumber {
+  id: string;
+  number: string;
+  name: string | null;
+  assistantId: string | null;
+}
+
+export async function listVapiPhoneNumbers(): Promise<VapiAccountNumber[]> {
+  const response = await vapiFetch("/phone-number", { method: "GET" });
+  const data = (await response.json()) as Array<{
+    id?: string;
+    number?: string;
+    name?: string;
+    assistantId?: string;
+  }>;
+
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .filter((row): row is { id: string; number?: string; name?: string; assistantId?: string } => typeof row?.id === "string")
+    .map((row) => ({
+      id: row.id,
+      number: row.number ?? "",
+      name: row.name ?? null,
+      assistantId: row.assistantId ?? null,
+    }));
+}

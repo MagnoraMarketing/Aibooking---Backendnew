@@ -2,13 +2,33 @@ import { NextResponse } from "next/server";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, vapiNumberInputSchema } from "@/lib/security";
-import { createVapiManagedNumber, ensureInboundAssistant, isVapiBillingRefusal } from "@/lib/vapi";
+import {
+  createVapiManagedNumber,
+  ensureInboundAssistant,
+  isVapiBillingRefusal,
+  attachAssistantToVapiNumber,
+  listVapiPhoneNumbers,
+} from "@/lib/vapi";
 import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
 export const dynamic = "force-dynamic";
+
+// Points a number the platform already owns at this agent's assistant. The
+// number is looked up rather than trusted from the request: an id that is not
+// in the account would otherwise be stored as a working number nobody can
+// call.
+async function attachExistingNumber(vapiPhoneNumberId: string, assistantId: string) {
+  const existing = (await listVapiPhoneNumbers()).find((number) => number.id === vapiPhoneNumberId);
+  if (!existing) {
+    throw ApiError.badRequest("Nummeret findes ikke længere. Genindlæs siden og vælg et andet.");
+  }
+
+  await attachAssistantToVapiNumber(existing.id, assistantId);
+  return { id: existing.id, number: existing.number };
+}
 
 // Gives an agent an inbound number handed out by Vapi, wired to its assistant
 // from the moment it exists. The customer keeps the number their customers
@@ -45,11 +65,16 @@ export const POST = withErrorHandling(async (request) => {
 
   let number;
   try {
-    number = await createVapiManagedNumber({
-      assistantId,
-      name: body.label ?? widget.name,
-      areaCode: body.areaCode,
-    });
+    // Attaching one the platform already owns is preferred wherever the
+    // customer picked one: Vapi's free allowance is a single number, so a
+    // number already paid for is worth more than a new one.
+    number = body.vapiPhoneNumberId
+      ? await attachExistingNumber(body.vapiPhoneNumberId, assistantId)
+      : await createVapiManagedNumber({
+          assistantId,
+          name: body.label ?? widget.name,
+          areaCode: body.areaCode,
+        });
   } catch (err) {
     // A missing card on the platform's Vapi account is our problem, not the
     // customer's, and "provide a credit card payment method" reads like an

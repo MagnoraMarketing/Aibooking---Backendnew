@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Widget, PhoneNumberDirection } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
@@ -16,6 +16,12 @@ import { TwilioBalanceCard } from "./twilio-balance-card";
 //
 // Numbers attached the old way still appear in the list below and still work;
 // outbound campaigns and the dialer are untouched and still use Twilio.
+interface SpareNumber {
+  id: string;
+  number: string;
+  name: string | null;
+}
+
 interface InboundManagerProps {
   widgets: Widget[];
   initialPhoneNumbers: PhoneNumberRow[];
@@ -56,6 +62,25 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Numbers already in the platform's Vapi account that nobody has claimed.
+  // Vapi gives one away and charges for the rest, so an idle number that is
+  // already paid for is offered before a new one is asked for.
+  const [spareNumbers, setSpareNumbers] = useState<SpareNumber[] | null>(null);
+  const [chosenSpare, setChosenSpare] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!showForm) return;
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/customer/phone-numbers/vapi/available");
+      if (!res.ok || cancelled) return;
+      const data = await res.json().catch(() => null);
+      if (!cancelled) setSpareNumbers((data?.numbers as SpareNumber[] | undefined) ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showForm]);
 
   function widgetName(id: string): string {
     return widgets.find((widget) => widget.id === id)?.name ?? "—";
@@ -72,6 +97,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
       body: JSON.stringify({
         widgetId,
         ...(label.trim() ? { label: label.trim() } : {}),
+        ...(chosenSpare ? { vapiPhoneNumberId: chosenSpare } : {}),
       }),
     });
     setRequesting(false);
@@ -85,6 +111,8 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
     const { phoneNumber } = await res.json();
     setPhoneNumbers((prev) => [phoneNumber, ...prev]);
     setLabel("");
+    setChosenSpare(null);
+    setSpareNumbers(null);
     setShowForm(false);
   }
 
@@ -191,6 +219,43 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
             />
           </div>
 
+          {spareNumbers && spareNumbers.length > 0 ? (
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-medium text-slate-700">{t("dashboardPages.inbound.spareNumbersTitle")}</p>
+              <ul className="space-y-2">
+                {spareNumbers.map((spare) => (
+                  <li key={spare.id}>
+                    <label
+                      className={`flex cursor-pointer items-center gap-3 rounded-lg border bg-white p-3 text-sm transition ${
+                        chosenSpare === spare.id
+                          ? "border-brand-500 ring-1 ring-brand-500"
+                          : "border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="spare-number"
+                        checked={chosenSpare === spare.id}
+                        onChange={() => setChosenSpare(spare.id)}
+                      />
+                      <span className="font-medium text-slate-800">{spare.number || spare.id}</span>
+                      {spare.name ? <span className="text-xs text-slate-500">{spare.name}</span> : null}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              {chosenSpare ? (
+                <button
+                  type="button"
+                  onClick={() => setChosenSpare(null)}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                >
+                  {t("dashboardPages.inbound.spareNumbersClear")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
           <div className="flex items-center gap-3">
@@ -200,7 +265,11 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
               disabled={requesting || !widgetId}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {requesting ? t("dashboardPages.inbound.gettingNumber") : t("dashboardPages.inbound.getNumber")}
+              {requesting
+                ? t("dashboardPages.inbound.gettingNumber")
+                : chosenSpare
+                  ? t("dashboardPages.inbound.useNumber")
+                  : t("dashboardPages.inbound.getNumber")}
             </button>
             {phoneNumbers.length > 0 ? (
               <button
