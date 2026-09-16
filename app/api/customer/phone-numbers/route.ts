@@ -27,15 +27,16 @@ export const GET = withErrorHandling(async () => {
 });
 
 // Imports a customer-owned Twilio number and attaches it to one of the
-// customer's agents. Which pipeline handles it depends on the agent's
-// model, chosen once at creation (see agent-creation-wizard.tsx): a
-// Vapi-model agent gets the number imported into Vapi, whose existing
-// assistant then answers calls; a Twilio-direct (provider='anthropic')
-// agent instead points the number straight at our own TwiML webhooks, with
-// the customer's credentials stored on the row itself so a later call's
-// signature can be validated against something — there's no subaccount to
-// fall back to for a BYO number the way there is for a platform-purchased
-// one (see 0021_byo_twilio_direct.sql and lib/telephony/resolve.ts).
+// customer's agents.
+//
+// An INBOUND number is always imported into Vapi, whose assistant then
+// answers the calls — whatever model the agent runs on. The direct
+// Twilio/TwiML pipeline is only still reachable for an outbound number
+// belonging to an older Anthropic agent: it stores the customer's
+// credentials on the row itself so a later call's signature can be
+// validated against something, since there's no subaccount to fall back to
+// for a BYO number the way there is for a platform-purchased one (see
+// 0021_byo_twilio_direct.sql and lib/telephony/resolve.ts).
 export const POST = withErrorHandling(async (request) => {
   const ctx = await requireCustomerAdmin();
   const body = await readJsonBody(request, importPhoneNumberInputSchema);
@@ -53,7 +54,7 @@ export const POST = withErrorHandling(async (request) => {
   const { data: llmModel } = widget.llm_model_id
     ? await supabase.from("llm_models").select("provider").eq("id", widget.llm_model_id).maybeSingle()
     : { data: null };
-  const isTwilioDirect = llmModel?.provider === "anthropic";
+  const isTwilioDirect = body.direction !== "inbound" && llmModel?.provider === "anthropic";
 
   const credentials = { accountSid: body.twilioAccountSid, authToken: body.twilioAuthToken };
 
@@ -94,7 +95,9 @@ export const POST = withErrorHandling(async (request) => {
       .maybeSingle();
     const assistantId = (settings?.extra as Record<string, unknown> | null)?.vapiAssistantId;
     if (typeof assistantId !== "string") {
-      throw ApiError.badRequest("Denne agent har ikke en Vapi-assistent endnu");
+      throw ApiError.badRequest(
+        "Denne agent har ikke en Vapi-assistent endnu, så den kan ikke tage imod opkald. Åbn agenten og gem den én gang, så oprettes assistenten."
+      );
     }
 
     const imported = await importTwilioPhoneNumber({

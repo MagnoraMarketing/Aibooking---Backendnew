@@ -19,7 +19,6 @@ export default async function InboundPage() {
     { data: phoneNumbers },
     { data: customer },
     { data: subscription },
-    { data: allLlmModels },
     { data: createFlowLlmModels },
     { data: voiceModels },
   ] = await Promise.all([
@@ -37,7 +36,6 @@ export default async function InboundPage() {
       .returns<PhoneNumberRow[]>(),
     supabase.from("customers").select("intro_offer_used_at").eq("id", customerId).single<Pick<Customer, "intro_offer_used_at">>(),
     supabase.from("subscriptions").select("id").eq("customer_id", customerId).maybeSingle(),
-    supabase.from("llm_models").select("id, provider"),
     supabase
       .from("llm_models")
       .select("*")
@@ -52,8 +50,7 @@ export default async function InboundPage() {
   // "Agent" picker — attaching a phone number to a Voice Widget agent isn't
   // part of the type-based flow (see agent-creation-wizard.tsx). Widget
   // Agents management lives on its own page/nav entry instead.
-  const providerByModelId = new Map((allLlmModels ?? []).map((m) => [m.id, m.provider]));
-  const phoneAgents = (widgets ?? []).filter((w) => w.llm_model_id && providerByModelId.get(w.llm_model_id) === "anthropic");
+  const phoneAgents = (widgets ?? []).filter((w) => w.agent_type === "phone");
 
   return (
     <div className="space-y-10">

@@ -191,8 +191,12 @@ export function AgentCreationWizard({
       setError(t("agent.wizard.errorTypeRequired"));
       return;
     }
-    const provider = agentType === "phone" ? "anthropic" : WIDGET_LLM_PROVIDER;
-    const selectedModelId = llmModels.find((m) => m.provider === provider)?.id ?? null;
+    // Both types run on Vapi now: a phone agent used to be created on the
+    // Anthropic model and answer calls through our own TwiML pipeline, but an
+    // inbound number always goes to a Vapi assistant (see
+    // lib/phone-numbers/service.ts). What the agent IS travels as agentType
+    // instead — the model no longer says anything about it.
+    const selectedModelId = llmModels.find((m) => m.provider === WIDGET_LLM_PROVIDER)?.id ?? null;
     if (!selectedModelId) {
       setError(t("agent.wizard.errorNoModel"));
       return;
@@ -204,7 +208,7 @@ export function AgentCreationWizard({
     const res = await fetch("/api/customer/widgets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), llmModelId: selectedModelId }),
+      body: JSON.stringify({ name: name.trim(), llmModelId: selectedModelId, agentType }),
     });
 
     setCreating(false);

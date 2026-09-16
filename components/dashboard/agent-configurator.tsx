@@ -108,7 +108,9 @@ export function AgentConfigurator({
 }: AgentConfiguratorProps) {
   const { t } = useTranslation();
   const [widget, setWidget] = useState(initialWidget);
-  const isPhoneType = llmModels.find((m) => m.id === widget.llm_model_id)?.provider === "anthropic";
+  // The stored type, not the model it happens to run on — a phone agent is a
+  // Vapi agent too now (see 0036_agent_type.sql).
+  const isPhoneType = widget.agent_type === "phone";
   const tabs = tabsFor(isPhoneType, t);
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");

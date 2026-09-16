@@ -116,11 +116,17 @@ export interface VoiceModel {
   updated_at: string;
 }
 
+// What an agent is, stated rather than inferred from its LLM model — see
+// 0036_agent_type.sql. "widget" answers on the customer's website, "phone"
+// takes calls on a number (Inbound/Outbound/Dialer). Both run on Vapi.
+export type AgentType = "widget" | "phone";
+
 export interface Widget {
   id: string;
   customer_id: string;
   public_id: string;
   name: string;
+  agent_type: AgentType;
   status: WidgetStatus;
   business_name: string | null;
   llm_model_id: string | null;
