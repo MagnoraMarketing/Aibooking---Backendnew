@@ -5,7 +5,7 @@ import { requireCredentialEnv } from "@/lib/security/env";
 export { createVapiAssistant, updateVapiAssistant, type VapiAssistantParams, type VapiVoiceGender } from "./assistants";
 export { syncWidgetToVapiAssistant, type VapiSyncOutcome } from "./sync";
 export { importTwilioPhoneNumber, type ImportTwilioNumberParams, type VapiPhoneNumber } from "./phone-numbers";
-export { createOutboundCall, type CreateOutboundCallParams } from "./calls";
+export { createOutboundCall, describeOutboundCallFailure, type CreateOutboundCallParams } from "./calls";
 
 function getPublicKey(): string {
   return requireCredentialEnv(

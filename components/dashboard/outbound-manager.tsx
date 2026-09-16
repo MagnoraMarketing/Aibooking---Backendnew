@@ -128,6 +128,19 @@ export function OutboundManager({
     setCampaigns((prev) =>
       prev.map((c) => (c.id === campaignId ? { ...c, status: "launched", launched_at: new Date().toISOString() } : c))
     );
+
+    // A campaign whose calls were all refused used to look identical to one
+    // that went out. The provider's refusal is the only thing that explains
+    // "den ringer ikke op", so it belongs on screen, not only in the row.
+    const result = (await res.json().catch(() => null)) as
+      | { launched?: number; failed?: number; failures?: { reason: string; count: number }[] }
+      | null;
+    if (result?.failed) {
+      const reasons = (result.failures ?? []).map((failure) => failure.reason);
+      setError(
+        [`${result.failed} af opkaldene blev ikke startet.`, ...reasons].join(" ")
+      );
+    }
   }
 
   return (

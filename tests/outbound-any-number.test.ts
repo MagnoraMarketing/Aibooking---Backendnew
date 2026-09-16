@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { outboundNumberIssue, canPlaceOutboundFrom } from "@/lib/phone-numbers/outbound";
+import { describeOutboundCallFailure } from "@/lib/vapi/calls";
 
 // Outbound used to demand a number bound to that exact agent AND refuse
 // anything with direction='inbound'. Every Vapi number this platform hands
@@ -73,5 +74,49 @@ describe("a number that is not ready to dial", () => {
     const released = { ...VAPI_NUMBER, released_at: "2026-09-16T22:00:00Z" };
 
     expect(outboundNumberIssue(released, { usesVapi: false })).toMatch(/frigivet/);
+  });
+});
+
+// A campaign whose every call was refused looked exactly like one that went
+// out: status "launched", nothing on screen. The reason sat in the database
+// in the provider's own English. This is the real refusal that produced
+// "den ringer ikke op til mit nr" — a free Vapi number dialling a Danish
+// mobile.
+describe("explaining a call the provider refused", () => {
+  const INTERNATIONAL =
+    'ApiError: Vapi afviste anmodningen (400): {"statusCode":400,"message":"Couldn\'t start call. Free Vapi numbers do not support international calls.","error":"Bad Request"}';
+
+  it("names the from-number as the problem, since every Danish number will fail the same way", () => {
+    const explained = describeOutboundCallFailure(INTERNATIONAL);
+
+    expect(explained).toMatch(/amerikanske numre/);
+    expect(explained).toMatch(/Vælg et andet nummer/);
+  });
+
+  // Whose card it is decides who can act: the platform's account, not the
+  // salon running the campaign.
+  it("keeps a billing refusal off the customer's plate", () => {
+    const explained = describeOutboundCallFailure("You must provide a credit card payment method");
+
+    expect(explained).toMatch(/kontakt os/);
+  });
+
+  it("tells the customer to check the number when the number is what was rejected", () => {
+    expect(describeOutboundCallFailure("customer.number is not a valid phone number")).toMatch(/landekode/);
+  });
+
+  // The vendor's raw text stays in outbound_campaign_contacts.failure_reason
+  // for us; the screen gets something a salon owner can read.
+  it("never hands the customer the provider's own wording", () => {
+    const explained = describeOutboundCallFailure(INTERNATIONAL);
+
+    expect(explained).not.toMatch(/Vapi|statusCode|Bad Request/);
+  });
+
+  it("stays generic, not silent, on a refusal it has never seen", () => {
+    const explained = describeOutboundCallFailure("some upstream thing broke");
+
+    expect(explained).toMatch(/kunne ikke startes/);
+    expect(explained).not.toMatch(/upstream/);
   });
 });
