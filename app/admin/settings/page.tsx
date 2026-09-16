@@ -5,6 +5,7 @@ import {
 } from "@/lib/settings/platform";
 import { VapiVoiceTemplatesSettings } from "@/components/admin/vapi-voice-templates-settings";
 import { DefaultPromptSettings } from "@/components/admin/default-prompt-settings";
+import { VapiResyncSettings } from "@/components/admin/vapi-resync-settings";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 import { translate } from "@/lib/i18n/dictionaries";
 
@@ -34,6 +35,7 @@ export default async function AdminSettingsPage() {
         initialMaleAssistantId={maleAssistantId}
         initialFemaleAssistantId={femaleAssistantId}
       />
+      <VapiResyncSettings />
       <DefaultPromptSettings initialPrompt={defaultPrompt} />
     </div>
   );

@@ -22,9 +22,22 @@ import { DEFAULT_VOICE_GENDER } from "./voice-gender";
 // app/api/customer/widgets/[id]/knowledge-base/*). Best-effort: logs and
 // swallows Vapi errors rather than failing the caller's request, same as
 // the PATCH route's original inline version.
-export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<string, unknown>): Promise<void> {
+// What one sync did, for callers that need to report it. Every existing
+// caller ignores the return value and keeps the old best-effort behaviour;
+// only the admin bulk re-sync reads it, because "we tried 30 assistants" is
+// useless without knowing which ones landed.
+export type VapiSyncOutcome =
+  | { status: "synced" }
+  | { status: "skipped"; reason: string }
+  | { status: "failed"; error: string };
+
+export async function syncWidgetToVapiAssistant(
+  widget: Widget,
+  extra: Record<string, unknown>
+): Promise<VapiSyncOutcome> {
   const vapiAssistantId = typeof extra.vapiAssistantId === "string" ? extra.vapiAssistantId : null;
-  if (!vapiAssistantId || !widget.llm_model_id) return;
+  if (!vapiAssistantId) return { status: "skipped", reason: "no_vapi_assistant" };
+  if (!widget.llm_model_id) return { status: "skipped", reason: "no_llm_model" };
 
   const supabase = getAdminClient();
   const { data: llmModel } = await supabase
@@ -33,7 +46,7 @@ export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<st
     .eq("id", widget.llm_model_id)
     .maybeSingle();
 
-  if (llmModel?.provider !== "vapi") return;
+  if (llmModel?.provider !== "vapi") return { status: "skipped", reason: "not_a_vapi_widget" };
 
   // Check if booking is enabled to include booking tools
   const includeBookingTools = widget.booking_enabled ?? false;
@@ -82,7 +95,9 @@ export async function syncWidgetToVapiAssistant(widget: Widget, extra: Record<st
       includeBookingTools,
       shopifyTools
     );
+    return { status: "synced" };
   } catch (err) {
     console.error("Failed to sync widget to Vapi assistant:", err);
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
   }
 }

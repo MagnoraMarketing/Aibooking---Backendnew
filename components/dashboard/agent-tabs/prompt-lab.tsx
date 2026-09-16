@@ -199,6 +199,31 @@ export function PromptLabTab({ widget, savePatch }: { widget: WidgetWithExtras; 
           <p className="mt-2 text-xs text-slate-500">{t("agent.promptLab.howItFitsNote")}</p>
         </div>
 
+        {/* What to actually put in the prompt. This guidance is addressed to
+            the person configuring the agent, so it belongs here, on screen,
+            next to the field it describes — not inside the default system
+            prompt, which is the agent's OWN instructions and would have the
+            agent reading "enter the business's opening hours" as a job to
+            do, and passing it on to a visitor. */}
+        <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-4">
+          <p className="text-sm font-medium text-slate-700">{t("agent.promptLab.checklistTitle")}</p>
+          <ul className="mt-2 space-y-1.5 text-sm text-slate-600">
+            {[
+              "agent.promptLab.checklistOpeningHours",
+              "agent.promptLab.checklistFaq",
+              "agent.promptLab.checklistGeneral",
+              "agent.promptLab.checklistPrices",
+              "agent.promptLab.checklistBooking",
+              "agent.promptLab.checklistShopify",
+            ].map((key) => (
+              <li key={key} className="flex gap-2">
+                <span className="mt-0.5 text-brand-600">•</span>
+                <span>{t(key)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <div>
           <label htmlFor="system-prompt" className="mb-1 block text-sm font-medium text-slate-700">
             {t("agent.promptLab.systemPromptLabel")}
