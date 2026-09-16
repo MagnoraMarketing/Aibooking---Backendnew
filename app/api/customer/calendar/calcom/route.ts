@@ -36,13 +36,23 @@ export const POST = withErrorHandling(async (request) => {
     fetchCalcomEventTypes(body.apiKey),
   ]);
 
+  // Which event type the agent books against. The customer can name one
+  // explicitly (the "Event-type ID" field), otherwise we take the first one
+  // their key reports.
+  //
+  // The key is already proven good at this point — fetchCalcomMe authenticated
+  // it. So an empty event-type list is not a reason to refuse the connection
+  // when the customer told us the id: a key scoped to a team reports no types
+  // here, and refusing left those customers unable to connect a calendar that
+  // works fine. We only reject an id we can see is wrong.
   const [firstEventType] = eventTypes;
-  if (!firstEventType) {
-    throw ApiError.badRequest("Ingen event-typer fundet på jeres Cal.com-konto. Opret en event-type på Cal.com først.");
+  const eventTypeId = body.eventTypeId ?? firstEventType?.id;
+  if (!eventTypeId) {
+    throw ApiError.badRequest(
+      "Ingen event-typer fundet på jeres Cal.com-konto. Opret en event-type på Cal.com, eller indtast event-type ID'et selv."
+    );
   }
-
-  const eventTypeId = body.eventTypeId ?? firstEventType.id;
-  if (!eventTypes.some((eventType) => eventType.id === eventTypeId)) {
+  if (eventTypes.length > 0 && !eventTypes.some((eventType) => eventType.id === eventTypeId)) {
     throw ApiError.badRequest("Den valgte event-type findes ikke på jeres Cal.com-konto.");
   }
 

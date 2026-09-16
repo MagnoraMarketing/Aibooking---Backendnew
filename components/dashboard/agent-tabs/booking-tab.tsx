@@ -83,6 +83,10 @@ export function BookingTab({ widget }: BookingTabProps) {
   const [eventTypes, setEventTypes] = useState<CalcomEventType[]>([]);
   const [apiKey, setApiKey] = useState("");
   const [eventTypeIdInput, setEventTypeIdInput] = useState("");
+  // Separate from the one above: that one is part of the connect form, this
+  // one is the fallback shown on an already-connected calendar whose event
+  // types Cal.com won't list.
+  const [manualEventTypeId, setManualEventTypeId] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [calendarNotice, setCalendarNotice] = useState<string | null>(null);
@@ -171,6 +175,16 @@ export function BookingTab({ widget }: BookingTabProps) {
     setEventTypeIdInput("");
     setLive(true);
     setCalendarNotice("Kalenderen er forbundet, og agenten kan nu booke tider.");
+  }
+
+  async function handleManualEventTypeSave() {
+    const parsed = Number(manualEventTypeId.trim());
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      setCalendarError("Event-type ID skal være et positivt heltal — det står i Cal.com-URL'en for event-typen.");
+      return;
+    }
+    await handleEventTypeChange(parsed);
+    setManualEventTypeId("");
   }
 
   async function handleEventTypeChange(eventTypeId: number) {
@@ -348,10 +362,34 @@ export function BookingTab({ widget }: BookingTabProps) {
                     ))}
                   </select>
                 ) : (
-                  <p className="text-sm text-slate-500">
-                    Kunne ikke hente jeres event-typer lige nu{selectedEventTypeId ? ` (bruger id ${selectedEventTypeId})` : ""}.
-                    Tryk <strong>Test forbindelse</strong> for at se hvorfor.
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-slate-500">
+                      Cal.com viser ingen event-typer for denne nøgle
+                      {selectedEventTypeId ? ` — agenten booker på id ${selectedEventTypeId}` : ""}. Det sker blandt andet
+                      for team-nøgler. Indtast event-type ID&apos;et herunder, så ved agenten hvilken kalender den skal
+                      booke i.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        id="calcom-event-type"
+                        type="text"
+                        inputMode="numeric"
+                        value={manualEventTypeId}
+                        onChange={(e) => setManualEventTypeId(e.target.value)}
+                        placeholder={selectedEventTypeId ? String(selectedEventTypeId) : "fx 1234567"}
+                        disabled={busy === "eventType"}
+                        className="w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleManualEventTypeSave()}
+                        disabled={busy !== null || !manualEventTypeId.trim()}
+                        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        {busy === "eventType" ? "Gemmer…" : "Gem event-type"}
+                      </button>
+                    </div>
+                  </div>
                 )}
                 <p className="mt-1 text-xs text-slate-500">
                   Event-typen bestemmer mødets længde, sted og hvilke spørgsmål kunden får stillet — det sættes op på Cal.com.

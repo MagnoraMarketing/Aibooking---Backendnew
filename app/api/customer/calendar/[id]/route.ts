@@ -32,8 +32,14 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   }
 
   const apiKey = decryptSecret(connection.calcom_api_key);
-  const eventTypes = await fetchCalcomEventTypes(apiKey);
-  if (!eventTypes.some((eventType) => eventType.id === body.eventTypeId)) {
+
+  // Validate against the list only when there IS a list. When Cal.com reports
+  // none (a team-scoped key, say), the dashboard falls back to letting the
+  // customer type the id — and validating an id against an empty list rejects
+  // every possible answer, which is the one case where being strict locks the
+  // customer out of the setting they came here to fix.
+  const eventTypes = await fetchCalcomEventTypes(apiKey).catch(() => [] as Awaited<ReturnType<typeof fetchCalcomEventTypes>>);
+  if (eventTypes.length > 0 && !eventTypes.some((eventType) => eventType.id === body.eventTypeId)) {
     throw ApiError.badRequest("Den valgte event-type findes ikke på jeres Cal.com-konto.");
   }
 

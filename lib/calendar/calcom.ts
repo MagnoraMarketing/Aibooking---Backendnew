@@ -54,8 +54,17 @@ async function calcomOAuthFetch(path: string, accessToken: string, init: Request
 export async function fetchCalcomEventTypes(apiKey: string): Promise<CalcomEventType[]> {
   const response = await calcomFetch("/event-types", apiKey);
   const data = (await response.json()) as {
-    event_types: Array<{ id: number; title: string; length?: number | null }>;
+    event_types?: Array<{ id: number; title: string; length?: number | null }> | null;
   };
+
+  // An empty list is a real answer, not an error: a key scoped to a team, or
+  // an account whose types live somewhere this endpoint doesn't report, comes
+  // back without `event_types` at all. Reading `.map` off that threw a
+  // TypeError that surfaced as a 500 on connect, which made a perfectly valid
+  // API key look broken. Callers handle "no list" by letting the customer
+  // type the event-type id themselves.
+  if (!Array.isArray(data.event_types)) return [];
+
   return data.event_types.map((eventType) => ({
     id: eventType.id,
     title: eventType.title,
