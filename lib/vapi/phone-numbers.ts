@@ -54,14 +54,22 @@ export interface CreateVapiNumberParams {
   areaCode?: string;
 }
 
-export async function createVapiManagedNumber(params: CreateVapiNumberParams): Promise<VapiPhoneNumber> {
+// Vapi refuses a request without one ("At least one of
+// numberDesiredAreaCode, sipUri must be provided"), so there is no such
+// thing as letting it choose. Rather than making a Danish salon guess at US
+// area codes, one is picked here when the customer names none — and a second
+// and third are tried, because an area code Vapi has run dry of is a dead end
+// the customer can neither see nor fix.
+const FALLBACK_AREA_CODES = ["415", "212", "305", "646", "702"];
+
+async function requestNumber(params: CreateVapiNumberParams, areaCode: string): Promise<VapiPhoneNumber> {
   const response = await vapiFetch("/phone-number", {
     method: "POST",
     body: JSON.stringify({
       provider: "vapi",
       assistantId: params.assistantId,
+      numberDesiredAreaCode: areaCode,
       ...(params.name ? { name: params.name } : {}),
-      ...(params.areaCode ? { numberDesiredAreaCode: params.areaCode } : {}),
     }),
   });
 
@@ -69,6 +77,22 @@ export async function createVapiManagedNumber(params: CreateVapiNumberParams): P
   // The number itself can take a moment to be allotted; the id is what we
   // need to hold onto either way, and the row is refreshed on the next read.
   return { id: data.id, number: data.number ?? "" };
+}
+
+export async function createVapiManagedNumber(params: CreateVapiNumberParams): Promise<VapiPhoneNumber> {
+  // A code the customer typed is theirs: they get that one or the real
+  // reason it failed, never a number in a different city than they asked for.
+  if (params.areaCode) return requestNumber(params, params.areaCode);
+
+  let lastError: unknown;
+  for (const areaCode of FALLBACK_AREA_CODES) {
+    try {
+      return await requestNumber(params, areaCode);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
 }
 
 // Points an existing Vapi number at a different assistant — used when an
