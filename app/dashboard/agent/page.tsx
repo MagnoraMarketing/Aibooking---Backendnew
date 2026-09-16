@@ -15,7 +15,6 @@ export default async function AgentListPage() {
   const [
     { data: widgets },
     { data: llmModels },
-    { data: allLlmModels },
     { data: voiceModels },
     { data: customer },
     { data: subscription },
@@ -34,7 +33,6 @@ export default async function AgentListPage() {
       .eq("show_in_create_flow", true)
       .order("display_name")
       .returns<LLMModel[]>(),
-    supabase.from("llm_models").select("id, provider"),
     supabase.from("voice_models").select("*").eq("active", true).order("name").returns<VoiceModel[]>(),
     supabase.from("customers").select("*").eq("id", customerId).single<Customer>(),
     supabase
@@ -50,8 +48,7 @@ export default async function AgentListPage() {
   // This page is Widget Agents only now — Telefon (Inbound/Outbound) agents
   // have their own panel on the Inbound page (see agentType docs on
   // AgentsManager for why this split exists).
-  const providerByModelId = new Map((allLlmModels ?? []).map((m) => [m.id, m.provider]));
-  const widgetAgents = (widgets ?? []).filter((w) => !w.llm_model_id || providerByModelId.get(w.llm_model_id) !== "anthropic");
+  const widgetAgents = (widgets ?? []).filter((w) => w.agent_type === "widget");
 
   const embedCodeUnlocked = customer
     ? hasEmbedCodeAccess({

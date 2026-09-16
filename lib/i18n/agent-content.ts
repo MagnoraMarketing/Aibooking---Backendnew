@@ -15,18 +15,24 @@ function resolveLocale(widgetLanguage: string | null | undefined): Locale {
 // Every default/example system prompt on this platform (see
 // lib/settings/platform.ts, lib/llm/context-builder.ts) is authored in
 // Danish — Claude can still converse fluently in another language given a
-// Danish system prompt, but only if explicitly told to. `null` for Danish
-// itself: the prompt is already in the right language, no directive needed.
-const LANGUAGE_DIRECTIVES: Record<Locale, string | null> = {
-  da: null,
-  en: "Always respond in English, regardless of what language this prompt itself is written in.",
-  es: "Responde siempre en español, sin importar en qué idioma esté escrito este mensaje.",
-  fr: "Répondez toujours en français, quelle que soit la langue de ce message.",
-  pt: "Responda sempre em português, independentemente do idioma em que esta mensagem esteja escrita.",
-  de: "Antworten Sie immer auf Deutsch, unabhängig davon, in welcher Sprache diese Eingabeaufforderung verfasst ist.",
+// Danish system prompt, but only if explicitly told to.
+//
+// Danish gets a directive of its own even though the prompt is already
+// Danish: without one, a Danish agent answers an English-speaking visitor in
+// English, and drifts into English stock phrases ("one moment", "let me
+// check") between Danish sentences. The language a customer picked in
+// Settings is the language their visitors get — every sentence of it,
+// fillers and confirmations included.
+const LANGUAGE_DIRECTIVES: Record<Locale, string> = {
+  da: "Tal altid dansk — hele samtalen, også korte mellemsætninger som “et øjeblik” og bekræftelser. Svar på dansk, også hvis kunden skriver eller taler et andet sprog.",
+  en: "Always speak English — the whole conversation, including short filler phrases like “one moment” and confirmations. Answer in English even if the customer writes or speaks another language, and regardless of what language this prompt itself is written in.",
+  es: "Habla siempre en español — toda la conversación, incluidas las frases breves como «un momento» y las confirmaciones. Responde en español aunque el cliente escriba o hable en otro idioma, y sin importar en qué idioma esté escrito este mensaje.",
+  fr: "Parlez toujours français — toute la conversation, y compris les phrases courtes comme « un instant » et les confirmations. Répondez en français même si le client écrit ou parle une autre langue, quelle que soit la langue de ce message.",
+  pt: "Fale sempre português — toda a conversa, incluindo frases curtas como «um momento» e confirmações. Responda em português mesmo que o cliente escreva ou fale outro idioma, independentemente do idioma em que esta mensagem esteja escrita.",
+  de: "Sprechen Sie immer Deutsch — das gesamte Gespräch, einschließlich kurzer Einschübe wie „einen Moment“ und Bestätigungen. Antworten Sie auf Deutsch, auch wenn der Kunde in einer anderen Sprache schreibt oder spricht, und unabhängig davon, in welcher Sprache diese Eingabeaufforderung verfasst ist.",
 };
 
-export function languageDirective(widgetLanguage: string | null | undefined): string | null {
+export function languageDirective(widgetLanguage: string | null | undefined): string {
   return LANGUAGE_DIRECTIVES[resolveLocale(widgetLanguage)];
 }
 
@@ -51,8 +57,39 @@ export function languageNameInDanish(widgetLanguage: string | null | undefined):
 // caller should go through, so a language added to LANGUAGE_DIRECTIVES
 // above is picked up everywhere at once.
 export function withLanguageDirective(systemPrompt: string, widgetLanguage: string | null | undefined): string {
-  const directive = languageDirective(widgetLanguage);
-  return directive ? `${systemPrompt}\n\n${directive}` : systemPrompt;
+  return `${systemPrompt}\n\n${languageDirective(widgetLanguage)}`;
+}
+
+// What the agent says out loud while a tool runs, and if that tool fails.
+// Vapi speaks these itself the moment a tool fires, without waiting for the
+// model — and when a tool carries none, it falls back to its own built-in
+// English fillers ("hold on a sec", "one moment"), which is how an otherwise
+// Danish call ended up with English phrases scattered through it. Every tool
+// this platform sends therefore carries these (see lib/vapi/assistants.ts).
+const TOOL_WAIT: Record<Locale, string> = {
+  da: "Lige et øjeblik.",
+  en: "One moment.",
+  es: "Un momento.",
+  fr: "Un instant.",
+  pt: "Um momento.",
+  de: "Einen Moment.",
+};
+
+export function toolWaitText(widgetLanguage: string | null | undefined): string {
+  return TOOL_WAIT[resolveLocale(widgetLanguage)];
+}
+
+const TOOL_FAILED: Record<Locale, string> = {
+  da: "Det kunne jeg desværre ikke få til at virke lige nu.",
+  en: "Sorry, I couldn't get that to work just now.",
+  es: "Lo siento, no he podido hacerlo funcionar en este momento.",
+  fr: "Désolé, je n'ai pas réussi à le faire maintenant.",
+  pt: "Desculpe, não consegui fazer isso funcionar agora.",
+  de: "Entschuldigung, das hat gerade nicht funktioniert.",
+};
+
+export function toolFailedText(widgetLanguage: string | null | undefined): string {
+  return TOOL_FAILED[resolveLocale(widgetLanguage)];
 }
 
 // The literal first thing an agent says, spoken before any AI turn runs —

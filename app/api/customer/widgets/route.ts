@@ -52,6 +52,7 @@ export const POST = withErrorHandling(async (request) => {
       customer_id: customerId,
       public_id: generatePublicWidgetId(),
       name: body.name,
+      agent_type: body.agentType,
       business_name: body.businessName,
       llm_model_id: body.llmModelId,
       voice_model_id: body.voiceModelId,
@@ -87,6 +88,7 @@ export const POST = withErrorHandling(async (request) => {
         systemPrompt: withLanguageDirective(systemPrompt, widget.language),
         firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
         voiceGender: DEFAULT_VOICE_GENDER,
+        language: widget.language,
       });
       await supabase
         .from("widget_settings")

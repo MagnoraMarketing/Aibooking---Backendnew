@@ -23,7 +23,7 @@ export default async function OutboundPage() {
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
-  const [{ data: widgets }, { data: phoneNumbers }, { data: campaigns }, { data: allLlmModels }] = await Promise.all([
+  const [{ data: widgets }, { data: phoneNumbers }, { data: campaigns }] = await Promise.all([
     supabase
       .from("widgets")
       .select("*")
@@ -42,14 +42,12 @@ export default async function OutboundPage() {
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false })
       .returns<CampaignRow[]>(),
-    supabase.from("llm_models").select("id, provider"),
   ]);
 
   // Telefon (Inbound/Outbound) agents only — same split as the Inbound page
   // (see agent-creation-wizard.tsx). Widget Agents aren't relevant to
   // outbound calling campaigns.
-  const providerByModelId = new Map((allLlmModels ?? []).map((m) => [m.id, m.provider]));
-  const phoneAgents = (widgets ?? []).filter((w) => w.llm_model_id && providerByModelId.get(w.llm_model_id) === "anthropic");
+  const phoneAgents = (widgets ?? []).filter((w) => w.agent_type === "phone");
 
   return (
     <OutboundManager

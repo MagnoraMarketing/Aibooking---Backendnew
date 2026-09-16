@@ -132,6 +132,10 @@ export const widgetUpdateSchema = z.object({
 
 export const createWidgetSchema = widgetUpdateSchema.extend({
   name: z.string().trim().min(1).max(200).default("Main widget"),
+  // What the agent is, sent by the creation wizard. Defaults to "widget"
+  // because that is what every caller that predates the field creates (see
+  // 0036_agent_type.sql).
+  agentType: z.enum(["widget", "phone"]).default("widget"),
 });
 
 // Free-form widget preferences that don't have a dedicated widgets column —

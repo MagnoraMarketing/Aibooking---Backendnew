@@ -25,17 +25,15 @@ export interface UsageByAgentType {
 export async function getUsageByAgentType(customerId: string): Promise<UsageByAgentType> {
   const supabase = getAdminClient();
 
-  const [{ data: widgets }, { data: llmModels }] = await Promise.all([
-    supabase.from("widgets").select("id, llm_model_id, status").eq("customer_id", customerId),
-    supabase.from("llm_models").select("id, provider"),
-  ]);
+  const { data: widgets } = await supabase
+    .from("widgets")
+    .select("id, agent_type, status")
+    .eq("customer_id", customerId);
 
-  const providerByModelId = new Map((llmModels ?? []).map((m) => [m.id, m.provider]));
-  const phoneWidgetIds = new Set(
-    (widgets ?? [])
-      .filter((w) => w.llm_model_id && providerByModelId.get(w.llm_model_id) === "anthropic")
-      .map((w) => w.id)
-  );
+  // Reads the stored type rather than inferring one from the LLM model: both
+  // agent types run on Vapi now, so the model says nothing about which is
+  // which (see 0036_agent_type.sql).
+  const phoneWidgetIds = new Set((widgets ?? []).filter((w) => w.agent_type === "phone").map((w) => w.id));
   const isPhoneType = (widgetId: string) => phoneWidgetIds.has(widgetId);
 
   const activeAgents = (widgets ?? []).filter((w) => w.status === "active");

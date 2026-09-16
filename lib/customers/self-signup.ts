@@ -132,6 +132,7 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
         systemPrompt: withLanguageDirective(defaultSystemPrompt, widget.language),
         firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
         voiceGender: DEFAULT_VOICE_GENDER,
+        language: widget.language,
       });
       extra.vapiAssistantId = assistant.id;
     } catch (err) {
