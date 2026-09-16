@@ -11,8 +11,8 @@ export interface VapiAssistantParams {
   systemPrompt: string;
   firstMessage: string;
   // "male"/"female" picks up the voice from the matching admin-configured
-  // template assistant (see resolveVoiceConfig below); null/undefined falls
-  // back to the platform's original fixed voice.
+  // template assistant (see resolveTemplate below); null/undefined falls
+  // back to the platform's original fixed voice and model.
   voiceGender?: VapiVoiceGender | null;
   // Vapi's own call limits. Omitted rather than sent as null when unset, so
   // an assistant keeps whatever Vapi defaults to instead of being handed a
@@ -21,49 +21,81 @@ export interface VapiAssistantParams {
   maxDurationSeconds?: number | null;
 }
 
-// Fixed to a fast/cheap Claude model rather than getSummarizationModelName
-// (tuned for background summarization quality, not per-turn voice latency)
-// — every Vapi widget agent uses this, regardless of the customer's own
-// choices, since a realtime voice call has no room for a slower model.
-const VAPI_ASSISTANT_MODEL = "claude-haiku-4-5-20251001";
+// The model the widget agent runs on is not a customer choice: it is
+// whatever the master admin has configured on the Vapi template assistant
+// (see resolveTemplate below), exactly like the voice. This constant is only
+// the floor for when no template is configured, or its model block can't be
+// read — a fast/cheap Claude model rather than getSummarizationModelName
+// (tuned for background summarization quality, not per-turn voice latency),
+// since a realtime voice call has no room for a slower model.
+const FALLBACK_MODEL_PROVIDER = "anthropic";
+const FALLBACK_MODEL_NAME = "claude-haiku-4-5-20251001";
 
-async function resolveModelName(): Promise<string> {
-  return VAPI_ASSISTANT_MODEL;
+interface VapiTemplateAssistant {
+  voice?: Record<string, unknown>;
+  model?: Record<string, unknown>;
 }
 
-// Clones the `voice` block from a master-admin-configured "template"
-// assistant (one for "male", one for "female") rather than storing voice
-// settings ourselves — the admin builds/tunes each template directly in
-// Vapi's own dashboard, and we just mirror whatever it's currently set to.
-//
-// Every failure path here falls back to a voice OF THE REQUESTED GENDER,
-// never to one fixed voice: a customer who picked "Dame" and got a male
-// voice back because a template was unset is a worse outcome than a
-// slightly different female voice, and one they can't diagnose or fix from
-// the dashboard. An absent choice is read as DEFAULT_VOICE_GENDER, the same
-// default the UI and creation route use.
-async function resolveVoiceConfig(voiceGender: VapiVoiceGender | null | undefined): Promise<Record<string, unknown>> {
-  const gender = voiceGender ?? DEFAULT_VOICE_GENDER;
-  const fallback = FALLBACK_VOICE_BY_GENDER[gender];
-
+// Reads the master-admin-configured "template" assistant (one for "male",
+// one for "female") that widget assistants are cloned from, rather than
+// storing voice/model settings ourselves — the admin builds and tunes each
+// template directly in Vapi's own dashboard, and we mirror whatever it is
+// currently set to. Fetched once per assistant build: both resolveVoiceConfig
+// and resolveModelConfig read the same response.
+async function resolveTemplate(gender: VapiVoiceGender): Promise<VapiTemplateAssistant | null> {
   const templateAssistantId = await getVapiVoiceTemplateAssistantId(gender);
   if (!templateAssistantId) {
-    console.error(`No Vapi ${gender} voice template configured — using the built-in ${gender} fallback voice.`);
-    return fallback;
+    console.error(
+      `No Vapi ${gender} voice template configured — using the built-in ${gender} fallback voice and model.`
+    );
+    return null;
   }
 
   try {
     const response = await vapiFetch(`/assistant/${encodeURIComponent(templateAssistantId)}`, { method: "GET" });
-    const data = (await response.json()) as { voice?: Record<string, unknown> };
-    if (!data.voice) {
-      console.error(`Vapi ${gender} voice template (${templateAssistantId}) has no voice block — using the fallback.`);
-      return fallback;
-    }
-    return data.voice;
+    return (await response.json()) as VapiTemplateAssistant;
   } catch (err) {
     console.error(`Failed to read Vapi ${gender} voice template (${templateAssistantId}):`, err);
+    return null;
+  }
+}
+
+// Every failure path here falls back to a voice OF THE REQUESTED GENDER,
+// never to one fixed voice: a customer who picked "Dame" and got a male
+// voice back because a template was unset is a worse outcome than a
+// slightly different female voice, and one they can't diagnose or fix from
+// the dashboard.
+function resolveVoiceConfig(template: VapiTemplateAssistant | null, gender: VapiVoiceGender): Record<string, unknown> {
+  const fallback = FALLBACK_VOICE_BY_GENDER[gender];
+  if (!template) return fallback;
+
+  if (!template.voice) {
+    console.error(`Vapi ${gender} voice template has no voice block — using the fallback voice.`);
     return fallback;
   }
+  return template.voice;
+}
+
+// Takes only the engine (provider + model name, and the generation knobs the
+// admin tuned) from the template. The system prompt and the tools are built
+// per widget below and must never come from the template — cloning its
+// `messages` would replace every customer's prompt with the admin's.
+function resolveModelConfig(template: VapiTemplateAssistant | null, gender: VapiVoiceGender): Record<string, unknown> {
+  const fallback = { provider: FALLBACK_MODEL_PROVIDER, model: FALLBACK_MODEL_NAME };
+  if (!template) return fallback;
+
+  const model = template.model;
+  if (!model || typeof model.provider !== "string" || typeof model.model !== "string") {
+    console.error(`Vapi ${gender} voice template has no usable model block — using ${FALLBACK_MODEL_NAME}.`);
+    return fallback;
+  }
+
+  return {
+    provider: model.provider,
+    model: model.model,
+    ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
+    ...(typeof model.maxTokens === "number" ? { maxTokens: model.maxTokens } : {}),
+  };
 }
 
 // Without this, Vapi has nowhere to send call events (transcripts,
@@ -207,20 +239,21 @@ function buildBookingTools() {
   ];
 }
 
-// Transcriber is still fixed (Soniox STT RT v5) — voice now comes from
-// resolveVoiceConfig, cloned from whichever male/female template the
-// customer's widget is set to (see VapiAssistantParams.voiceGender).
+// Transcriber is still fixed (Soniox STT RT v5) — voice and model both come
+// from whichever male/female template the customer's widget is set to (see
+// VapiAssistantParams.voiceGender), read in a single fetch.
 // Booking tools are attached only for a widget whose calendar is connected
 // and whose booking_enabled gate is on (see lib/vapi/sync.ts).
 async function buildAssistantBody(
   params: VapiAssistantParams,
-  modelName: string,
   includeBookingTools: boolean = false,
   extraTools: unknown[] = []
 ) {
+  const gender = params.voiceGender ?? DEFAULT_VOICE_GENDER;
+  const template = await resolveTemplate(gender);
+
   const model: Record<string, unknown> = {
-    provider: "anthropic",
-    model: modelName,
+    ...resolveModelConfig(template, gender),
     messages: [{ role: "system", content: params.systemPrompt }],
   };
 
@@ -246,7 +279,7 @@ async function buildAssistantBody(
       provider: "soniox",
       model: "stt-rt-v5",
     },
-    voice: await resolveVoiceConfig(params.voiceGender),
+    voice: resolveVoiceConfig(template, gender),
     ...(typeof params.silenceTimeoutSeconds === "number"
       ? { silenceTimeoutSeconds: params.silenceTimeoutSeconds }
       : {}),
@@ -260,10 +293,9 @@ export async function createVapiAssistant(
   includeBookingTools = false,
   extraTools: unknown[] = []
 ): Promise<{ id: string }> {
-  const modelName = await resolveModelName();
   const response = await vapiFetch("/assistant", {
     method: "POST",
-    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools, extraTools)),
+    body: JSON.stringify(await buildAssistantBody(params, includeBookingTools, extraTools)),
   });
   const data = (await response.json()) as { id: string };
   return { id: data.id };
@@ -289,8 +321,7 @@ export async function updateVapiAssistant(
   includeBookingTools = false,
   extraTools: unknown[] = []
 ): Promise<void> {
-  const modelName = await resolveModelName();
-  const body = await buildAssistantBody(params, modelName, includeBookingTools, extraTools);
+  const body = await buildAssistantBody(params, includeBookingTools, extraTools);
   const path = `/assistant/${encodeURIComponent(assistantId)}`;
 
   try {

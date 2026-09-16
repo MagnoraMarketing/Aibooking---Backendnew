@@ -32,3 +32,35 @@ describe("encryptSecret / decryptSecret (Cal.com API key at rest)", () => {
     process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY = original;
   });
 });
+
+// A deployment missing the key used to fail as an opaque "Something went
+// wrong": errorResponse masks anything that isn't an ApiError, so the
+// customer saw the same blank failure for a missing server config as for a
+// rejected Cal.com key. The message has to survive that masking.
+describe("a misconfigured environment", () => {
+  it("fails with an ApiError the dashboard can show, not a bare Error", async () => {
+    const { ApiError } = await import("@/types/errors");
+    const original = process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY;
+    delete process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY;
+
+    try {
+      expect(() => encryptSecret("x")).toThrow(ApiError);
+      expect(() => encryptSecret("x")).toThrow(/CALENDAR_CREDENTIALS_ENCRYPTION_KEY/);
+    } finally {
+      process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY = original;
+    }
+  });
+
+  it("says so when the key is the wrong length rather than throwing from node:crypto", async () => {
+    const { ApiError } = await import("@/types/errors");
+    const original = process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY;
+    process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY = Buffer.from("too-short").toString("base64");
+
+    try {
+      expect(() => encryptSecret("x")).toThrow(ApiError);
+      expect(() => encryptSecret("x")).toThrow(/32 bytes/);
+    } finally {
+      process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY = original;
+    }
+  });
+});

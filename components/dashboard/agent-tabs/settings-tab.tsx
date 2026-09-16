@@ -19,7 +19,6 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
   const { t } = useTranslation();
   const [voiceModelId, setVoiceModelId] = useState(widget.voice_model_id ?? "");
   const [voiceGender, setVoiceGender] = useState<"male" | "female">(widget.extra.voiceGender ?? DEFAULT_VOICE_GENDER);
-  const [llmModelId, setLlmModelId] = useState(widget.llm_model_id ?? "");
   const [language, setLanguage] = useState(widget.language);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
@@ -58,7 +57,7 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
   }, [widget.extra.voiceGender]);
 
   const knowledgeCount = (widget.extra.knowledgeBase ?? []).length;
-  const selectedModel = llmModels.find((model) => model.id === llmModelId);
+  const selectedModel = llmModels.find((model) => model.id === widget.llm_model_id);
   const isVapiModel = selectedModel?.provider === "vapi";
 
   async function handleSave() {
@@ -70,11 +69,10 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
     const ok = await savePatch(
       isVapiModel
         ? {
-            llmModelId: llmModelId || null,
             language,
             extra: { voiceGender, silenceTimeoutSeconds: silenceTimeout, maxDurationSeconds: maxDuration },
           }
-        : { voiceModelId: voiceModelId || null, llmModelId: llmModelId || null, language }
+        : { voiceModelId: voiceModelId || null, language }
     );
     setSaving(false);
     setStatus(ok ? "saved" : "error");
@@ -128,26 +126,13 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
           </div>
         )}
 
-        <div>
-          <label htmlFor="llm-model" className="mb-1 block text-sm font-medium text-slate-700">
-            {t("agent.settings.modelLabel")}
-          </label>
-          <select
-            id="llm-model"
-            value={llmModelId}
-            onChange={(e) => setLlmModelId(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          >
-            <option value="">{t("common.noneSelected")}</option>
-            {llmModels.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.display_name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Vapi Assistant ID is stored internally but hidden from customer UI */}
+        {/* No model picker: the agent always runs on the model configured on
+            the Vapi template assistant (see lib/vapi/assistants.ts), the same
+            place its voice comes from. The dropdown that used to sit here
+            also listed the legacy Standard/Expert engines, so a customer
+            could silently move a working voice agent onto a pipeline the
+            create flow stopped offering in 0012_vapi_default_model.sql.
+            The Vapi assistant id is stored internally and stays hidden too. */}
 
         <div>
           <label htmlFor="language" className="mb-1 block text-sm font-medium text-slate-700">

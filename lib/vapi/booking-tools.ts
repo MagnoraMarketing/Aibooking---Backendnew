@@ -268,16 +268,23 @@ export async function rescheduleBooking(
       newStart,
     });
 
-    // Same Cal.com booking, new time — update the row we already have rather
-    // than logging a second appointment for one appointment.
+    // One appointment stays one row — but a Cal.com reschedule cancels the old
+    // booking and answers with a new uid, so the row has to follow that uid.
+    // Keeping the old one would leave us pointing at a cancelled booking, and
+    // the next "flyt min tid" would find nothing to update.
     await supabase
       .from("appointments")
-      .update({ appointment_time: updated.startTime, status: "booked" })
+      .update({
+        appointment_time: updated.startTime,
+        status: "booked",
+        calcom_booking_uid: updated.uid || booking.uid,
+        calcom_booking_id: updated.id ?? booking.id,
+      })
       .eq("customer_id", ctx.customerId)
       .eq("calcom_booking_uid", booking.uid);
 
-    // Cal.com's PATCH doesn't reliably email the attendee (cal.diy#14485), so
-    // the new time has to be said on the call — that's the caller's receipt.
+    // The new time is said on the call rather than left to the confirmation
+    // email — that's the caller's receipt, whether or not the email lands.
     return `Tiden er flyttet til ${updated.startTime} (${calendar.timezone}). Sig det nye tidspunkt højt til kunden, så de har det.`;
   } catch (err) {
     console.error("reschedule_booking failed:", err);
@@ -305,7 +312,7 @@ export async function cancelBooking(
 
     await cancelCalcomBooking({
       apiKey: calendar.apiKey,
-      bookingId: booking.id,
+      bookingUid: booking.uid,
       reason: input.reason?.trim() || "Aflyst af kunden via telefon",
     });
 

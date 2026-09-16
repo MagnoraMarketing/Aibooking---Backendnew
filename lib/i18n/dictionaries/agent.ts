@@ -849,14 +849,6 @@ export const agent: Namespace = {
     pt: "Masculina",
     de: "Männlich",
   },
-  "settings.modelLabel": {
-    da: "Model",
-    en: "Model",
-    es: "Modelo",
-    fr: "Modèle",
-    pt: "Modelo",
-    de: "Modell",
-  },
   "settings.languageLabel": {
     da: "Sprog",
     en: "Language",
