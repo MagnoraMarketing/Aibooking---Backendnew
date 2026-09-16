@@ -26,6 +26,10 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
   // a website agent, well inside what the API accepts.
   const [silenceTimeout, setSilenceTimeout] = useState(widget.extra.silenceTimeoutSeconds ?? 30);
   const [maxDuration, setMaxDuration] = useState(widget.extra.maxDurationSeconds ?? 600);
+  // A separate Vapi assistant for outbound campaign calls. Placing a call is
+  // not the same conversation as answering one, and this one is written by
+  // hand in Vapi — we never sync over it (see lib/vapi/assistant-owner.ts).
+  const [outboundAssistant, setOutboundAssistant] = useState(widget.extra.vapiOutboundAssistantId ?? "");
   // The booking connection is configured under the Booking tab; shown here
   // read-only so this page tells the truth about what the agent is set to
   // instead of offering a second, competing input for the same thing.
@@ -59,6 +63,8 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
   const knowledgeCount = (widget.extra.knowledgeBase ?? []).length;
   const selectedModel = llmModels.find((model) => model.id === widget.llm_model_id);
   const isVapiModel = selectedModel?.provider === "vapi";
+  // Only a phone agent places campaign calls; a website widget never does.
+  const isPhoneAgent = widget.agent_type === "phone";
 
   async function handleSave() {
     setSaving(true);
@@ -70,7 +76,14 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
       isVapiModel
         ? {
             language,
-            extra: { voiceGender, silenceTimeoutSeconds: silenceTimeout, maxDurationSeconds: maxDuration },
+            extra: {
+              voiceGender,
+              silenceTimeoutSeconds: silenceTimeout,
+              maxDurationSeconds: maxDuration,
+              // Empty clears it, which puts campaigns back on the assistant
+              // that answers the phone.
+              vapiOutboundAssistantId: outboundAssistant.trim() || null,
+            },
           }
         : { voiceModelId: voiceModelId || null, language }
     );
@@ -265,6 +278,25 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
             </ComingSoonField>
           </div>
         )}
+
+        {isPhoneAgent && isVapiModel ? (
+          <div>
+            <label htmlFor="outbound-assistant" className="mb-1 block text-sm font-medium text-slate-700">
+              {t("agent.settings.outboundAssistantLabel")}
+            </label>
+            <input
+              id="outbound-assistant"
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              value={outboundAssistant}
+              onChange={(e) => setOutboundAssistant(e.target.value)}
+              placeholder={t("agent.settings.outboundAssistantPlaceholder")}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+            <p className="mt-1 text-xs text-slate-500">{t("agent.settings.outboundAssistantHelp")}</p>
+          </div>
+        ) : null}
 
         <ComingSoonField label={t("agent.settings.leadConnectorLabel")}>
           <button

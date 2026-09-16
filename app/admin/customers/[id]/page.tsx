@@ -43,6 +43,24 @@ export default async function AdminCustomerDetailPage({ params }: { params: { id
       .maybeSingle<{ balance_seconds: number }>(),
   ]);
 
+  // Scoped to this customer's agents, and only the one key support edits from
+  // here — the rest of extra (knowledge base, prompt answers) is the
+  // customer's own and stays out of the page.
+  const widgetIds = (widgets ?? []).map((widget) => widget.id);
+  const { data: widgetSettings } = widgetIds.length
+    ? await supabase
+        .from("widget_settings")
+        .select("widget_id, extra")
+        .in("widget_id", widgetIds)
+        .returns<{ widget_id: string; extra: Record<string, unknown> | null }[]>()
+    : { data: [] };
+
+  const outboundAssistantIds = Object.fromEntries(
+    (widgetSettings ?? []).map(
+      (row) => [row.widget_id, (row.extra?.vapiOutboundAssistantId as string | null) ?? ""] as const
+    )
+  );
+
   const minutesRemaining = Math.round(((creditAccount?.balance_seconds ?? 0) / 60) * 100) / 100;
 
   return (
@@ -82,7 +100,7 @@ export default async function AdminCustomerDetailPage({ params }: { params: { id
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
           {translate(locale, "adminPages.customerDetail.agentsHeading")}
         </h2>
-        <CustomerWidgetList initialWidgets={widgets ?? []} />
+        <CustomerWidgetList initialWidgets={widgets ?? []} outboundAssistantIds={outboundAssistantIds} />
       </div>
     </div>
   );
