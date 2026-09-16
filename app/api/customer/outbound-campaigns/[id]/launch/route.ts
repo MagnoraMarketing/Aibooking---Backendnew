@@ -3,7 +3,7 @@ import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling, writeAuditLog, requireParam } from "@/lib/security";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
-import { createOutboundCall } from "@/lib/vapi";
+import { createOutboundCall, describeOutboundCallFailure } from "@/lib/vapi";
 import { createTwilioOutboundCall, getOrCreateSubaccount } from "@/lib/twilio";
 import { twilioWebhookUrls } from "@/lib/telephony/urls";
 import { outboundNumberIssue } from "@/lib/phone-numbers";
@@ -115,14 +115,26 @@ export const POST = withErrorHandling(async (_request, { params }) => {
     })
   );
 
+  // The raw provider text is kept on the row, where we can read it; the
+  // customer gets the distinct reasons in their own language. A campaign
+  // where every call was refused used to look exactly like one that went
+  // out — status "launched", nothing on screen — which is how "den ringer
+  // ikke op" becomes a mystery instead of a message.
   let failedCount = 0;
+  const failures = new Map<string, number>();
   await Promise.all(
     results.map(async (result, i) => {
       if (result.status !== "rejected") return;
       failedCount += 1;
+
+      const raw = String(result.reason);
+      console.error("Outbound call refused:", raw);
+      const explained = describeOutboundCallFailure(raw);
+      failures.set(explained, (failures.get(explained) ?? 0) + 1);
+
       await supabase
         .from("outbound_campaign_contacts")
-        .update({ status: "failed", failure_reason: String(result.reason).slice(0, 500) })
+        .update({ status: "failed", failure_reason: raw.slice(0, 500) })
         .eq("id", contacts![i].id);
     })
   );
@@ -142,5 +154,9 @@ export const POST = withErrorHandling(async (_request, { params }) => {
     metadata: { contactCount: contacts?.length ?? 0, failedCount },
   });
 
-  return NextResponse.json({ launched: (contacts?.length ?? 0) - failedCount, failed: failedCount });
+  return NextResponse.json({
+    launched: (contacts?.length ?? 0) - failedCount,
+    failed: failedCount,
+    failures: [...failures].map(([reason, count]) => ({ reason, count })),
+  });
 });
