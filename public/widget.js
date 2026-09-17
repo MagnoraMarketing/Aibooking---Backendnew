@@ -604,7 +604,9 @@
       transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
 
-    var rtc = { pc: null, dc: null, micStream: null, audioEl: null, startedAt: null, active: false };
+    // `starting` covers the gap between the button being pressed and the
+    // call being up — see the note on the Vapi UI's own flag below.
+    var rtc = { pc: null, dc: null, micStream: null, audioEl: null, startedAt: null, active: false, starting: false };
 
     function teardownConnection() {
       if (rtc.pc) {
@@ -630,6 +632,7 @@
     }
 
     function endCall(unloading) {
+      rtc.starting = false;
       if (!rtc.active) return;
       rtc.active = false;
       var durationSeconds = rtc.startedAt ? (Date.now() - rtc.startedAt) / 1000 : 0;
@@ -717,6 +720,7 @@
           return rtc.pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
         })
         .then(function () {
+          rtc.starting = false;
           rtc.active = true;
           rtc.startedAt = Date.now();
           statusEl.textContent = "Forbundet — I taler nu sammen";
@@ -725,6 +729,8 @@
     }
 
     function startCall() {
+      if (rtc.starting || rtc.active) return;
+      rtc.starting = true;
       statusEl.textContent = "Forbinder...";
       apiFetch("/api/widget/session", {
         method: "POST",
@@ -738,6 +744,7 @@
         })
         .catch(function (err) {
           console.error("[aibooking] Realtime widget failed to start:", err);
+          rtc.starting = false;
           teardownConnection();
           statusEl.textContent =
             err.status === 402
@@ -886,13 +893,20 @@
       transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
 
-    var call = { client: null, active: false, startedAt: null };
+    // `starting` covers the gap between the button being pressed and Vapi
+    // reporting the call up. It used to be unguarded: a second tap during
+    // "Forbinder..." — a double tap on a phone is enough — opened a second
+    // session and a second conversation row, and the call then matched two
+    // conversations instead of one, so the webhook refused to attach the
+    // transcript and recording to either (see linkConversationToCall).
+    var call = { client: null, active: false, starting: false, startedAt: null };
 
     // All end-of-call bookkeeping (duration, billing PATCH, UI reset) lives
     // here and only here — the call button just tells the SDK to stop,
     // whether the user hangs up or the assistant/Vapi ends the call first,
     // both paths converge on the SDK's own "call-end" event.
     function handleCallEnd(unloading) {
+      call.starting = false;
       if (!call.active) return;
       call.active = false;
       var durationSeconds = call.startedAt ? (Date.now() - call.startedAt) / 1000 : 0;
@@ -913,6 +927,8 @@
     }
 
     function startCall() {
+      if (call.starting || call.active) return;
+      call.starting = true;
       statusEl.textContent = "Forbinder...";
       apiFetch("/api/widget/session", {
         method: "POST",
@@ -930,6 +946,7 @@
               hideDefaultVapiButton();
               call.client = vapiSDK.run({ apiKey: data.vapi.publicKey, assistant: data.vapi.assistantId, config: {} });
               call.client.on("call-start", function () {
+                call.starting = false;
                 call.active = true;
                 call.startedAt = Date.now();
                 statusEl.textContent = "Forbundet — I taler nu sammen";
@@ -950,6 +967,7 @@
                 // dead-end generic message, and always log the raw object so
                 // it's visible in devtools even when no readable text exists.
                 console.error("Vapi call error:", e);
+                call.starting = false;
                 var detail = describeError(e);
                 statusEl.textContent = detail
                   ? "Fejl: " + detail
@@ -966,6 +984,7 @@
           // diagnosable from the browser console instead of just the one
           // generic status line every failure used to collapse into.
           console.error("[aibooking] Vapi widget failed to start:", err);
+          call.starting = false;
           statusEl.textContent =
             err.status === 402
               ? "Ikke flere minutter tilgængelige lige nu."
@@ -1087,13 +1106,14 @@
     document.body.appendChild(panel);
     document.body.appendChild(launcher);
 
-    var call = { device: null, activeCall: null, active: false };
+    var call = { device: null, activeCall: null, active: false, starting: false };
 
     // Billing is handled entirely server-side (relay-server measures the
     // real ConversationRelay connection duration and reports it to
     // /api/internal/conversation-relay/end when the call ends) — unlike the
     // realtime/Vapi UIs above, this handler never PATCHes /api/widget/session.
     function handleCallEnd() {
+      call.starting = false;
       if (!call.active) return;
       call.active = false;
       call.activeCall = null;
@@ -1102,6 +1122,8 @@
     }
 
     function startCall() {
+      if (call.starting || call.active) return;
+      call.starting = true;
       statusEl.textContent = "Forbinder...";
       apiFetch("/api/widget/relay-token", {
         method: "POST",
@@ -1134,6 +1156,7 @@
         .then(function (twilioCall) {
           call.activeCall = twilioCall;
           twilioCall.on("accept", function () {
+            call.starting = false;
             call.active = true;
             statusEl.textContent = "Forbundet — I taler nu sammen";
             callBtn.textContent = "⏹";
@@ -1141,6 +1164,7 @@
           twilioCall.on("disconnect", handleCallEnd);
           twilioCall.on("error", function (e) {
             console.error("Twilio call error:", e);
+            call.starting = false;
             var detail = describeError(e);
             statusEl.textContent = detail
               ? "Fejl: " + detail
@@ -1149,6 +1173,7 @@
         })
         .catch(function (err) {
           console.error("[aibooking] Twilio Relay widget failed to start:", err);
+          call.starting = false;
           statusEl.textContent =
             err.status === 402
               ? "Ikke flere minutter tilgængelige lige nu."
