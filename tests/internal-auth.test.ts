@@ -52,3 +52,40 @@ describe("requireInternalSecret", () => {
     }
   });
 });
+
+// The dialer's cron job spent an evening getting 401s from a secret that
+// looked identical on both sides: the value pasted into the hosting
+// dashboard had picked up a newline, and the comparison is length-sensitive.
+describe("a secret that picked up whitespace on the way in", () => {
+  const original = process.env.CONVERSATION_RELAY_INTERNAL_SECRET;
+
+  afterEach(() => {
+    process.env.CONVERSATION_RELAY_INTERNAL_SECRET = original;
+  });
+
+  it("accepts the right secret when the stored copy has a trailing newline", () => {
+    process.env.CONVERSATION_RELAY_INTERNAL_SECRET = "correct-secret\n";
+
+    expect(() => requireInternalSecret(requestWithSecret("correct-secret"))).not.toThrow();
+  });
+
+  it("accepts the right secret when the header arrives padded", () => {
+    process.env.CONVERSATION_RELAY_INTERNAL_SECRET = "correct-secret";
+
+    expect(() => requireInternalSecret(requestWithSecret("  correct-secret  "))).not.toThrow();
+  });
+
+  // Ignoring whitespace is not the same as ignoring the secret.
+  it("still refuses a secret that is merely similar", () => {
+    process.env.CONVERSATION_RELAY_INTERNAL_SECRET = "correct-secret";
+
+    expect(() => requireInternalSecret(requestWithSecret("correct-secre"))).toThrow(ApiError);
+    expect(() => requireInternalSecret(requestWithSecret("correct secret"))).toThrow(ApiError);
+  });
+
+  it("still refuses when only whitespace is configured", () => {
+    process.env.CONVERSATION_RELAY_INTERNAL_SECRET = "   ";
+
+    expect(() => requireInternalSecret(requestWithSecret("   "))).toThrow(ApiError);
+  });
+});
