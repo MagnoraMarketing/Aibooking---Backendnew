@@ -17,6 +17,12 @@ export interface VapiCallReport {
   transcript: TranscriptLine[];
   summary: string | null;
   recordingUrl: string | null;
+  // When the call actually connected, and how Vapi says it ended. Inbound
+  // does not need either — the conversation row carries its own timestamps —
+  // but an outbound contact has no conversation, so this report is the only
+  // place its call details exist.
+  startedAt: string | null;
+  endedReason: string | null;
 }
 
 // Vapi labels the agent's turns "bot" in the structured messages and "AI" in
@@ -73,5 +79,7 @@ export function parseCallReport(payload: Record<string, unknown> | null | undefi
     transcript: readTranscript(payload),
     summary: summary || null,
     recordingUrl: recordingUrl || null,
+    startedAt: typeof payload.startedAt === "string" ? payload.startedAt : null,
+    endedReason: typeof payload.endedReason === "string" ? payload.endedReason : null,
   };
 }
