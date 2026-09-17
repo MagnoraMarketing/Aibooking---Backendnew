@@ -2401,13 +2401,22 @@ export const dashboardPages: Namespace = {
     pt: "Ainda não há resumo — a conversa pode ser muito curta.",
     de: "Noch keine Zusammenfassung — das Gespräch ist möglicherweise zu kurz.",
   },
+  // Recordings exist for voice calls; a text chat has nothing to play.
   "session-details-modal.noRecording": {
-    da: "Der gemmes ingen lydoptagelse i denne udgave — kun tekst-transskription.",
-    en: "No audio recording is stored in this version — text transcript only.",
-    es: "No se guarda ninguna grabación de audio en esta versión — solo transcripción de texto.",
-    fr: "Aucun enregistrement audio n'est conservé dans cette version — uniquement la transcription texte.",
-    pt: "Nenhuma gravação de áudio é armazenada nesta versão — apenas transcrição de texto.",
-    de: "In dieser Version wird keine Audioaufnahme gespeichert — nur Texttranskript.",
+    da: "Der er ingen optagelse af denne samtale.",
+    en: "There is no recording of this conversation.",
+    es: "No hay grabación de esta conversación.",
+    fr: "Il n'y a pas d'enregistrement de cette conversation.",
+    pt: "Não há gravação desta conversa.",
+    de: "Von diesem Gespräch gibt es keine Aufnahme.",
+  },
+  "session-details-modal.downloadRecording": {
+    da: "Åbn optagelsen i ny fane",
+    en: "Open the recording in a new tab",
+    es: "Abrir la grabación en una pestaña nueva",
+    fr: "Ouvrir l'enregistrement dans un nouvel onglet",
+    pt: "Abrir a gravação num novo separador",
+    de: "Aufnahme in neuem Tab öffnen",
   },
   "session-details-modal.analysisUnavailable": {
     da: "Automatisk samtaleanalyse er ikke tilgængelig endnu.",

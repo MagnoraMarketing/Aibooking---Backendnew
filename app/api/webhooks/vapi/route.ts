@@ -63,6 +63,48 @@ async function resolveCallOwner(
   return { id: phoneNumberRow.widget_id, customer_id: phoneNumberRow.customer_id };
 }
 
+// Ties the call to the conversation the dashboard lists it as.
+//
+// Vapi's script-tag SDK does not hand the call id to its call-start
+// listener, so the browser cannot report it; this is the other end. A widget
+// session mints its conversation row and then starts the call a second or
+// two later, so the conversation is the one for this widget, still without a
+// call, opened in the couple of minutes before the call began.
+//
+// Matched only when exactly one conversation fits. Two visitors on the same
+// widget at the same moment is rare, and attaching one caller's transcript
+// to the other's conversation is worse than showing no transcript at all.
+async function linkConversationToCall(
+  supabase: SupabaseAdmin,
+  widgetId: string,
+  callId: string,
+  startedAt: unknown
+): Promise<void> {
+  const startedAtMs = typeof startedAt === "string" ? Date.parse(startedAt) : NaN;
+  if (Number.isNaN(startedAtMs)) return;
+
+  const windowStart = new Date(startedAtMs - 2 * 60_000).toISOString();
+  const windowEnd = new Date(startedAtMs + 30_000).toISOString();
+
+  const { data: candidates } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("widget_id", widgetId)
+    .is("vapi_call_id", null)
+    .gte("created_at", windowStart)
+    .lte("created_at", windowEnd)
+    .limit(2);
+
+  if (!candidates || candidates.length !== 1) return;
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ vapi_call_id: callId })
+    .eq("id", candidates[0]!.id)
+    .is("vapi_call_id", null);
+  if (error) console.error("Failed to link conversation to Vapi call:", error.message);
+}
+
 // Phone calls (inbound + outbound, see 0013_phone_calling.sql) are billed
 // from *here* rather than from our own start/end session calls, because —
 // unlike the widget — nothing in our own backend is on the line for a phone
@@ -133,6 +175,11 @@ async function recordAndBillCall(supabase: SupabaseAdmin, message: Record<string
   if (contact) {
     await supabase.from("outbound_campaign_contacts").update({ status: "completed" }).eq("id", contact.id);
   }
+
+  // What makes the Samtaledetaljer tabs show anything: the transcript,
+  // summary and recording are all in this report, and the conversation row
+  // is how the dashboard finds it again.
+  await linkConversationToCall(supabase, widget.id, callId, message.startedAt);
 
   await deductPhoneCallCost({
     customerId: widget.customer_id,
