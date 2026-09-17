@@ -113,6 +113,17 @@ describe("explaining a call the provider refused", () => {
     expect(explained).not.toMatch(/Vapi|statusCode|Bad Request/);
   });
 
+  // The count resets, so waiting is a real answer here — the generic "vi
+  // kigger på det" would send the customer away for nothing.
+  it("tells the customer to try tomorrow when the number hit its daily limit", () => {
+    const explained = describeOutboundCallFailure(
+      "Couldn't Start Call. Numbers Bought On Vapi Have A Daily Outbound Call Limit. Import Your Own Twilio Numbers To Scale Without Limits."
+    );
+
+    expect(explained).toMatch(/Prøv igen i morgen/);
+    expect(explained).not.toMatch(/Vapi|Twilio/);
+  });
+
   it("stays generic, not silent, on a refusal it has never seen", () => {
     const explained = describeOutboundCallFailure("some upstream thing broke");
 

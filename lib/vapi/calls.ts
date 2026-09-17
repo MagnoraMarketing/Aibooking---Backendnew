@@ -38,6 +38,12 @@ export function describeOutboundCallFailure(reason: string): string {
   if (/international calls/i.test(reason)) {
     return "Der kan kun ringes til amerikanske numre fra det valgte nummer. Vælg et andet nummer, eller kontakt os, så sætter vi et nummer op der kan ringe til danske numre.";
   }
+  // A number bought on Vapi may only place so many calls a day. The count
+  // resets, so this is the one refusal where waiting is a real answer — and
+  // saying "vi kigger på det" would send the customer away for nothing.
+  if (/daily outbound call limit/i.test(reason)) {
+    return "Der er ringet ud det antal gange, nummeret tillader på én dag. Prøv igen i morgen, eller kontakt os, så sætter vi et nummer op uden den grænse.";
+  }
   if (/credit card|payment method|billing/i.test(reason)) {
     return "Der kan ikke ringes ud lige nu. Vi er på sagen — kontakt os, hvis det haster.";
   }
