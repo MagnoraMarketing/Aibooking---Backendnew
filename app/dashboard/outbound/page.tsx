@@ -16,6 +16,17 @@ export interface CampaignRow {
   created_at: string;
   launched_at: string | null;
   outbound_campaign_contacts: { count: number }[];
+  // Settings (see 0039_outbound_campaign_settings.sql). Present on every
+  // campaign — the columns have defaults — so the edit form always has
+  // something to show.
+  agent_instruction: string | null;
+  call_window_start: string;
+  call_window_end: string;
+  call_days: number[];
+  call_timezone: string;
+  max_concurrent_calls: number;
+  max_attempts: number;
+  retry_after_minutes: number;
 }
 
 export default async function OutboundPage() {

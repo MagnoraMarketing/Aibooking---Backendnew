@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, outboundCampaignInputSchema } from "@/lib/security";
+import { settingsToDbRow, windowIssue } from "@/lib/outbound/settings";
 import { outboundNumberIssue } from "@/lib/phone-numbers";
 import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
 import { ApiError } from "@/types/errors";
@@ -56,6 +57,9 @@ export const POST = withErrorHandling(async (request) => {
   const issue = outboundNumberIssue(phoneNumber, { usesVapi: !(await widgetDialsThroughTwilio(widget.id)) });
   if (issue) throw ApiError.badRequest(issue);
 
+  const badWindow = windowIssue(body.callWindowStart, body.callWindowEnd);
+  if (badWindow) throw ApiError.badRequest(badWindow);
+
   const { data: campaign, error } = await supabase
     .from("outbound_campaigns")
     .insert({
@@ -63,6 +67,9 @@ export const POST = withErrorHandling(async (request) => {
       widget_id: widget.id,
       phone_number_id: phoneNumber.id,
       name: body.name,
+      // Anything the form left out keeps the column default — weekdays
+      // 09–17 in Copenhagen, three at a time, one attempt.
+      ...settingsToDbRow(body),
     })
     .select("*")
     .single();

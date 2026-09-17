@@ -279,19 +279,57 @@ export const importPhoneNumberInputSchema = z.object({
 // Capped at 100 contacts per campaign for v1 — launch fires one Vapi call
 // per contact concurrently within a single request, and this keeps that
 // bounded well under typical serverless function time limits.
-export const outboundCampaignInputSchema = z.object({
+// What a campaign may be told to do, beyond who to ring. Bounds match the
+// database's own checks (0039_outbound_campaign_settings.sql) so a bad value
+// is a form error rather than a constraint violation.
+export const outboundCampaignSettingsSchema = z.object({
+  // What this campaign is about, added to the agent's prompt for its calls
+  // only — the agent that answers the phone is untouched.
+  agentInstruction: z.string().trim().max(2000).nullable().optional(),
+  callWindowStart: z
+    .string()
+    .trim()
+    .regex(/^\d{2}:\d{2}$/, "Skal være et klokkeslæt, fx 09:00")
+    .optional(),
+  callWindowEnd: z
+    .string()
+    .trim()
+    .regex(/^\d{2}:\d{2}$/, "Skal være et klokkeslæt, fx 17:00")
+    .optional(),
+  // ISO weekdays, Monday = 1.
+  callDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
+  callTimezone: z.string().trim().min(1).max(60).optional(),
+  maxConcurrentCalls: z.number().int().min(1).max(10).optional(),
+  maxAttempts: z.number().int().min(1).max(5).optional(),
+  retryAfterMinutes: z.number().int().min(5).max(1440).optional(),
+});
+
+const campaignContactsSchema = z
+  .array(
+    z.object({
+      phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
+      name: z.string().trim().max(200).optional(),
+    })
+  )
+  .min(1)
+  .max(100);
+
+export const outboundCampaignInputSchema = outboundCampaignSettingsSchema.extend({
   widgetId: z.string().uuid(),
   phoneNumberId: z.string().uuid(),
   name: z.string().trim().min(1).max(200),
-  contacts: z
-    .array(
-      z.object({
-        phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
-        name: z.string().trim().max(200).optional(),
-      })
-    )
-    .min(1)
-    .max(100),
+  contacts: campaignContactsSchema,
+});
+
+// Editing a campaign that has not been launched yet. Everything is optional
+// — the form saves what changed — and a contact list, when sent, replaces
+// the old one wholesale, which is what "rediger listen" means to the person
+// looking at a textarea of numbers.
+export const outboundCampaignUpdateSchema = outboundCampaignSettingsSchema.extend({
+  widgetId: z.string().uuid().optional(),
+  phoneNumberId: z.string().uuid().optional(),
+  name: z.string().trim().min(1).max(200).optional(),
+  contacts: campaignContactsSchema.optional(),
 });
 
 export const widgetMessageSchema = z.object({
