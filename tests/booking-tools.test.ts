@@ -10,7 +10,11 @@ const findUpcomingCalcomBooking = vi.fn();
 const rescheduleCalcomBooking = vi.fn();
 const cancelCalcomBooking = vi.fn();
 
-vi.mock("@/lib/calendar", () => ({
+// The refusal classifier is the real one: it is a pure function over an
+// error message, and what the agent is told when a booking fails is exactly
+// what these tests are about.
+vi.mock("@/lib/calendar", async () => ({
+  ...(await vi.importActual<typeof import("@/lib/calendar/booking-failure")>("@/lib/calendar/booking-failure")),
   fetchCalcomAvailability: (...args: unknown[]) => fetchCalcomAvailability(...args),
   createCalcomBooking: (...args: unknown[]) => createCalcomBooking(...args),
   fetchCalcomEventTypes: (...args: unknown[]) => fetchCalcomEventTypes(...args),
@@ -374,5 +378,105 @@ describe("tool dispatch", () => {
 
   it("returns a spoken-safe string for an unknown tool", async () => {
     expect(await executeBookingTool("drop_database", {}, ENABLED)).toBe("Den funktion findes ikke.");
+  });
+});
+
+// A real test call, 17 September 2026: the caller said
+// "mail@magnoramarketing.dk", the transcription heard
+// "mail@magnora.marketing.dk", and Cal.com refused an address at a domain
+// that cannot receive mail. The agent was told only that the booking had
+// failed and that it should offer another time — so it offered another time,
+// which was never the problem, and said "der er desværre sket en teknisk
+// fejl" twice before the caller hung up with no appointment.
+describe("a booking refused over the email address", () => {
+  const CALCOM_EMAIL_REFUSAL = new Error(
+    'Cal.com afviste anmodningen (400): {"statusCode":400,"message":"email_domain_cannot_receive_mail","error":{"message":"This email address cannot receive mail. Please use a valid email."}}'
+  );
+
+  it("tells the agent to get the address repeated, not to find another time", async () => {
+    createCalcomBooking.mockRejectedValue(CALCOM_EMAIL_REFUSAL);
+
+    const reply = await createBooking(
+      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "mail@magnora.marketing.dk" },
+      ENABLED
+    );
+
+    expect(reply).toContain("IKKE");
+    expect(reply).toMatch(/stave|gentage/i);
+    // The old advice, and the reason the call went nowhere: the time was
+    // never the problem and the caller kept being offered new ones.
+    expect(reply).not.toMatch(/anden tid/i);
+  });
+
+  it("still says another time when the slot really was taken", async () => {
+    createCalcomBooking.mockRejectedValue(new Error("no_available_users_found_error"));
+
+    const reply = await createBooking(
+      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "a@b.dk" },
+      ENABLED
+    );
+
+    expect(reply).toMatch(/anden ledig tid/i);
+  });
+
+  // Nothing to ask Cal.com: the answer would be the same refusal, one
+  // round-trip and one failed booking record later.
+  it("does not even try an address that cannot be one", async () => {
+    const reply = await createBooking(
+      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "mail hos magnora" },
+      ENABLED
+    );
+
+    expect(createCalcomBooking).not.toHaveBeenCalled();
+    expect(insertedAppointments).toHaveLength(0);
+    expect(reply).toContain("IKKE");
+  });
+
+  // Speech-to-text puts a space where the caller paused. A space is never
+  // part of an address, so removing it loses nothing and saves the round.
+  it("strips the spaces dictation leaves behind", async () => {
+    createCalcomBooking.mockResolvedValue({ id: 1, uid: "bk_1", status: "accepted" });
+
+    await createBooking(
+      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "mail @ magnoramarketing.dk" },
+      ENABLED
+    );
+
+    expect(createCalcomBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "mail@magnoramarketing.dk" })
+    );
+  });
+});
+
+// The same call: asked for "på mandag", the agent worked out a Monday in
+// January and checked that week — a Vapi assistant's prompt is written once
+// and carries no date, so it had nothing to count from. It then told the
+// caller the time was taken. Nothing was taken; nothing was even looked at.
+describe("an agent that does not know what day it is", () => {
+  it("says today's date in every availability answer", async () => {
+    fetchCalcomAvailability.mockResolvedValue([{ time: "2026-09-17T09:00:00+02:00" }]);
+
+    const reply = await checkAvailability({}, ENABLED);
+    const today = new Intl.DateTimeFormat("da-DK", {
+      timeZone: "Europe/Copenhagen",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date());
+
+    expect(reply).toContain(today);
+  });
+
+  it("answers from today when asked about a date that has passed", async () => {
+    fetchCalcomAvailability.mockResolvedValue([{ time: "2026-09-17T09:00:00+02:00" }]);
+
+    const reply = await checkAvailability({ date: "2020-01-13" }, ENABLED);
+
+    expect(reply).toContain("2020-01-13");
+    expect(reply).toMatch(/passeret/i);
+    // Searched from now, not from a week in 2020 that would return nothing.
+    const [call] = fetchCalcomAvailability.mock.calls.at(-1) as [{ startTime: string }];
+    expect(new Date(call.startTime).getFullYear()).toBe(new Date().getFullYear());
   });
 });

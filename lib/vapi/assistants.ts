@@ -175,7 +175,14 @@ function buildBookingTools() {
               description: "Starttidspunkt i ISO 8601 med tidszone, fx 2026-03-15T14:00:00+01:00.",
             },
             customer_name: { type: "string", description: "Kundens fulde navn." },
-            customer_email: { type: "string", description: "Kundens email til bekræftelsen." },
+            customer_email: {
+              type: "string",
+              // Read back and confirmed, because an address heard wrong is
+              // the one booking failure the caller can fix on the spot —
+              // and the one that otherwise ends the call with nothing.
+              description:
+                "Kundens e-mailadresse til bekræftelsen. Læs adressen op for kunden og få den bekræftet, før du booker.",
+            },
           },
           required: ["start_time", "customer_name", "customer_email"],
         },
