@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withErrorHandling, requireDialerSecret } from "@/lib/security";
-import { runDialerTick } from "@/lib/outbound/dialer";
+import { runDialerTick, finishCompletedCampaigns } from "@/lib/outbound/dialer";
+import { getAdminClient } from "@/lib/database/admin";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -25,15 +26,19 @@ export const POST = withErrorHandling(async (request) => {
   requireDialerSecret(request);
 
   const result = await runDialerTick();
+  // After dialling, not before: a campaign whose last contact was just
+  // claimed is not finished, and one whose last call the webhook settled a
+  // minute ago is.
+  const finished = await finishCompletedCampaigns(getAdminClient());
 
   // Logged, not silent: a tick that defers everything looks identical to one
   // that did nothing, and the difference is the whole question when a
   // customer asks why their campaign has not started.
-  if (result.campaigns > 0) {
+  if (result.campaigns > 0 || finished > 0) {
     console.log(
-      `Outbound dialer: ${result.campaigns} campaign(s), ${result.dialed} dialed, ${result.deferred} deferred, ${result.failed} failed`
+      `Outbound dialer: ${result.campaigns} campaign(s), ${result.dialed} dialed, ${result.deferred} deferred, ${result.failed} failed, ${finished} finished`
     );
   }
 
-  return NextResponse.json(result);
+  return NextResponse.json({ ...result, finished });
 });

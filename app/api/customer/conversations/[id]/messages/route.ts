@@ -2,29 +2,12 @@ import { NextResponse } from "next/server";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling } from "@/lib/security";
-import { parseCallReport } from "@/lib/vapi/call-report";
+import { loadStoredCallReport } from "@/lib/vapi/stored-call-report";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
 export const dynamic = "force-dynamic";
-
-// Everything the details modal shows for a voice conversation comes from the
-// call's end-of-call-report — see lib/vapi/call-report.ts.
-async function loadVapiCallReport(supabase: ReturnType<typeof getAdminClient>, vapiCallId: string | null) {
-  if (!vapiCallId) return null;
-
-  const { data: event } = await supabase
-    .from("vapi_events")
-    .select("payload")
-    .eq("call_id", vapiCallId)
-    .eq("type", "end-of-call-report")
-    .order("received_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return parseCallReport(event?.payload as Record<string, unknown> | null);
-}
 
 export const GET = withErrorHandling(async (_request, { params }) => {
   const ctx = await requireCustomerAdmin();
@@ -58,7 +41,9 @@ export const GET = withErrorHandling(async (_request, { params }) => {
 
   if (messagesError) throw messagesError;
 
-  const call = await loadVapiCallReport(supabase, conversation.vapi_call_id);
+  // Everything the details modal shows for a voice conversation comes from
+  // the call's end-of-call-report — see lib/vapi/call-report.ts.
+  const call = await loadStoredCallReport(supabase, conversation.vapi_call_id);
 
   return NextResponse.json({
     conversation,

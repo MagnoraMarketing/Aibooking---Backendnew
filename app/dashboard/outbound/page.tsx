@@ -2,6 +2,8 @@ import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { OutboundManager } from "@/components/dashboard/outbound-manager";
 import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
+import { campaignStatsFor, EMPTY_STATS, type CampaignStats } from "@/lib/outbound/stats";
+import type { CampaignStatus } from "@/lib/outbound/status";
 import type { Widget } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 
@@ -12,10 +14,16 @@ export interface CampaignRow {
   widget_id: string;
   phone_number_id: string;
   name: string;
-  status: "draft" | "launched";
+  status: CampaignStatus;
   created_at: string;
   launched_at: string | null;
+  paused_at: string | null;
+  finished_at: string | null;
   outbound_campaign_contacts: { count: number }[];
+  // What the campaign amounts to: called, pending, outcomes, minutes, last
+  // call. Counted from the contacts and the calls themselves rather than
+  // stored on the campaign, so it cannot drift (see lib/outbound/stats.ts).
+  stats: CampaignStats;
   // Settings (see 0039_outbound_campaign_settings.sql). Present on every
   // campaign — the columns have defaults — so the edit form always has
   // something to show.
@@ -65,6 +73,13 @@ export default async function OutboundPage() {
   // outbound calling campaigns.
   const phoneAgents = (widgets ?? []).filter((w) => w.agent_type === "phone");
 
+  // One pair of queries for every campaign on the page, not a pair each.
+  const stats = await campaignStatsFor((campaigns ?? []).map((campaign) => campaign.id), supabase);
+  const campaignsWithStats = (campaigns ?? []).map((campaign) => ({
+    ...campaign,
+    stats: stats[campaign.id] ?? EMPTY_STATS,
+  }));
+
   const twilioDirectModelIds = new Set((twilioDirectModels ?? []).map((model) => model.id));
   const twilioDirectWidgetIds = phoneAgents
     .filter((widget) => widget.llm_model_id && twilioDirectModelIds.has(widget.llm_model_id))
@@ -74,7 +89,7 @@ export default async function OutboundPage() {
     <OutboundManager
       widgets={phoneAgents}
       phoneNumbers={phoneNumbers ?? []}
-      initialCampaigns={campaigns ?? []}
+      initialCampaigns={campaignsWithStats}
       twilioDirectWidgetIds={twilioDirectWidgetIds}
     />
   );

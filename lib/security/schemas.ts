@@ -309,6 +309,10 @@ const campaignContactsSchema = z
     z.object({
       phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
       name: z.string().trim().max(200).optional(),
+      // A third column in the pasted list. Most lists will not have one, and
+      // the agent never sees it — it is there so whoever reads the results
+      // knows who "Jens Jensen" was.
+      company: z.string().trim().max(200).optional(),
     })
   )
   .min(1)
@@ -319,6 +323,11 @@ export const outboundCampaignInputSchema = outboundCampaignSettingsSchema.extend
   phoneNumberId: z.string().uuid(),
   name: z.string().trim().min(1).max(200),
   contacts: campaignContactsSchema,
+});
+
+// Pausing or resuming a running campaign (see the campaign's status route).
+export const campaignStatusActionSchema = z.object({
+  action: z.enum(["pause", "resume"]),
 });
 
 // Editing a campaign that has not been launched yet. Everything is optional

@@ -4,6 +4,7 @@ import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling, writeAuditLog, requireParam } from "@/lib/security";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
 import { nextWindowOpening, parseWallClock, type CallWindow } from "@/lib/outbound/call-window";
+import { canLaunch } from "@/lib/outbound/status";
 import { outboundNumberIssue } from "@/lib/phone-numbers";
 import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
 import { outboundAssistantId } from "@/lib/vapi/assistant-owner";
@@ -13,9 +14,9 @@ import { ApiError } from "@/types/errors";
 // never statically optimized/cached.
 export const dynamic = "force-dynamic";
 
-// One-way transition: a campaign can only be launched once (status
-// draft -> launched), and launching queues its contacts rather than calling
-// them. The dialer works that queue a few at a time, inside the campaign's
+// A campaign can only be launched once (draft -> running), and launching
+// queues its contacts rather than calling them. Stopping and restarting it
+// afterwards is pause/resume, not a second launch. The dialer works that queue a few at a time, inside the campaign's
 // own hours (lib/outbound/dialer.ts).
 //
 // What stays here is everything worth refusing before a single call goes
@@ -36,7 +37,7 @@ export const POST = withErrorHandling(async (_request, { params }) => {
     .maybeSingle();
   if (error) throw error;
   if (!campaign || campaign.customer_id !== customerId) throw ApiError.notFound("Campaign not found");
-  if (campaign.status !== "draft") throw ApiError.badRequest("Campaign has already been launched");
+  if (!canLaunch(campaign.status)) throw ApiError.badRequest("Kampagnen er allerede sendt af sted.");
 
   const refill = await checkAndRefillIfNeeded(customerId);
   if (refill.balanceSeconds <= 0) {
@@ -106,7 +107,7 @@ export const POST = withErrorHandling(async (_request, { params }) => {
 
   await supabase
     .from("outbound_campaigns")
-    .update({ status: "launched", launched_at: new Date().toISOString() })
+    .update({ status: "running", launched_at: new Date().toISOString() })
     .eq("id", campaignId);
 
   await writeAuditLog({

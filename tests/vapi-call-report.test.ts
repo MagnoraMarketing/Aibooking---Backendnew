@@ -79,7 +79,13 @@ describe("a report with only the plain-text transcript", () => {
 
 describe("a report with nothing in it", () => {
   it("returns an empty transcript rather than throwing", () => {
-    expect(parseCallReport({})).toEqual({ transcript: [], summary: null, recordingUrl: null });
+    expect(parseCallReport({})).toEqual({
+      transcript: [],
+      summary: null,
+      recordingUrl: null,
+      startedAt: null,
+      endedReason: null,
+    });
   });
 
   // A call that connected and ended without a word — the tab should say so,

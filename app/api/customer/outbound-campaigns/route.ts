@@ -3,6 +3,7 @@ import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, outboundCampaignInputSchema } from "@/lib/security";
 import { settingsToDbRow, windowIssue } from "@/lib/outbound/settings";
+import { campaignStatsFor, EMPTY_STATS } from "@/lib/outbound/stats";
 import { outboundNumberIssue } from "@/lib/phone-numbers";
 import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
 import { ApiError } from "@/types/errors";
@@ -11,6 +12,9 @@ import { ApiError } from "@/types/errors";
 // never statically optimized/cached.
 export const dynamic = "force-dynamic";
 
+// The overview, with what each campaign amounts to. Polled by the dashboard
+// while a campaign is running, so it answers in two queries for all of them
+// rather than a handful each (see lib/outbound/stats.ts).
 export const GET = withErrorHandling(async () => {
   const ctx = await requireCustomerAdmin();
   const supabase = getAdminClient();
@@ -22,7 +26,12 @@ export const GET = withErrorHandling(async () => {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return NextResponse.json({ campaigns: data });
+
+  const stats = await campaignStatsFor((data ?? []).map((campaign) => campaign.id), supabase);
+
+  return NextResponse.json({
+    campaigns: (data ?? []).map((campaign) => ({ ...campaign, stats: stats[campaign.id] ?? EMPTY_STATS })),
+  });
 });
 
 // Creates a campaign in "draft" status with its contact list — placing the
@@ -81,6 +90,7 @@ export const POST = withErrorHandling(async (request) => {
       campaign_id: campaign.id,
       phone_number: contact.phoneNumber,
       contact_name: contact.name ?? null,
+      company: contact.company ?? null,
     }))
   );
 

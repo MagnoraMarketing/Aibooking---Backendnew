@@ -6,6 +6,7 @@ import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
 import { createTwilioOutboundCall, getOrCreateSubaccount } from "@/lib/twilio";
 import { twilioWebhookUrls } from "@/lib/telephony/urls";
 import { isWithinCallWindow, nextWindowOpening, parseWallClock, type CallWindow } from "./call-window";
+import { isDialable, type CampaignStatus } from "./status";
 
 // Works a launched campaign's queue, a few contacts at a time.
 //
@@ -31,6 +32,7 @@ const CAMPAIGNS_PER_TICK = 20;
 
 interface CampaignRow {
   id: string;
+  status: CampaignStatus;
   customer_id: string;
   widget_id: string;
   phone_number_id: string;
@@ -80,10 +82,12 @@ export async function runDialerTick(now: Date = new Date()): Promise<DialerTickR
   const { data: campaigns } = await supabase
     .from("outbound_campaigns")
     .select(
-      "id, customer_id, widget_id, phone_number_id, agent_instruction, call_window_start, call_window_end, call_days, call_timezone, max_concurrent_calls, max_attempts, retry_after_minutes"
+      "id, status, customer_id, widget_id, phone_number_id, agent_instruction, call_window_start, call_window_end, call_days, call_timezone, max_concurrent_calls, max_attempts, retry_after_minutes"
     )
     .in("id", campaignIds)
-    .eq("status", "launched")
+    // Paused campaigns keep their queue untouched and are simply not dialled
+    // — see lib/outbound/status.ts.
+    .eq("status", "running")
     .returns<CampaignRow[]>();
 
   for (const campaign of campaigns ?? []) {
@@ -94,12 +98,63 @@ export async function runDialerTick(now: Date = new Date()): Promise<DialerTickR
   return result;
 }
 
+// Closes a campaign that has nothing left to dial.
+//
+// "Completed" has to be a fact about the contacts rather than a button
+// somebody pressed, so it is decided here: no contact still pending and none
+// still ringing. Failed rather than completed when every single call was
+// refused — a campaign that reached nobody did not succeed, and saying it
+// completed would bury exactly the thing worth looking at.
+//
+// Checked for every running campaign on every tick, not only ones that dialled
+// this minute: the last call of a campaign is settled by the webhook, long
+// after the dialer's final tick for it.
+export async function finishCompletedCampaigns(
+  supabase: ReturnType<typeof getAdminClient>,
+  now: Date = new Date()
+): Promise<number> {
+  const { data: running } = await supabase
+    .from("outbound_campaigns")
+    .select("id")
+    .eq("status", "running")
+    .limit(100);
+
+  let finished = 0;
+  for (const campaign of running ?? []) {
+    const { data: rows } = await supabase
+      .from("outbound_campaign_contacts")
+      .select("status")
+      .eq("campaign_id", campaign.id);
+    if (!rows || rows.length === 0) continue;
+
+    const open = rows.filter((row) => row.status === "pending" || row.status === "calling").length;
+    if (open > 0) continue;
+
+    const completedCount = rows.filter((row) => row.status === "completed").length;
+    await supabase
+      .from("outbound_campaigns")
+      .update({
+        status: completedCount > 0 ? "completed" : "failed",
+        finished_at: now.toISOString(),
+      })
+      .eq("id", campaign.id)
+      .eq("status", "running");
+    finished += 1;
+  }
+
+  return finished;
+}
+
 async function runCampaign(
   supabase: ReturnType<typeof getAdminClient>,
   campaign: CampaignRow,
   now: Date,
   result: DialerTickResult
 ): Promise<DialerTickResult> {
+  // The query already filters to running; this is the rule itself, stated
+  // where the calls are placed rather than only in a where-clause.
+  if (!isDialable(campaign.status)) return result;
+
   const window = windowOf(campaign);
 
   // Outside the hours: park everything due until the window opens again
@@ -148,7 +203,12 @@ async function runCampaign(
     // overlapping must not ring the same person twice.
     const { data: claimed } = await supabase
       .from("outbound_campaign_contacts")
-      .update({ status: "calling", calling_since: now.toISOString(), attempts: contact.attempts + 1 })
+      .update({
+        status: "calling",
+        calling_since: now.toISOString(),
+        last_called_at: now.toISOString(),
+        attempts: contact.attempts + 1,
+      })
       .eq("id", contact.id)
       .eq("status", "pending")
       .select("id")
