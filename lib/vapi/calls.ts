@@ -5,15 +5,37 @@ export interface CreateOutboundCallParams {
   assistantId: string;
   phoneNumberId: string;
   customerNumber: string;
+  // What this campaign is for, in the customer's words. Sent as an override
+  // for these calls only — the assistant itself is never touched, so the
+  // agent that answers the phone is unaffected by a campaign's wording.
+  campaignInstruction?: string | null;
 }
 
 export async function createOutboundCall(params: CreateOutboundCallParams): Promise<{ id: string }> {
+  const instruction = params.campaignInstruction?.trim();
+
   const response = await vapiFetch("/call", {
     method: "POST",
     body: JSON.stringify({
       assistantId: params.assistantId,
       phoneNumberId: params.phoneNumberId,
       customer: { number: params.customerNumber },
+      ...(instruction
+        ? {
+            assistantOverrides: {
+              // Appended, not replaced: the agent keeps its own prompt,
+              // knowledge and manner, and this says what it is ringing about.
+              model: {
+                messages: [
+                  {
+                    role: "system",
+                    content: `### Formålet med dette opkald\n${instruction}`,
+                  },
+                ],
+              },
+            },
+          }
+        : {}),
     }),
   });
   const data = (await response.json()) as { id: string };

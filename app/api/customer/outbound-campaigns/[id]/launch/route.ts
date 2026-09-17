@@ -3,9 +3,7 @@ import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling, writeAuditLog, requireParam } from "@/lib/security";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
-import { createOutboundCall, describeOutboundCallFailure } from "@/lib/vapi";
-import { createTwilioOutboundCall, getOrCreateSubaccount } from "@/lib/twilio";
-import { twilioWebhookUrls } from "@/lib/telephony/urls";
+import { nextWindowOpening, parseWallClock, type CallWindow } from "@/lib/outbound/call-window";
 import { outboundNumberIssue } from "@/lib/phone-numbers";
 import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
 import { outboundAssistantId } from "@/lib/vapi/assistant-owner";
@@ -16,13 +14,15 @@ import { ApiError } from "@/types/errors";
 export const dynamic = "force-dynamic";
 
 // One-way transition: a campaign can only be launched once (status
-// draft -> launched). Fires one outbound call per pending contact
-// concurrently, tolerating individual failures (a bad number shouldn't
-// abort the rest of the campaign) — see outboundCampaignInputSchema's
-// 100-contact cap for why this can run synchronously within one request.
-// Which provider places the call (Vapi vs. Twilio-direct, see
-// lib/telephony) depends on the agent's model, same branch used when the
-// number was provisioned (lib/phone-numbers/service.ts).
+// draft -> launched), and launching queues its contacts rather than calling
+// them. The dialer works that queue a few at a time, inside the campaign's
+// own hours (lib/outbound/dialer.ts).
+//
+// What stays here is everything worth refusing before a single call goes
+// out: no minutes, an agent with no assistant, a number that cannot dial.
+// Those are the same for all 100 contacts, and finding out per contact,
+// after the campaign says "sendt", is how a customer ends up with a hundred
+// identical failures and no idea why.
 export const POST = withErrorHandling(async (_request, { params }) => {
   const ctx = await requireCustomerAdmin();
   const supabase = getAdminClient();
@@ -45,7 +45,6 @@ export const POST = withErrorHandling(async (_request, { params }) => {
 
   const isTwilioDirect = await widgetDialsThroughTwilio(campaign.widget_id);
 
-  let assistantId: string | null = null;
   if (!isTwilioDirect) {
     const { data: settings } = await supabase
       .from("widget_settings")
@@ -54,12 +53,12 @@ export const POST = withErrorHandling(async (_request, { params }) => {
       .maybeSingle();
     // An agent may keep a separate persona for campaign calls — placing one
     // is not the same conversation as answering the phone. Falls back to the
-    // assistant that answers when there is only the one.
-    const resolved = outboundAssistantId((settings?.extra as Record<string, unknown> | null) ?? {});
-    if (!resolved) {
+    // assistant that answers when there is only the one. The dialer resolves
+    // it again per campaign; this is the pre-flight so the customer hears
+    // about a missing assistant now rather than from 100 failed contacts.
+    if (!outboundAssistantId((settings?.extra as Record<string, unknown> | null) ?? {})) {
       throw ApiError.badRequest("Denne agent har ikke en Vapi-assistent");
     }
-    assistantId = resolved;
   }
 
   // Re-checked at launch, not just at creation: a number can be released or
@@ -79,69 +78,31 @@ export const POST = withErrorHandling(async (_request, { params }) => {
   const numberIssue = outboundNumberIssue(phoneNumber, { usesVapi: !isTwilioDirect });
   if (numberIssue) throw ApiError.badRequest(numberIssue);
 
-  const twilioCredentials = isTwilioDirect ? await getOrCreateSubaccount(customerId) : null;
+  // Queued, not dialled. Launching used to place every call from this one
+  // request: Vapi allows ten concurrent calls for the whole platform, so a
+  // hundred-contact campaign mostly failed, nobody was ever tried a second
+  // time, and a campaign launched at 21:00 rang a hundred people at 21:00.
+  // The dialer works the queue a few at a time, inside the campaign's own
+  // hours (see lib/outbound/dialer.ts).
+  const window: CallWindow = {
+    startMinutes: parseWallClock(campaign.call_window_start),
+    endMinutes: parseWallClock(campaign.call_window_end),
+    days: campaign.call_days ?? [],
+    timeZone: campaign.call_timezone,
+  };
+  const now = new Date();
+  const firstAttemptAt = nextWindowOpening(window, now);
+  if (!firstAttemptAt) {
+    throw ApiError.badRequest("Kampagnen har ingen ringedage valgt, så der er ingen tidspunkter at ringe på.");
+  }
 
   const { data: contacts, error: contactsError } = await supabase
     .from("outbound_campaign_contacts")
-    .select("*")
+    .update({ next_attempt_at: firstAttemptAt.toISOString() })
     .eq("campaign_id", campaignId)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
   if (contactsError) throw contactsError;
-
-  const results = await Promise.allSettled(
-    (contacts ?? []).map(async (contact) => {
-      // outbound_campaign_contacts.vapi_call_id stores the provider's call
-      // id regardless of provider — Vapi's or Twilio's — the column name
-      // predates this second provider.
-      const callId =
-        isTwilioDirect && twilioCredentials
-          ? (
-              await createTwilioOutboundCall(twilioCredentials, {
-                to: contact.phone_number,
-                from: phoneNumber.phone_number,
-                voiceUrl: twilioWebhookUrls().outboundStart,
-                statusCallbackUrl: twilioWebhookUrls().status,
-              })
-            ).sid
-          : (
-              await createOutboundCall({
-                assistantId: assistantId!,
-                phoneNumberId: phoneNumber.vapi_phone_number_id!,
-                customerNumber: contact.phone_number,
-              })
-            ).id;
-
-      const { error: updateError } = await supabase
-        .from("outbound_campaign_contacts")
-        .update({ status: "calling", vapi_call_id: callId })
-        .eq("id", contact.id);
-      if (updateError) throw updateError;
-    })
-  );
-
-  // The raw provider text is kept on the row, where we can read it; the
-  // customer gets the distinct reasons in their own language. A campaign
-  // where every call was refused used to look exactly like one that went
-  // out — status "launched", nothing on screen — which is how "den ringer
-  // ikke op" becomes a mystery instead of a message.
-  let failedCount = 0;
-  const failures = new Map<string, number>();
-  await Promise.all(
-    results.map(async (result, i) => {
-      if (result.status !== "rejected") return;
-      failedCount += 1;
-
-      const raw = String(result.reason);
-      console.error("Outbound call refused:", raw);
-      const explained = describeOutboundCallFailure(raw);
-      failures.set(explained, (failures.get(explained) ?? 0) + 1);
-
-      await supabase
-        .from("outbound_campaign_contacts")
-        .update({ status: "failed", failure_reason: raw.slice(0, 500) })
-        .eq("id", contacts![i].id);
-    })
-  );
 
   await supabase
     .from("outbound_campaigns")
@@ -155,12 +116,15 @@ export const POST = withErrorHandling(async (_request, { params }) => {
     action: "outbound_campaign.launched",
     entityType: "outbound_campaign",
     entityId: campaignId,
-    metadata: { contactCount: contacts?.length ?? 0, failedCount },
+    metadata: { contactCount: contacts?.length ?? 0, firstAttemptAt: firstAttemptAt.toISOString() },
   });
 
   return NextResponse.json({
-    launched: (contacts?.length ?? 0) - failedCount,
-    failed: failedCount,
-    failures: [...failures].map(([reason, count]) => ({ reason, count })),
+    queued: contacts?.length ?? 0,
+    // When the first call goes out — now, or when the window next opens. The
+    // dashboard says so, because a campaign that queues silently looks
+    // exactly like one that did nothing.
+    startsAt: firstAttemptAt.toISOString(),
+    startsNow: firstAttemptAt.getTime() <= now.getTime() + 60_000,
   });
 });

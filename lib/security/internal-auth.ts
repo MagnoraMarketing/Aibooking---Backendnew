@@ -12,11 +12,28 @@ const INTERNAL_SECRET_HEADER = "x-internal-secret";
 // this secret. Not a Twilio-signed request — relay-server is our own code,
 // not Twilio, so lib/twilio/signature.ts's scheme doesn't apply here.
 export function requireInternalSecret(request: Request): void {
-  const expected = process.env.CONVERSATION_RELAY_INTERNAL_SECRET;
+  requireSecretHeader(
+    request,
+    process.env.CONVERSATION_RELAY_INTERNAL_SECRET,
+    "Conversation Relay er ikke konfigureret på platformen endnu (mangler CONVERSATION_RELAY_INTERNAL_SECRET)."
+  );
+}
+
+// The outbound dialer, called once a minute by pg_cron from inside the
+// database (see 0040_outbound_dialer_schedule.sql). A separate secret from
+// the relay's: they are different callers, and this one places calls that
+// cost money, so a leak of one must not hand over the other.
+export function requireDialerSecret(request: Request): void {
+  requireSecretHeader(
+    request,
+    process.env.OUTBOUND_DIALER_SECRET,
+    "Den udgående dialer er ikke konfigureret på platformen endnu (mangler OUTBOUND_DIALER_SECRET)."
+  );
+}
+
+function requireSecretHeader(request: Request, expected: string | undefined, missingMessage: string): void {
   if (!expected) {
-    throw ApiError.internal(
-      "Conversation Relay er ikke konfigureret på platformen endnu (mangler CONVERSATION_RELAY_INTERNAL_SECRET)."
-    );
+    throw ApiError.internal(missingMessage);
   }
 
   const provided = request.headers.get(INTERNAL_SECRET_HEADER) ?? "";
