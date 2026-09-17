@@ -9,10 +9,21 @@ export interface CreateOutboundCallParams {
   // for these calls only — the assistant itself is never touched, so the
   // agent that answers the phone is unaffected by a campaign's wording.
   campaignInstruction?: string | null;
+  // The prompt the assistant was synced with (see widgetSystemPrompt).
+  // Required to send the instruction at all, because Vapi's
+  // assistantOverrides REPLACES model.messages rather than adding to it:
+  // sending the instruction on its own would place the call with that single
+  // line as the agent's entire prompt — no persona, no knowledge base, no
+  // instructions. Without it, the instruction is dropped and the agent keeps
+  // its own prompt, which is the safer of the two losses.
+  basePrompt?: string | null;
 }
 
 export async function createOutboundCall(params: CreateOutboundCallParams): Promise<{ id: string }> {
   const instruction = params.campaignInstruction?.trim();
+  const basePrompt = params.basePrompt?.trim();
+  const overridePrompt =
+    instruction && basePrompt ? `${basePrompt}\n\n### Formålet med dette opkald\n${instruction}` : null;
 
   const response = await vapiFetch("/call", {
     method: "POST",
@@ -20,18 +31,14 @@ export async function createOutboundCall(params: CreateOutboundCallParams): Prom
       assistantId: params.assistantId,
       phoneNumberId: params.phoneNumberId,
       customer: { number: params.customerNumber },
-      ...(instruction
+      ...(overridePrompt
         ? {
             assistantOverrides: {
-              // Appended, not replaced: the agent keeps its own prompt,
-              // knowledge and manner, and this says what it is ringing about.
+              // The agent's own prompt with the campaign's purpose appended,
+              // sent whole: this array replaces the assistant's, so anything
+              // left out of it is gone for the duration of the call.
               model: {
-                messages: [
-                  {
-                    role: "system",
-                    content: `### Formålet med dette opkald\n${instruction}`,
-                  },
-                ],
+                messages: [{ role: "system", content: overridePrompt }],
               },
             },
           }

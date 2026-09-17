@@ -31,6 +31,25 @@ export type VapiSyncOutcome =
   | { status: "skipped"; reason: string }
   | { status: "failed"; error: string };
 
+// The prompt an agent's assistant is synced with: what the customer wrote,
+// plus its knowledge base, plus the language directive.
+//
+// Extracted because an outbound campaign has to send it too. Vapi's
+// assistantOverrides replaces `model.messages` rather than adding to it, so a
+// campaign that sent only "ring og mind om tiden i morgen" would place calls
+// with that as the agent's entire prompt — no persona, no knowledge, no
+// instructions. The campaign's own wording is appended to this instead (see
+// lib/vapi/calls.ts), so the agent on a campaign call is the same agent that
+// answers the phone. The no-booking directive is not applied here: it belongs
+// to the tool list, which an override never touches.
+export async function widgetSystemPrompt(widget: Widget, extra: Record<string, unknown>): Promise<string> {
+  const knowledgeBase = formatKnowledgeBaseForPrompt(
+    (extra.knowledgeBase as KnowledgeBaseSource[] | undefined) ?? []
+  );
+  const basePrompt = widget.system_prompt ?? (await getDefaultSystemPrompt());
+  return withLanguageDirective([basePrompt, knowledgeBase].filter(Boolean).join("\n\n"), widget.language);
+}
+
 export async function syncWidgetToVapiAssistant(
   widget: Widget,
   extra: Record<string, unknown>
@@ -51,14 +70,7 @@ export async function syncWidgetToVapiAssistant(
   // Check if booking is enabled to include booking tools
   const includeBookingTools = widget.booking_enabled ?? false;
 
-  const knowledgeBase = formatKnowledgeBaseForPrompt(
-    (extra.knowledgeBase as KnowledgeBaseSource[] | undefined) ?? []
-  );
-  const basePrompt = widget.system_prompt ?? (await getDefaultSystemPrompt());
-  const systemPrompt = withLanguageDirective(
-    [basePrompt, knowledgeBase].filter(Boolean).join("\n\n"),
-    widget.language
-  );
+  const systemPrompt = await widgetSystemPrompt(widget, extra);
 
   // Never null: an unset choice means the platform default ("Dame"), the
   // same one the creation route stores and the UI shows preselected — see

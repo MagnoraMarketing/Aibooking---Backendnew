@@ -2,6 +2,7 @@ import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { createOutboundCall } from "@/lib/vapi";
 import { outboundAssistantId } from "@/lib/vapi/assistant-owner";
+import { widgetSystemPrompt } from "@/lib/vapi/sync";
 import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
 import { createTwilioOutboundCall, getOrCreateSubaccount } from "@/lib/twilio";
 import { twilioWebhookUrls } from "@/lib/telephony/urls";
@@ -291,8 +292,29 @@ async function resolveDialer(
     .select("extra")
     .eq("widget_id", campaign.widget_id)
     .maybeSingle();
-  const assistantId = outboundAssistantId((settings?.extra as Record<string, unknown> | null) ?? {});
+  const extra = (settings?.extra as Record<string, unknown> | null) ?? {};
+  const assistantId = outboundAssistantId(extra);
   if (!assistantId) throw new Error("Denne agent har ikke en Vapi-assistent");
+
+  // The agent's own prompt, so the campaign's purpose can be appended to it
+  // rather than put in its place — Vapi's override replaces the assistant's
+  // messages wholesale (see lib/vapi/calls.ts). Resolved once per campaign,
+  // not once per contact.
+  let basePrompt: string | null = null;
+  if (campaign.agent_instruction) {
+    const { data: widget } = await supabase
+      .from("widgets")
+      .select("*")
+      .eq("id", campaign.widget_id)
+      .maybeSingle();
+    basePrompt = widget ? await widgetSystemPrompt(widget, extra) : null;
+    if (!basePrompt) {
+      // Better a call on the agent's own prompt than one that has lost it.
+      console.error(
+        `Campaign ${campaign.id}: could not resolve the agent's prompt, so its instruction is not being sent.`
+      );
+    }
+  }
 
   return async (to: string) =>
     (
@@ -303,6 +325,7 @@ async function resolveDialer(
         // What this campaign is for, on top of the agent's own prompt. Only
         // for these calls — the assistant itself is never changed.
         campaignInstruction: campaign.agent_instruction,
+        basePrompt,
       })
     ).id;
 }
