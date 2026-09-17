@@ -1,6 +1,13 @@
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
-import { fetchCalcomAvailability, createCalcomBooking } from "@/lib/calendar";
+import {
+  bookingFailureAdvice,
+  looksLikeEmail,
+  normalizeDictatedEmail,
+  MALFORMED_EMAIL_ADVICE,
+  fetchCalcomAvailability,
+  createCalcomBooking,
+} from "@/lib/calendar";
 import { getAdminClient } from "@/lib/database/admin";
 
 // The two calendar functions the AI may call during a live conversation —
@@ -43,7 +50,11 @@ export const CALENDAR_TOOLS: Anthropic.Tool[] = [
           description: "Starttidspunkt i ISO 8601 med tidszone, fx 2026-03-15T14:00:00+01:00 — skal være en af de tider check_availability lige returnerede.",
         },
         customer_name: { type: "string", description: "Kundens navn." },
-        customer_email: { type: "string", description: "Kundens email, til bekræftelse af mødet." },
+        customer_email: {
+          type: "string",
+          description:
+            "Kundens e-mailadresse, til bekræftelse af mødet. Gentag adressen for kunden og få den bekræftet, før du booker.",
+        },
       },
       required: ["start_time", "customer_name", "customer_email"],
     },
@@ -95,10 +106,12 @@ async function executeBookMeeting(
   input: { start_time?: string; customer_name?: string; customer_email?: string },
   ctx: CalendarToolContext
 ): Promise<string> {
-  const { start_time: startTime, customer_name: customerName, customer_email: customerEmail } = input;
+  const { start_time: startTime, customer_name: customerName } = input;
+  const customerEmail = input.customer_email ? normalizeDictatedEmail(input.customer_email) : undefined;
   if (!startTime || !customerName || !customerEmail) {
     return "Mangler oplysninger til at booke mødet (tidspunkt, navn og email er alle påkrævet).";
   }
+  if (!looksLikeEmail(customerEmail)) return MALFORMED_EMAIL_ADVICE;
 
   const supabase = getAdminClient();
 
@@ -132,6 +145,10 @@ async function executeBookMeeting(
       status: "failed",
     });
 
-    return `Kunne ikke booke mødet: ${err instanceof Error ? err.message : "ukendt fejl"}. Bed kunden vælge en anden ledig tid.`;
+    // The provider's own words used to go straight back into the model's
+    // context — a whole JSON body, in English, which the agent then
+    // paraphrased at the customer. What it needs is what to do next.
+    console.error("book_meeting failed:", err);
+    return bookingFailureAdvice(err);
   }
 }

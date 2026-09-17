@@ -51,6 +51,26 @@ function loadVapiSdk(): Promise<NonNullable<Window["vapiSDK"]>> {
   return sdkPromise;
 }
 
+// Vapi's error payload has no fixed shape — it varies by what failed (the
+// microphone, ICE negotiation, the assistant itself) — so dig for whatever
+// text it carries instead of collapsing every failure into one line.
+function describeVapiError(payload: unknown): string | null {
+  if (payload instanceof Error) return payload.message;
+  if (typeof payload === "string") return payload;
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    for (const key of ["errorMsg", "error", "message", "type"]) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim()) return value;
+      if (value && typeof value === "object") {
+        const nested = (value as Record<string, unknown>).message;
+        if (typeof nested === "string" && nested.trim()) return nested;
+      }
+    }
+  }
+  return null;
+}
+
 type CallState = "idle" | "connecting" | "live" | "ended";
 
 interface Line {
@@ -70,6 +90,14 @@ export function TestCallTab({ widget }: { widget: WidgetWithExtras }) {
   const [lines, setLines] = useState<Line[]>([]);
   const [seconds, setSeconds] = useState(0);
   const clientRef = useRef<VapiClient | null>(null);
+  // The call listeners are registered once, on the one client this tab
+  // keeps, so they must not close over a `t` that changes when the language
+  // does. Read the current one through a ref instead.
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+  const translate = useCallback((key: string) => tRef.current(key), []);
 
   // Ticks only while the call is up, so the timer shows call length rather
   // than how long the tab has been open.
@@ -113,30 +141,49 @@ export function TestCallTab({ widget }: { widget: WidgetWithExtras }) {
       }
 
       const sdk = await loadVapiSdk();
-      const client = sdk.run({ apiKey: data.vapi.publicKey, assistant: data.vapi.assistantId, config: {} });
-      clientRef.current = client;
 
-      client.on("call-start", () => setState("live"));
-      client.on("call-end", () => setState("ended"));
-      client.on("message", (payload) => {
-        const message = payload as { type?: string; transcriptType?: string; transcript?: string; role?: string };
-        // Only final transcript lines: the partial ones rewrite themselves
-        // word by word, which reads as stuttering rather than as a call.
-        if (message?.type !== "transcript" || message.transcriptType !== "final" || !message.transcript) return;
-        setLines((prev) => [...prev, { role: message.role === "user" ? "user" : "assistant", text: message.transcript! }]);
-      });
-      client.on("error", (payload) => {
-        const message = payload instanceof Error ? payload.message : t("agent.testCall.errorDuringCall");
-        setError(message);
-        setState("ended");
-      });
+      // One client per tab, reused for every call — the same thing
+      // public/widget.js does, and for the same reason. Calling run() again
+      // per call builds a second client while the first still holds the
+      // microphone, so the new call connects, the assistant talks, and
+      // nothing the person says ever arrives. Vapi then ends it with
+      // "assistant-did-not-receive-customer-audio": the first test call
+      // worked, every one after it was silence.
+      if (!clientRef.current) {
+        const client = sdk.run({ apiKey: data.vapi.publicKey, assistant: data.vapi.assistantId, config: {} });
 
-      client.start(data.vapi.assistantId);
+        client.on("call-start", () => {
+          setError(null);
+          setState("live");
+        });
+        client.on("call-end", () => setState("ended"));
+        client.on("message", (payload) => {
+          const message = payload as { type?: string; transcriptType?: string; transcript?: string; role?: string };
+          // Only final transcript lines: the partial ones rewrite themselves
+          // word by word, which reads as stuttering rather than as a call.
+          if (message?.type !== "transcript" || message.transcriptType !== "final" || !message.transcript) return;
+          setLines((prev) => [...prev, { role: message.role === "user" ? "user" : "assistant", text: message.transcript! }]);
+        });
+        client.on("error", (payload) => {
+          console.error("Vapi test call error:", payload);
+          const detail = describeVapiError(payload);
+          setError(
+            detail && /customer-audio|microphone|permission|NotAllowed/i.test(detail)
+              ? translate("agent.testCall.errorNoMicrophone")
+              : detail || translate("agent.testCall.errorDuringCall")
+          );
+          setState("ended");
+        });
+
+        clientRef.current = client;
+      }
+
+      clientRef.current.start(data.vapi.assistantId);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("common.unknownError"));
       setState("idle");
     }
-  }, [t, widget.public_id]);
+  }, [t, translate, widget.public_id]);
 
   function hangUp() {
     try {

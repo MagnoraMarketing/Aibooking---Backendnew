@@ -905,6 +905,14 @@ export const agent: Namespace = {
     pt: "O agente ainda não tem um assistente Vapi, por isso não há nada para ligar. Guarde o agente uma vez e será criado.",
     de: "Der Agent hat noch keinen Vapi-Assistenten, es gibt also nichts anzurufen. Speichern Sie den Agenten einmal, dann wird er erstellt.",
   },
+  "testCall.errorNoMicrophone": {
+    da: "Agenten kunne ikke høre dig. Giv browseren adgang til mikrofonen, luk andre faner eller programmer, der bruger den, og prøv igen.",
+    en: "The agent could not hear you. Give the browser access to the microphone, close anything else using it, and try again.",
+    es: "El agente no pudo oírle. Dé al navegador acceso al micrófono, cierre lo que lo esté usando e inténtelo de nuevo.",
+    fr: "L'agent ne vous entendait pas. Autorisez le micro dans le navigateur, fermez ce qui l'utilise et réessayez.",
+    pt: "O agente não conseguiu ouvi-lo. Dê ao navegador acesso ao microfone, feche o que o esteja a usar e tente novamente.",
+    de: "Der Agent konnte Sie nicht hören. Erlauben Sie dem Browser den Zugriff auf das Mikrofon, schließen Sie andere Anwendungen, die es nutzen, und versuchen Sie es erneut.",
+  },
   "testCall.errorDuringCall": {
     da: "Opkaldet blev afbrudt.",
     en: "The call was interrupted.",
