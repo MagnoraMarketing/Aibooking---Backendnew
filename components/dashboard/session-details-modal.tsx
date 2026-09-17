@@ -4,10 +4,26 @@ import { useEffect, useMemo, useState } from "react";
 import type { ConversationMessage } from "@/types/database";
 import { useTranslation } from "@/components/i18n/language-provider";
 
+// A voice call's turns. They do not come from conversation_messages —
+// nothing on our side is on the line to write them — but from the
+// end-of-call-report Vapi sends when the call ends.
+interface TranscriptLine {
+  role: "user" | "assistant";
+  text: string;
+  secondsFromStart: number | null;
+}
+
 interface SessionDetailsData {
   widgetName: string | null;
   messages: ConversationMessage[];
+  transcript: TranscriptLine[];
+  recordingUrl: string | null;
   summary: string | null;
+}
+
+function formatOffset(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 function formatDate(iso: string): string {
@@ -132,9 +148,7 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
           {!loading && !error && data ? (
             <>
               {activeTab === "transcription" ? (
-                data.messages.length === 0 ? (
-                  <p className="text-sm text-slate-500">{t("dashboardPages.shared.noMessagesForConversation")}</p>
-                ) : (
+                data.messages.length > 0 ? (
                   <div className="space-y-4">
                     {data.messages
                       .filter((m) => m.role !== "system")
@@ -147,6 +161,20 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
                         </div>
                       ))}
                   </div>
+                ) : data.transcript.length > 0 ? (
+                  <div className="space-y-4">
+                    {data.transcript.map((line, index) => (
+                      <div key={index}>
+                        <p className="text-xs font-medium text-slate-400">
+                          {ROLE_LABEL[line.role] ?? line.role}
+                          {line.secondsFromStart !== null ? ` · ${formatOffset(line.secondsFromStart)}` : ""}
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{line.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">{t("dashboardPages.shared.noMessagesForConversation")}</p>
                 )
               ) : null}
 
@@ -159,7 +187,22 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
               ) : null}
 
               {activeTab === "recording" ? (
-                <p className="text-sm text-slate-500">{t("dashboardPages.session-details-modal.noRecording")}</p>
+                data.recordingUrl ? (
+                  <div className="space-y-2">
+                    {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                    <audio controls preload="none" src={data.recordingUrl} className="w-full" />
+                    <a
+                      href={data.recordingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block text-sm font-medium text-brand-600 hover:underline"
+                    >
+                      {t("dashboardPages.session-details-modal.downloadRecording")}
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">{t("dashboardPages.session-details-modal.noRecording")}</p>
+                )
               ) : null}
 
               {activeTab === "analysis" ? (
