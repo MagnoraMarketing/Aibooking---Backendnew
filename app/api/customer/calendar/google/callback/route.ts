@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
-import { withErrorHandling, writeAuditLog } from "@/lib/security";
+import { withErrorHandling, writeAuditLog, encryptSecret } from "@/lib/security";
 import { exchangeGoogleCode, parseOAuthState, cookieNameForProvider } from "@/lib/calendar";
 import { ApiError } from "@/types/errors";
 
@@ -47,9 +47,11 @@ export const GET = withErrorHandling(async (request) => {
   }
 
   // Google only sends a refresh_token on the very first consent for a given
-  // account+scopes — a later reconnect can omit it, so keep the existing one
-  // rather than overwriting it with null.
-  let refreshToken = tokenResult.refreshToken;
+  // account+scopes — a later reconnect can omit it, so keep the existing
+  // (already-encrypted) column value as-is rather than overwriting it with
+  // null. Only a freshly-issued token, still plaintext from Google, needs
+  // encrypting here.
+  let refreshToken = tokenResult.refreshToken ? encryptSecret(tokenResult.refreshToken) : null;
   if (!refreshToken) {
     const { data: existing } = await supabase
       .from("calendar_connections")
@@ -68,7 +70,10 @@ export const GET = withErrorHandling(async (request) => {
       status: "connected",
       external_account_email: tokenResult.accountEmail,
       calendar_id: tokenResult.calendarId,
-      access_token: tokenResult.accessToken,
+      // Encrypted at rest with the same AES-256-GCM helper already used for
+      // Cal.com/Shopify credentials (lib/security/crypto.ts) — every read
+      // site must decryptSecret() before calling Google's API.
+      access_token: encryptSecret(tokenResult.accessToken),
       refresh_token: refreshToken,
       token_expires_at: tokenResult.expiresAt,
     },
