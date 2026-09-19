@@ -8,6 +8,7 @@ import {
   grantCreditsForPaidInvoice,
 } from "@/lib/billing/subscription-sync";
 import { grantWidgetLaunchCredits, parseWidgetLaunchReference } from "@/lib/billing/widget-launch";
+import { parsePackageLaunchReference } from "@/lib/billing/package-launch-offer";
 import { writeAuditLog } from "@/lib/security/audit";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -75,7 +76,13 @@ export async function POST(request: Request): Promise<NextResponse> {
         const session = event.data.object as Stripe.Checkout.Session;
         if (typeof session.subscription === "string") {
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
-          await syncSubscriptionFromStripe(subscription);
+          // A subscription bought through a package-launch Payment Link
+          // (lib/billing/package-launch-offer.ts) carries no subscription
+          // metadata of ours — the customer/package pairing rides on this
+          // Checkout Session's client_reference_id instead, so pass it
+          // through explicitly rather than relying on metadata lookup.
+          const packageLaunchRef = parsePackageLaunchReference(session.client_reference_id);
+          await syncSubscriptionFromStripe(subscription, packageLaunchRef ?? undefined);
         }
 
         // The wizard's closing payment step is a Stripe Payment Link, which

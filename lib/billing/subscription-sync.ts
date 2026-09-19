@@ -17,13 +17,21 @@ const ROLLOVER_MONTHS_CAP = 3;
 // respect to a given Stripe event (see /api/webhooks/stripe for the
 // dedup check via the stripe_events table).
 
-export async function syncSubscriptionFromStripe(subscription: Stripe.Subscription): Promise<void> {
+export async function syncSubscriptionFromStripe(
+  subscription: Stripe.Subscription,
+  // Set by the webhook when the subscription came from a package-launch
+  // Payment Link (lib/billing/package-launch-offer.ts) instead of our own
+  // createCheckoutSession — a Payment Link can't set per-customer
+  // subscription metadata, so the customer/package pairing rides on the
+  // Checkout Session's client_reference_id instead and is passed in here.
+  explicitRef?: { customerId: string; packageId: string }
+): Promise<void> {
   const supabase = getAdminClient();
 
-  const customerId = subscription.metadata?.aibooking_customer_id;
+  const customerId = explicitRef?.customerId ?? subscription.metadata?.aibooking_customer_id;
   if (!customerId) return; // not a subscription created by this platform
 
-  let packageId = subscription.metadata?.aibooking_package_id ?? null;
+  let packageId = explicitRef?.packageId ?? subscription.metadata?.aibooking_package_id ?? null;
 
   if (!packageId) {
     const priceId = subscription.items.data[0]?.price?.id;

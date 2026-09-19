@@ -3,6 +3,7 @@ import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, checkoutRequestSchema } from "@/lib/security";
 import { createCheckoutSession } from "@/lib/billing";
+import { getPackageLaunchKind, buildPackageLaunchUrl } from "@/lib/billing/package-launch-offer";
 import { ApiError } from "@/types/errors";
 import type { Package } from "@/types/database";
 
@@ -39,6 +40,24 @@ export const POST = withErrorHandling(async (request) => {
   }
 
   if (!pkg) throw ApiError.badRequest("No package available for checkout");
+
+  // Starter/Professional/Enterprise are the exact same packages sold on the
+  // marketing site's pricing tables, via a fixed Stripe Payment Link rather
+  // than a session we create ourselves — see
+  // lib/billing/package-launch-offer.ts for why. The client_reference_id
+  // that ties the purchase back to this account is built here, from the
+  // authenticated session, never from anything the browser sent (same
+  // reasoning as /api/billing/widget-launch).
+  const launchKind = getPackageLaunchKind(pkg.package_name);
+  if (launchKind) {
+    const url = buildPackageLaunchUrl({
+      kind: launchKind,
+      customerId: customer.id,
+      packageId: pkg.id,
+      email: customer.email,
+    });
+    return NextResponse.json({ url });
+  }
 
   const { url } = await createCheckoutSession({ customer, pkg });
   return NextResponse.json({ url });
