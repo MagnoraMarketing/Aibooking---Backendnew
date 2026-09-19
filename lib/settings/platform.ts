@@ -101,6 +101,40 @@ export async function setKnowledgeBaseSecondsPer1000Chars(seconds: number): Prom
   if (error) throw new Error(`Failed to update knowledge base pricing: ${error.message}`);
 }
 
+// A single, master-admin-configured Vapi assistant (built and tuned directly
+// in Vapi's own dashboard, same as the voice templates below) that the
+// "Generér prompt" wizard step falls back to via Vapi's Chat API when
+// Anthropic itself fails (out of credits, key revoked, outage — see
+// translateAnthropicError in lib/llm/anthropic-provider.ts and
+// FallbackProvider in lib/llm/fallback-provider.ts). Left unset, the
+// fallback simply never fires and today's Anthropic-only error is what the
+// customer sees — this setting is opt-in.
+const VAPI_PROMPT_DRAFTING_ASSISTANT_KEY = "vapi_prompt_drafting_assistant_id";
+
+export async function getVapiPromptDraftingAssistantId(): Promise<string | null> {
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from("platform_settings")
+    .select("value")
+    .eq("key", VAPI_PROMPT_DRAFTING_ASSISTANT_KEY)
+    .maybeSingle();
+
+  if (!data || typeof data.value !== "string" || !data.value) return null;
+  return data.value;
+}
+
+export async function setVapiPromptDraftingAssistantId(assistantId: string | null): Promise<void> {
+  const supabase = getAdminClient();
+
+  // Same NOT NULL-column reasoning as setVapiVoiceTemplateAssistantId below:
+  // clearing the field deletes the row rather than writing null into it.
+  const { error } = assistantId
+    ? await supabase.from("platform_settings").upsert({ key: VAPI_PROMPT_DRAFTING_ASSISTANT_KEY, value: assistantId })
+    : await supabase.from("platform_settings").delete().eq("key", VAPI_PROMPT_DRAFTING_ASSISTANT_KEY);
+
+  if (error) throw new Error(`Failed to update Vapi prompt-drafting assistant: ${error.message}`);
+}
+
 export type { VapiVoiceGender } from "@/lib/vapi/voice-gender";
 import type { VapiVoiceGender } from "@/lib/vapi/voice-gender";
 

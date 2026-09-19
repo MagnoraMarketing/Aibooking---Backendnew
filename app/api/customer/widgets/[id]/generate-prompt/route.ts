@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, requireParam, generatePromptInputSchema } from "@/lib/security";
-import { resolveLLMProvider } from "@/lib/llm";
+import { resolveLLMProviderWithFallback } from "@/lib/llm";
 import { getPromptDraftingModelName } from "@/lib/settings/platform";
 // Import the specific submodule, not the @/lib/knowledge-base barrel —
 // see lib/knowledge-base/pdf.ts's top comment for why.
@@ -75,7 +75,12 @@ export const POST = withErrorHandling(async (request, { params }) => {
     .filter(Boolean)
     .join("\n");
 
-  const provider = resolveLLMProvider("anthropic");
+  // Falls back to a master-admin-configured Vapi assistant if Anthropic
+  // fails — e.g. an empty credit balance, see lib/llm/registry.ts — so a
+  // drafting request doesn't dead-end on "AI-kontoen (Anthropic) har ikke
+  // flere credits" once a fallback assistant is set under
+  // Admin → Indstillinger.
+  const provider = resolveLLMProviderWithFallback("anthropic");
   const model = await getPromptDraftingModelName();
 
   const result = await provider.generateReply({

@@ -219,6 +219,14 @@ export const vapiVoiceTemplatesInputSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Admin: Vapi prompt-drafting fallback assistant — see
+// lib/settings/platform.ts's getVapiPromptDraftingAssistantId.
+// ---------------------------------------------------------------------------
+export const vapiPromptDraftingAssistantInputSchema = z.object({
+  assistantId: z.string().trim().min(1).max(200).nullable(),
+});
+
+// ---------------------------------------------------------------------------
 // Widget (public, end-user facing)
 // ---------------------------------------------------------------------------
 export const widgetSessionStartSchema = z.object({

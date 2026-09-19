@@ -32,7 +32,7 @@ vi.mock("@/lib/database/admin", () => ({
 }));
 
 vi.mock("@/lib/llm", () => ({
-  resolveLLMProvider: () => ({ generateReply: (params: unknown) => generateReplyMock(params) }),
+  resolveLLMProviderWithFallback: () => ({ generateReply: (params: unknown) => generateReplyMock(params) }),
 }));
 
 vi.mock("@/lib/settings/platform", () => ({

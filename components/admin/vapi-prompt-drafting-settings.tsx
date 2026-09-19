@@ -1,0 +1,87 @@
+"use client";
+
+import { useState } from "react";
+
+interface VapiPromptDraftingSettingsProps {
+  initialAssistantId: string | null;
+}
+
+// Points Prompt Lab's "Generér prompt" fallback at a Vapi assistant the
+// master admin has built and tuned directly in Vapi's own dashboard — see
+// lib/llm/vapi-provider.ts. Left empty, the fallback simply never fires and
+// an Anthropic failure (e.g. an empty credit balance) shows as it always
+// has.
+export function VapiPromptDraftingSettings({ initialAssistantId }: VapiPromptDraftingSettingsProps) {
+  const [assistantId, setAssistantId] = useState(initialAssistantId ?? "");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch("/api/admin/settings/vapi-prompt-drafting-assistant", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assistantId: assistantId.trim() || null }),
+      });
+
+      if (!res.ok) throw new Error("Kunne ikke gemme assistant-id'et");
+
+      setMessage({ type: "success", text: "Gemt." });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Noget gik galt." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Prompt-udkast — Vapi-fallback
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Hvis Anthropic fejler når en kunde klikker &quot;Generér prompt&quot; (fx en tom credit-saldo), prøves denne
+          Vapi-assistent i stedet. Assistenten bygges og konfigureres i Vapi&apos;s eget dashboard — ID&apos;et sættes
+          her. Lad feltet stå tomt for at deaktivere fallback&apos;en.
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="vapi-prompt-drafting-id" className="mb-1 block text-sm font-medium text-slate-700">
+          Vapi Assistant ID
+        </label>
+        <input
+          id="vapi-prompt-drafting-id"
+          type="text"
+          value={assistantId}
+          onChange={(e) => setAssistantId(e.target.value)}
+          placeholder="fx 8f1c2e3a-..."
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+        />
+      </div>
+
+      {message ? (
+        <div
+          className={`rounded-lg p-3 text-sm ${
+            message.type === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving}
+        className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+      >
+        {saving ? "Gemmer..." : "Gem"}
+      </button>
+    </div>
+  );
+}
