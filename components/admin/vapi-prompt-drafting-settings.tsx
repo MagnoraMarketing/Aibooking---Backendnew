@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface VapiPromptDraftingSettingsProps {
   initialAssistantId: string | null;
@@ -12,6 +13,7 @@ interface VapiPromptDraftingSettingsProps {
 // an Anthropic failure (e.g. an empty credit balance) shows as it always
 // has.
 export function VapiPromptDraftingSettings({ initialAssistantId }: VapiPromptDraftingSettingsProps) {
+  const { t } = useTranslation();
   const [assistantId, setAssistantId] = useState(initialAssistantId ?? "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -27,11 +29,11 @@ export function VapiPromptDraftingSettings({ initialAssistantId }: VapiPromptDra
         body: JSON.stringify({ assistantId: assistantId.trim() || null }),
       });
 
-      if (!res.ok) throw new Error("Kunne ikke gemme assistant-id'et");
+      if (!res.ok) throw new Error(t("adminPages.vapiPromptDrafting.errorSaveFailed"));
 
-      setMessage({ type: "success", text: "Gemt." });
+      setMessage({ type: "success", text: t("common.saved") });
     } catch (err) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : "Noget gik galt." });
+      setMessage({ type: "error", text: err instanceof Error ? err.message : t("common.unknownError") });
     } finally {
       setSaving(false);
     }
@@ -41,25 +43,21 @@ export function VapiPromptDraftingSettings({ initialAssistantId }: VapiPromptDra
     <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Prompt-udkast — Vapi-fallback
+          {t("adminPages.vapiPromptDrafting.heading")}
         </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Hvis Anthropic fejler når en kunde klikker &quot;Generér prompt&quot; (fx en tom credit-saldo), prøves denne
-          Vapi-assistent i stedet. Assistenten bygges og konfigureres i Vapi&apos;s eget dashboard — ID&apos;et sættes
-          her. Lad feltet stå tomt for at deaktivere fallback&apos;en.
-        </p>
+        <p className="mt-1 text-sm text-slate-500">{t("adminPages.vapiPromptDrafting.description")}</p>
       </div>
 
       <div>
         <label htmlFor="vapi-prompt-drafting-id" className="mb-1 block text-sm font-medium text-slate-700">
-          Vapi Assistant ID
+          {t("adminPages.vapiPromptDrafting.idLabel")}
         </label>
         <input
           id="vapi-prompt-drafting-id"
           type="text"
           value={assistantId}
           onChange={(e) => setAssistantId(e.target.value)}
-          placeholder="fx 8f1c2e3a-..."
+          placeholder={t("adminPages.vapiVoiceTemplates.idPlaceholder")}
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
         />
       </div>
@@ -80,7 +78,7 @@ export function VapiPromptDraftingSettings({ initialAssistantId }: VapiPromptDra
         disabled={saving}
         className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
       >
-        {saving ? "Gemmer..." : "Gem"}
+        {saving ? t("common.saving") : t("common.save")}
       </button>
     </div>
   );

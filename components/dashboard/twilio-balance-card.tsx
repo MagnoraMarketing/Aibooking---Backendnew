@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface TwilioCallMinutesSummary {
   balance: number;
@@ -17,6 +18,7 @@ interface TwilioCallMinutesSummary {
 // Twilio account three live API calls every time it's fetched — no reason
 // to pay that on every dashboard visit if nobody's looking.
 export function TwilioBalanceCard({ phoneNumberId }: { phoneNumberId: string }) {
+  const { t } = useTranslation();
   const [summary, setSummary] = useState<TwilioCallMinutesSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -32,7 +34,7 @@ export function TwilioBalanceCard({ phoneNumberId }: { phoneNumberId: string }) 
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke hente Twilio-forbrug.");
+      setError(data?.error?.message ?? t("dashboardPages.twilioBalance.errorFetch"));
       return;
     }
     setSummary(await res.json());
@@ -46,7 +48,7 @@ export function TwilioBalanceCard({ phoneNumberId }: { phoneNumberId: string }) 
         disabled={loading}
         className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-60"
       >
-        {loading ? "Henter Twilio-forbrug…" : "Vis Twilio-forbrug →"}
+        {loading ? t("dashboardPages.twilioBalance.loading") : t("dashboardPages.twilioBalance.show")}
       </button>
     );
   }
@@ -56,7 +58,7 @@ export function TwilioBalanceCard({ phoneNumberId }: { phoneNumberId: string }) 
       <p className="text-xs text-red-600">
         {error}{" "}
         <button type="button" onClick={() => void loadSummary()} className="font-medium underline">
-          Prøv igen
+          {t("dashboardPages.twilioBalance.retry")}
         </button>
       </p>
     );
@@ -68,7 +70,7 @@ export function TwilioBalanceCard({ phoneNumberId }: { phoneNumberId: string }) 
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
       <div className="flex items-center justify-between">
         <p className="font-medium text-slate-700">
-          Twilio-saldo: {summary.balance.toFixed(2)} {summary.currency}
+          {t("dashboardPages.twilioBalance.balance", { balance: summary.balance.toFixed(2), currency: summary.currency })}
         </p>
         <button
           type="button"
@@ -76,22 +78,26 @@ export function TwilioBalanceCard({ phoneNumberId }: { phoneNumberId: string }) 
           disabled={loading}
           className="font-medium text-brand-600 hover:text-brand-700 disabled:opacity-60"
         >
-          {loading ? "Opdaterer…" : "Opdater"}
+          {loading ? t("dashboardPages.twilioBalance.updating") : t("dashboardPages.twilioBalance.update")}
         </button>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-3">
         <div>
-          <p className="font-medium text-slate-700">Indgående</p>
-          <p>{summary.inboundMinutesUsed.toFixed(1)} min brugt</p>
+          <p className="font-medium text-slate-700">{t("dashboardPages.twilioBalance.inbound")}</p>
+          <p>{t("dashboardPages.twilioBalance.minutesUsed", { minutes: summary.inboundMinutesUsed.toFixed(1) })}</p>
           {summary.inboundMinutesRemaining !== null ? (
-            <p className="text-slate-500">ca. {summary.inboundMinutesRemaining} min tilbage</p>
+            <p className="text-slate-500">
+              {t("dashboardPages.twilioBalance.minutesRemaining", { minutes: summary.inboundMinutesRemaining })}
+            </p>
           ) : null}
         </div>
         <div>
-          <p className="font-medium text-slate-700">Udgående</p>
-          <p>{summary.outboundMinutesUsed.toFixed(1)} min brugt</p>
+          <p className="font-medium text-slate-700">{t("dashboardPages.twilioBalance.outbound")}</p>
+          <p>{t("dashboardPages.twilioBalance.minutesUsed", { minutes: summary.outboundMinutesUsed.toFixed(1) })}</p>
           {summary.outboundMinutesRemaining !== null ? (
-            <p className="text-slate-500">ca. {summary.outboundMinutesRemaining} min tilbage</p>
+            <p className="text-slate-500">
+              {t("dashboardPages.twilioBalance.minutesRemaining", { minutes: summary.outboundMinutesRemaining })}
+            </p>
           ) : null}
         </div>
       </div>
