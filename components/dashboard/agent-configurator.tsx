@@ -48,6 +48,11 @@ export interface WidgetExtra {
   maxDurationSeconds?: number | null;
   promptInputs?: PromptInputs | null;
   knowledgeBase?: KnowledgeBaseSource[];
+  // Picked in the wizard's first step — see AgentPurpose in
+  // agent-creation-wizard.tsx and taskBullets in
+  // app/api/customer/widgets/[id]/generate-prompt/route.ts.
+  agentPurposes?: ("booking" | "shopify" | "qa")[] | null;
+  purposeNotes?: string | null;
 }
 
 export interface WidgetWithExtras extends Widget {

@@ -16,6 +16,15 @@ import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
 type AgentType = "widget" | "phone";
 
+// What the agent is *for* — separate from AgentType (widget vs phone, i.e.
+// the delivery channel). Picked up front, before there's a calendar or
+// webshop to connect, purely to steer how "Generér prompt" (step 3) writes
+// the agent's instructions — see taskBullets in
+// app/api/customer/widgets/[id]/generate-prompt/route.ts. The booking/
+// Shopify *tools* themselves stay gated by an actually-connected calendar/
+// webshop regardless of this choice (see syncWidgetToVapiAssistant).
+type AgentPurpose = "booking" | "shopify" | "qa";
+
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
 function typeOptionsFor(t: Translate): {
@@ -33,6 +42,26 @@ function typeOptionsFor(t: Translate): {
       value: "phone",
       title: t("agent.wizard.type.phoneTitle"),
       description: t("agent.wizard.type.phoneDescription"),
+    },
+  ];
+}
+
+function purposeOptionsFor(t: Translate): { value: AgentPurpose; title: string; description: string }[] {
+  return [
+    {
+      value: "booking",
+      title: t("agent.wizard.purpose.bookingTitle"),
+      description: t("agent.wizard.purpose.bookingDescription"),
+    },
+    {
+      value: "shopify",
+      title: t("agent.wizard.purpose.shopifyTitle"),
+      description: t("agent.wizard.purpose.shopifyDescription"),
+    },
+    {
+      value: "qa",
+      title: t("agent.wizard.purpose.qaTitle"),
+      description: t("agent.wizard.purpose.qaDescription"),
     },
   ];
 }
@@ -160,11 +189,18 @@ export function AgentCreationWizard({
 
   const [name, setName] = useState("");
   const [agentType, setAgentType] = useState<AgentType | null>(fixedType ?? null);
+  const [agentPurposes, setAgentPurposes] = useState<AgentPurpose[]>([]);
+  const [purposeNotes, setPurposeNotes] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const steps = stepsFor(agentType, embedCodeUnlocked, t);
   const typeOptions = typeOptionsFor(t);
+  const purposeOptions = purposeOptionsFor(t);
+
+  function togglePurpose(value: AgentPurpose) {
+    setAgentPurposes((prev) => (prev.includes(value) ? prev.filter((p) => p !== value) : [...prev, value]));
+  }
   // Steps are addressed by name, not index — the widget flow has two more
   // than the phone one, so an index alone says nothing about what to render.
   const currentKey = steps[step]?.key;
@@ -221,7 +257,29 @@ export function AgentCreationWizard({
     }
 
     const { widget: created } = await res.json();
-    setWidget({ ...created, extra: {} });
+    let extra: WidgetWithExtras["extra"] = {};
+
+    // Persisted right after creation, same as every other wizard step's
+    // answers — read back by generate-prompt (see taskBullets there) once
+    // the customer reaches step 3. Skipped entirely when nothing was
+    // picked, so a customer who ignores this new step leaves no trace of
+    // it and generate-prompt falls back to its original, purpose-agnostic
+    // wording.
+    if (agentPurposes.length > 0 || purposeNotes.trim()) {
+      const patchRes = await fetch(`/api/customer/widgets/${created.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          extra: { agentPurposes, purposeNotes: purposeNotes.trim() || null },
+        }),
+      });
+      if (patchRes.ok) {
+        const { widget: patched } = await patchRes.json();
+        extra = patched.extra ?? extra;
+      }
+    }
+
+    setWidget({ ...created, extra });
     setStep(1);
   }
 
@@ -283,6 +341,46 @@ export function AgentCreationWizard({
               <p className="mt-2 text-xs text-slate-500">{t("agent.wizard.typeHelp")}</p>
             </div>
           )}
+
+          <div>
+            <p className="mb-2 text-sm font-medium text-slate-700">{t("agent.wizard.purposeQuestion")}</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {purposeOptions.map((option) => {
+                const selected = agentPurposes.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => togglePurpose(option.value)}
+                    className={`rounded-xl border p-4 text-left transition ${
+                      selected ? "border-brand-500 ring-1 ring-brand-500" : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-slate-800">{option.title}</p>
+                    <p className="mt-1 text-xs text-slate-500">{option.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">{t("agent.wizard.purposeHelp")}</p>
+
+            {agentPurposes.includes("qa") ? (
+              <div className="mt-3">
+                <label htmlFor="agent-purpose-notes" className="mb-1 block text-sm font-medium text-slate-700">
+                  {t("agent.wizard.purposeNotesLabel")}
+                </label>
+                <textarea
+                  id="agent-purpose-notes"
+                  value={purposeNotes}
+                  onChange={(e) => setPurposeNotes(e.target.value)}
+                  placeholder={t("agent.wizard.purposeNotesPlaceholder")}
+                  rows={3}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                />
+              </div>
+            ) : null}
+          </div>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
