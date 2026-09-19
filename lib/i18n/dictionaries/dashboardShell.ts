@@ -93,4 +93,40 @@ export const dashboardShell: Namespace = {
     pt: "Ver pacotes →",
     de: "Pakete ansehen →",
   },
+
+  // ---------------------------------------------------------------------
+  // support-widget.tsx — the floating onboarding/support voice button.
+  // ---------------------------------------------------------------------
+  "supportWidget.label": {
+    da: "Tal med support",
+    en: "Talk to support",
+    es: "Hablar con soporte",
+    fr: "Parler au support",
+    pt: "Falar com o suporte",
+    de: "Mit dem Support sprechen",
+  },
+  "supportWidget.connecting": {
+    da: "Forbinder …",
+    en: "Connecting …",
+    es: "Conectando…",
+    fr: "Connexion…",
+    pt: "A ligar…",
+    de: "Verbindung wird hergestellt …",
+  },
+  "supportWidget.active": {
+    da: "Afslut samtale",
+    en: "End call",
+    es: "Finalizar llamada",
+    fr: "Terminer l'appel",
+    pt: "Terminar chamada",
+    de: "Anruf beenden",
+  },
+  "supportWidget.error": {
+    da: "Der opstod en fejl — prøv igen",
+    en: "Something went wrong — try again",
+    es: "Ha ocurrido un error — inténtelo de nuevo",
+    fr: "Une erreur est survenue — réessayez",
+    pt: "Ocorreu um erro — tente novamente",
+    de: "Etwas ist schiefgelaufen — versuchen Sie es erneut",
+  },
 };

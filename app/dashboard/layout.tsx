@@ -4,6 +4,7 @@ import { requireAuthForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { Header } from "@/components/dashboard/header";
 import { TrialEndedBanner } from "@/components/dashboard/trial-ended-banner";
+import { SupportWidget } from "@/components/dashboard/support-widget";
 import { LanguageProvider } from "@/components/i18n/language-provider";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 import { translate } from "@/lib/i18n/dictionaries";
@@ -70,6 +71,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         />
         {trialEnded ? <TrialEndedBanner /> : null}
         <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+        <SupportWidget />
       </div>
     </LanguageProvider>
   );
