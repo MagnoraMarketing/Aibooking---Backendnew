@@ -63,4 +63,34 @@ export const dashboardShell: Namespace = {
     pt: "Saindo…",
     de: "Wird abgemeldet…",
   },
+
+  // ---------------------------------------------------------------------
+  // trial-ended-banner.tsx — shown once hasEmbedCodeAccess (lib/billing/
+  // trial.ts) goes false: the free trial is over and nothing has been
+  // bought yet. Deliberately short — this renders on every dashboard page.
+  // ---------------------------------------------------------------------
+  "trialEndedBanner.title": {
+    da: "Jeres gratis prøveperiode er slut",
+    en: "Your free trial has ended",
+    es: "Su periodo de prueba gratuito ha terminado",
+    fr: "Votre essai gratuit est terminé",
+    pt: "O seu período de teste gratuito terminou",
+    de: "Ihre kostenlose Testphase ist abgelaufen",
+  },
+  "trialEndedBanner.body": {
+    da: "Køb en pakke for at gå live: agenten svarer 24/7, håndterer bookinger direkte i kalenderen, og I betaler kun for aktiv taletid.",
+    en: "Buy a package to go live: the agent answers 24/7, handles bookings straight into the calendar, and you only pay for active talk time.",
+    es: "Compre un paquete para salir en producción: el agente responde 24/7, gestiona reservas directamente en el calendario, y solo paga por el tiempo de conversación activo.",
+    fr: "Achetez un forfait pour passer en ligne : l'agent répond 24 h/24 et 7 j/7, gère les réservations directement dans le calendrier, et vous ne payez que le temps de parole actif.",
+    pt: "Compre um pacote para entrar em produção: o agente atende 24/7, gere reservas diretamente no calendário, e paga apenas pelo tempo de conversação ativo.",
+    de: "Kaufen Sie ein Paket, um live zu gehen: Der Agent antwortet 24/7, verwaltet Buchungen direkt im Kalender, und Sie zahlen nur für aktive Sprechzeit.",
+  },
+  "trialEndedBanner.cta": {
+    da: "Se pakker →",
+    en: "See packages →",
+    es: "Ver paquetes →",
+    fr: "Voir les forfaits →",
+    pt: "Ver pacotes →",
+    de: "Pakete ansehen →",
+  },
 };
