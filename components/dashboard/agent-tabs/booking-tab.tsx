@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { BookingSetupRequestStatus } from "@/types/database";
 import type { WidgetWithExtras } from "../agent-configurator";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface BookingTabProps {
   widget: WidgetWithExtras;
@@ -39,28 +40,28 @@ interface CalcomEventType {
 // The steps our team works through once booking is ordered. Shown to the
 // customer as a progress list so "vi er i gang" is something they can see
 // rather than something they have to ask about.
-const SETUP_STEPS = [
-  "Bestilling modtaget",
-  "Kalender oprettet",
-  "Jeres kalender forbundet",
-  "Ydelser og tider sat op",
-  "Stemmeagent forbundet",
-  "Booking testet",
+const SETUP_STEP_KEYS = [
+  "agent.bookingTab.step.received",
+  "agent.bookingTab.step.calendarCreated",
+  "agent.bookingTab.step.calendarConnected",
+  "agent.bookingTab.step.servicesConfigured",
+  "agent.bookingTab.step.voiceAgentConnected",
+  "agent.bookingTab.step.tested",
 ] as const;
 
-// How far through SETUP_STEPS each status is. 'completed' lights all of them.
+// How far through SETUP_STEP_KEYS each status is. 'completed' lights all of them.
 const STEPS_DONE: Record<BookingSetupRequestStatus, number> = {
   pending: 1,
   in_progress: 3,
-  completed: SETUP_STEPS.length,
+  completed: SETUP_STEP_KEYS.length,
   cancelled: 0,
 };
 
-const STATUS_LABEL: Record<BookingSetupRequestStatus, string> = {
-  pending: "Bestilt — vi går i gang",
-  in_progress: "Under opsætning",
-  completed: "Aktiv",
-  cancelled: "Annulleret",
+const STATUS_LABEL_KEY: Record<BookingSetupRequestStatus, string> = {
+  pending: "agent.bookingTab.status.pending",
+  in_progress: "agent.bookingTab.status.inProgress",
+  completed: "agent.bookingTab.status.completed",
+  cancelled: "agent.bookingTab.status.cancelled",
 };
 
 const CALCOM_API_KEYS_URL = "https://app.cal.com/settings/developer/api-keys";
@@ -72,6 +73,7 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
 }
 
 export function BookingTab({ widget }: BookingTabProps) {
+  const { t } = useTranslation();
   const [request, setRequest] = useState<SetupRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [ordering, setOrdering] = useState(false);
@@ -178,19 +180,16 @@ export function BookingTab({ widget }: BookingTabProps) {
     setConnecting(false);
 
     if (!res.ok) {
-      setCalendarError(await errorMessage(res, "Kunne ikke bruge den kalender. Prøv igen."));
+      setCalendarError(await errorMessage(res, t("agent.bookingTab.errorReuseFailed")));
       return;
     }
 
-    applyConnected(
-      await res.json(),
-      "Agenten booker nu i samme kalender som den anden agent."
-    );
+    applyConnected(await res.json(), t("agent.bookingTab.noticeReuseSuccess"));
   }
 
   async function handleConnect() {
     if (!apiKey.trim()) {
-      setCalendarError("Indsæt jeres Cal.com API-nøgle først.");
+      setCalendarError(t("agent.bookingTab.errorApiKeyRequired"));
       return;
     }
     setConnecting(true);
@@ -204,7 +203,7 @@ export function BookingTab({ widget }: BookingTabProps) {
     const trimmedEventTypeId = eventTypeIdInput.trim();
     const parsedEventTypeId = trimmedEventTypeId ? Number(trimmedEventTypeId) : undefined;
     if (trimmedEventTypeId && (!Number.isInteger(parsedEventTypeId) || (parsedEventTypeId ?? 0) <= 0)) {
-      setCalendarError("Event-type ID skal være et tal — det står i URL'en på Cal.com under Event Types.");
+      setCalendarError(t("agent.bookingTab.errorEventTypeIdInvalid"));
       setConnecting(false);
       return;
     }
@@ -221,17 +220,17 @@ export function BookingTab({ widget }: BookingTabProps) {
     setConnecting(false);
 
     if (!res.ok) {
-      setCalendarError(await errorMessage(res, "Kunne ikke forbinde til Cal.com. Tjek nøglen og prøv igen."));
+      setCalendarError(await errorMessage(res, t("agent.bookingTab.errorConnectFailed")));
       return;
     }
 
-    applyConnected(await res.json(), "Kalenderen er forbundet, og agenten kan nu booke tider.");
+    applyConnected(await res.json(), t("agent.bookingTab.noticeConnectSuccess"));
   }
 
   async function handleManualEventTypeSave() {
     const parsed = Number(manualEventTypeId.trim());
     if (!Number.isInteger(parsed) || parsed <= 0) {
-      setCalendarError("Event-type ID skal være et positivt heltal — det står i Cal.com-URL'en for event-typen.");
+      setCalendarError(t("agent.bookingTab.errorManualEventTypeInvalid"));
       return;
     }
     await handleEventTypeChange(parsed);
@@ -252,12 +251,12 @@ export function BookingTab({ widget }: BookingTabProps) {
     setBusy(null);
 
     if (!res.ok) {
-      setCalendarError(await errorMessage(res, "Kunne ikke skifte event-type."));
+      setCalendarError(await errorMessage(res, t("agent.bookingTab.errorEventTypeChangeFailed")));
       return;
     }
     const data = await res.json();
     setConnection(data.connection);
-    setCalendarNotice("Agenten booker nu på den valgte event-type.");
+    setCalendarNotice(t("agent.bookingTab.noticeEventTypeChanged"));
   }
 
   async function handleTest() {
@@ -270,12 +269,12 @@ export function BookingTab({ widget }: BookingTabProps) {
     setBusy(null);
 
     if (!res.ok) {
-      setCalendarError(await errorMessage(res, "Forbindelsen svarede ikke. Tjek jeres API-nøgle på Cal.com."));
+      setCalendarError(await errorMessage(res, t("agent.bookingTab.errorTestFailed")));
       return;
     }
     const data = await res.json();
     setConnection(data.connection);
-    setCalendarNotice("Forbindelsen til Cal.com virker.");
+    setCalendarNotice(t("agent.bookingTab.noticeTestSuccess"));
   }
 
   async function handleDisconnect() {
@@ -288,13 +287,13 @@ export function BookingTab({ widget }: BookingTabProps) {
     setBusy(null);
 
     if (!res.ok) {
-      setCalendarError(await errorMessage(res, "Kunne ikke afbryde forbindelsen."));
+      setCalendarError(await errorMessage(res, t("agent.bookingTab.errorDisconnectFailed")));
       return;
     }
     setConnection(null);
     setEventTypes([]);
     setLive(false);
-    setCalendarNotice("Kalenderen er afbrudt, og agenten booker ikke længere.");
+    setCalendarNotice(t("agent.bookingTab.noticeDisconnectSuccess"));
   }
 
   async function handleOrder() {
@@ -308,7 +307,7 @@ export function BookingTab({ widget }: BookingTabProps) {
     setOrdering(false);
 
     if (!res.ok) {
-      setError(await errorMessage(res, "Bestillingen kunne ikke sendes. Prøv igen."));
+      setError(await errorMessage(res, t("agent.bookingTab.errorOrderFailed")));
       return;
     }
     const data = await res.json();
@@ -316,13 +315,13 @@ export function BookingTab({ widget }: BookingTabProps) {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">Henter…</p>;
+    return <p className="text-sm text-slate-500">{t("common.loading")}</p>;
   }
 
   // A phone agent's callers never see a website, so the copy that told them
   // bookings happen "fra hjemmesiden" described the wrong product.
   const isPhone = widget.agent_type === "phone";
-  const stepsDone = live ? SETUP_STEPS.length : request ? STEPS_DONE[request.status] : 0;
+  const stepsDone = live ? SETUP_STEP_KEYS.length : request ? STEPS_DONE[request.status] : 0;
   const selectedEventTypeId = connection?.calcom_event_type_id ? Number(connection.calcom_event_type_id) : null;
   const conciergeInProgress = !!request && request.status !== "cancelled" && !live;
 
@@ -331,10 +330,10 @@ export function BookingTab({ widget }: BookingTabProps) {
       <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Booking</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Lader agenten finde ledige tider og booke, flytte og aflyse aftaler i jeres kalender.
-            </p>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              {t("agent.bookingTab.heading")}
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">{t("agent.bookingTab.description")}</p>
           </div>
           <span
             className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
@@ -345,14 +344,14 @@ export function BookingTab({ widget }: BookingTabProps) {
                   : "bg-slate-100 text-slate-500"
             }`}
           >
-            {live ? "Aktiv" : request ? STATUS_LABEL[request.status] : "Ikke tilvalgt"}
+            {live ? t("agent.bookingTab.status.completed") : request ? t(STATUS_LABEL_KEY[request.status]) : t("agent.bookingTab.notOptedIn")}
           </span>
         </div>
 
         {live && connection ? (
           <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-            Agenten kan booke tider. Prøv den under <strong>Test Agent</strong> — bed om en tid og se at
-            den kun tilbyder tidspunkter der faktisk er ledige i jeres kalender.
+            {t("agent.bookingTab.canBookIntroBefore")} <strong>{t("agent.configurator.tab.testAgent")}</strong>{" "}
+            {t("agent.bookingTab.canBookIntroAfter")}
           </p>
         ) : null}
 
@@ -364,13 +363,13 @@ export function BookingTab({ widget }: BookingTabProps) {
         <div className="space-y-4 rounded-xl border border-slate-200 p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">Cal.com-kalender</h3>
+              <h3 className="text-sm font-semibold text-slate-900">{t("agent.bookingTab.calcomHeading")}</h3>
               <p className="mt-1 text-sm text-slate-500">
                 {connection
-                  ? "Agenten booker i denne kalender."
+                  ? t("agent.bookingTab.calcomDescConnected")
                   : isPhone
-                    ? "Forbind jeres Cal.com-konto, så agenten kan booke tider mens kunden er i røret."
-                    : "Forbind jeres Cal.com-konto, så agenten kan booke møder direkte fra hjemmesiden."}
+                    ? t("agent.bookingTab.calcomDescPhone")
+                    : t("agent.bookingTab.calcomDescWidget")}
               </p>
             </div>
             {connection ? (
@@ -379,7 +378,9 @@ export function BookingTab({ widget }: BookingTabProps) {
                   connection.status === "connected" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
                 }`}
               >
-                {connection.status === "connected" ? "Forbundet" : "Fejl på forbindelsen"}
+                {connection.status === "connected"
+                  ? t("agent.bookingTab.connectionOk")
+                  : t("agent.bookingTab.connectionError")}
               </span>
             ) : null}
           </div>
@@ -388,11 +389,11 @@ export function BookingTab({ widget }: BookingTabProps) {
             <div className="space-y-4">
               <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                 <div>
-                  <dt className="text-slate-500">Konto</dt>
+                  <dt className="text-slate-500">{t("agent.bookingTab.accountLabel")}</dt>
                   <dd className="font-medium text-slate-800">{connection.external_account_email ?? "—"}</dd>
                 </div>
                 <div>
-                  <dt className="text-slate-500">Forbundet</dt>
+                  <dt className="text-slate-500">{t("agent.bookingTab.connectedSinceLabel")}</dt>
                   <dd className="font-medium text-slate-800">
                     {new Date(connection.created_at).toLocaleDateString("da-DK")}
                   </dd>
@@ -401,7 +402,7 @@ export function BookingTab({ widget }: BookingTabProps) {
 
               <div>
                 <label htmlFor="calcom-event-type" className="mb-1 block text-sm font-medium text-slate-700">
-                  Event-type agenten booker
+                  {t("agent.bookingTab.eventTypeLabel")}
                 </label>
                 {eventTypes.length > 0 ? (
                   <select
@@ -420,10 +421,11 @@ export function BookingTab({ widget }: BookingTabProps) {
                 ) : (
                   <div className="space-y-2">
                     <p className="text-sm text-slate-500">
-                      Cal.com viser ingen event-typer for denne nøgle
-                      {selectedEventTypeId ? ` — agenten booker på id ${selectedEventTypeId}` : ""}. Det sker blandt andet
-                      for team-nøgler. Indtast event-type ID&apos;et herunder, så ved agenten hvilken kalender den skal
-                      booke i.
+                      {t("agent.bookingTab.noEventTypes", {
+                        idSuffix: selectedEventTypeId
+                          ? t("agent.bookingTab.noEventTypesIdSuffix", { id: selectedEventTypeId })
+                          : "",
+                      })}
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                       <input
@@ -432,7 +434,9 @@ export function BookingTab({ widget }: BookingTabProps) {
                         inputMode="numeric"
                         value={manualEventTypeId}
                         onChange={(e) => setManualEventTypeId(e.target.value)}
-                        placeholder={selectedEventTypeId ? String(selectedEventTypeId) : "fx 1234567"}
+                        placeholder={
+                          selectedEventTypeId ? String(selectedEventTypeId) : t("agent.bookingTab.eventTypeIdPlaceholder")
+                        }
                         disabled={busy === "eventType"}
                         className="w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
                       />
@@ -442,14 +446,12 @@ export function BookingTab({ widget }: BookingTabProps) {
                         disabled={busy !== null || !manualEventTypeId.trim()}
                         className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                       >
-                        {busy === "eventType" ? "Gemmer…" : "Gem event-type"}
+                        {busy === "eventType" ? t("common.saving") : t("agent.bookingTab.saveEventType")}
                       </button>
                     </div>
                   </div>
                 )}
-                <p className="mt-1 text-xs text-slate-500">
-                  Event-typen bestemmer mødets længde, sted og hvilke spørgsmål kunden får stillet — det sættes op på Cal.com.
-                </p>
+                <p className="mt-1 text-xs text-slate-500">{t("agent.bookingTab.eventTypeHint")}</p>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -459,7 +461,7 @@ export function BookingTab({ widget }: BookingTabProps) {
                   disabled={busy !== null}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                 >
-                  {busy === "test" ? "Tester…" : "Test forbindelse"}
+                  {busy === "test" ? t("agent.bookingTab.testing") : t("agent.bookingTab.testConnection")}
                 </button>
                 <button
                   type="button"
@@ -467,7 +469,7 @@ export function BookingTab({ widget }: BookingTabProps) {
                   disabled={busy !== null}
                   className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
                 >
-                  {busy === "disconnect" ? "Afbryder…" : "Afbryd"}
+                  {busy === "disconnect" ? t("agent.bookingTab.disconnecting") : t("agent.bookingTab.disconnect")}
                 </button>
               </div>
             </div>
@@ -479,11 +481,8 @@ export function BookingTab({ widget }: BookingTabProps) {
               {reusable.length > 0 ? (
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-700">Brug en kalender I allerede har</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Agenten booker i samme kalender som den valgte agent — samme Cal.com-konto og samme ledige
-                      tider, så de to agenter ikke dobbeltbooker hinanden. I skal ikke finde API-nøglen frem igen.
-                    </p>
+                    <p className="text-sm font-medium text-slate-700">{t("agent.bookingTab.reuseHeading")}</p>
+                    <p className="mt-1 text-xs text-slate-500">{t("agent.bookingTab.reuseDescription")}</p>
                   </div>
 
                   <div className="space-y-2">
@@ -503,14 +502,18 @@ export function BookingTab({ widget }: BookingTabProps) {
                           className="mt-1"
                         />
                         <span>
-                          <span className="font-medium text-slate-800">{other.widget_name ?? "Agent"}</span>
+                          <span className="font-medium text-slate-800">{other.widget_name ?? t("agent.bookingTab.widgetAgentLabel")}</span>
                           <span className="text-slate-500">
                             {" · "}
-                            {other.widget_agent_type === "phone" ? "Telefonagent" : "Widget-agent"}
+                            {other.widget_agent_type === "phone"
+                              ? t("agent.bookingTab.phoneAgentLabel")
+                              : t("agent.bookingTab.widgetAgentLabel")}
                           </span>
                           <span className="block text-xs text-slate-500">
                             {other.external_account_email ?? "Cal.com"}
-                            {other.calcom_event_type_id ? ` · event-type ${other.calcom_event_type_id}` : ""}
+                            {other.calcom_event_type_id
+                              ? t("agent.bookingTab.reuseEventTypeSuffix", { id: other.calcom_event_type_id })
+                              : ""}
                           </span>
                         </span>
                       </label>
@@ -523,18 +526,18 @@ export function BookingTab({ widget }: BookingTabProps) {
                     disabled={connecting || !reuseId}
                     className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
                   >
-                    {connecting ? "Forbinder…" : "Brug denne kalender"}
+                    {connecting ? t("agent.bookingTab.connecting") : t("agent.bookingTab.useThisCalendar")}
                   </button>
 
                   {!showNewCalendar ? (
                     <p className="text-sm text-slate-600">
-                      Skal agenten booke et andet sted?{" "}
+                      {t("agent.bookingTab.bookElsewherePrompt")}{" "}
                       <button
                         type="button"
                         onClick={() => setShowNewCalendar(true)}
                         className="font-medium text-brand-600 hover:underline"
                       >
-                        Forbind en ny Cal.com-konto
+                        {t("agent.bookingTab.connectNewCalendarLink")}
                       </button>
                       .
                     </p>
@@ -546,12 +549,13 @@ export function BookingTab({ widget }: BookingTabProps) {
                 <div className="space-y-3">
                   {reusable.length > 0 ? (
                     <p className="border-t border-slate-200 pt-4 text-sm font-medium text-slate-700">
-                      Forbind en ny Cal.com-konto
+                      {t("agent.bookingTab.connectNewCalendarLink")}
                     </p>
                   ) : null}
               <ol className="space-y-2 text-sm text-slate-600">
                 <li>
-                  <span className="font-medium text-slate-700">1. Hent en API-nøgle.</span> Åbn{" "}
+                  <span className="font-medium text-slate-700">{t("agent.bookingTab.step1Title")}</span>{" "}
+                  {t("agent.bookingTab.step1BeforeLink")}{" "}
                   <a
                     href={CALCOM_API_KEYS_URL}
                     target="_blank"
@@ -560,15 +564,17 @@ export function BookingTab({ widget }: BookingTabProps) {
                   >
                     Cal.com → Settings → Developer → API keys
                   </a>{" "}
-                  og tryk <span className="font-medium">Add</span>. Vælg <span className="font-medium">Never expires</span>,
-                  så forbindelsen ikke holder op med at virke af sig selv. Kopiér nøglen med det samme — den starter med{" "}
-                  <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">cal_live_</code> og vises kun én gang.
+                  {t("agent.bookingTab.step1AfterLink")}{" "}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">cal_live_</code>{" "}
+                  {t("agent.bookingTab.step1AfterCode")}
                 </li>
                 <li>
-                  <span className="font-medium text-slate-700">2. Indsæt nøglen</span> i feltet herunder.
+                  <span className="font-medium text-slate-700">{t("agent.bookingTab.step2Title")}</span>{" "}
+                  {t("agent.bookingTab.step2Text")}
                 </li>
                 <li>
-                  <span className="font-medium text-slate-700">3. Find event-type ID&apos;et.</span> Åbn{" "}
+                  <span className="font-medium text-slate-700">{t("agent.bookingTab.step3Title")}</span>{" "}
+                  {t("agent.bookingTab.step3BeforeLink")}{" "}
                   <a
                     href={CALCOM_EVENT_TYPES_URL}
                     target="_blank"
@@ -577,25 +583,19 @@ export function BookingTab({ widget }: BookingTabProps) {
                   >
                     Cal.com → Event Types
                   </a>{" "}
-                  og klik på den ydelse agenten skal booke. ID&apos;et er tallet sidst i adressen —{" "}
+                  {t("agent.bookingTab.step3BetweenLinkAndCode")}{" "}
                   <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">app.cal.com/event-types/1234567</code>{" "}
-                  betyder <span className="font-medium">1234567</span>. Lader I feltet stå tomt, vælges jeres første
-                  event-type, og I kan skifte bagefter.
+                  {t("agent.bookingTab.step3AfterCode")}
                 </li>
                 <li>
-                  <span className="font-medium text-slate-700">4. Tjek event-typens Placering.</span> Under{" "}
-                  <span className="font-medium">Event Setup → Placering</span> skal der stå noget agenten selv kan
-                  udfylde: <span className="font-medium">In Person (Organizer Address)</span> med jeres egen adresse,{" "}
-                  <span className="font-medium">Cal Video</span> eller et telefonnummer. Vælger I{" "}
-                  <span className="font-medium">Attendee Address</span> eller{" "}
-                  <span className="font-medium">Attendee Phone Number</span>, kræver Cal.com at kunden selv oplyser
-                  adressen, og så afviser den hver eneste booking agenten prøver at lave.
+                  <span className="font-medium text-slate-700">{t("agent.bookingTab.step4Title")}</span>{" "}
+                  {t("agent.bookingTab.step4Text")}
                 </li>
               </ol>
 
               <div>
                 <label htmlFor="calcom-api-key" className="mb-1 block text-sm font-medium text-slate-700">
-                  Cal.com API-nøgle
+                  {t("agent.bookingTab.apiKeyLabel")}
                 </label>
                 <input
                   id="calcom-api-key"
@@ -606,14 +606,12 @@ export function BookingTab({ widget }: BookingTabProps) {
                   placeholder="cal_live_…"
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 />
-                <p className="mt-1 text-xs text-slate-500">
-                  Nøglen gemmes krypteret og vises aldrig igen — hverken her eller andre steder i dashboardet.
-                </p>
+                <p className="mt-1 text-xs text-slate-500">{t("agent.bookingTab.apiKeyHint")}</p>
               </div>
 
               <div>
                 <label htmlFor="calcom-event-type-id" className="mb-1 block text-sm font-medium text-slate-700">
-                  Cal.com event-type ID <span className="font-normal text-slate-500">(valgfrit)</span>
+                  {t("agent.bookingTab.eventTypeIdLabel")} <span className="font-normal text-slate-500">{t("common.optional")}</span>
                 </label>
                 <input
                   id="calcom-event-type-id"
@@ -622,13 +620,10 @@ export function BookingTab({ widget }: BookingTabProps) {
                   autoComplete="off"
                   value={eventTypeIdInput}
                   onChange={(e) => setEventTypeIdInput(e.target.value)}
-                  placeholder="fx 1234567"
+                  placeholder={t("agent.bookingTab.eventTypeIdPlaceholder")}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 />
-                <p className="mt-1 text-xs text-slate-500">
-                  Bestemmer hvilken kalender og ydelse agenten booker i. Findes i Cal.com under Event Types — ID&apos;et
-                  står sidst i adressen, fx …/event-types/1234567.
-                </p>
+                <p className="mt-1 text-xs text-slate-500">{t("agent.bookingTab.eventTypeIdHint")}</p>
               </div>
 
               <button
@@ -637,7 +632,7 @@ export function BookingTab({ widget }: BookingTabProps) {
                 disabled={connecting}
                 className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
               >
-                {connecting ? "Forbinder…" : "Forbind kalender"}
+                {connecting ? t("agent.bookingTab.connecting") : t("agent.bookingTab.connectCalendar")}
               </button>
                 </div>
               ) : null}
@@ -655,12 +650,12 @@ export function BookingTab({ widget }: BookingTabProps) {
         ------------------------------------------------------------- */}
         {conciergeInProgress ? (
           <div className="space-y-3 rounded-xl border border-slate-200 p-5">
-            <h3 className="text-sm font-semibold text-slate-900">Vi sætter det op for jer</h3>
+            <h3 className="text-sm font-semibold text-slate-900">{t("agent.bookingTab.conciergeHeading")}</h3>
             <ol className="space-y-2">
-              {SETUP_STEPS.map((step, i) => {
+              {SETUP_STEP_KEYS.map((stepKey, i) => {
                 const done = i < stepsDone;
                 return (
-                  <li key={step} className="flex items-center gap-3 text-sm">
+                  <li key={stepKey} className="flex items-center gap-3 text-sm">
                     <span
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
                         done ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400"
@@ -668,7 +663,7 @@ export function BookingTab({ widget }: BookingTabProps) {
                     >
                       {done ? "✓" : i + 1}
                     </span>
-                    <span className={done ? "text-slate-800" : "text-slate-400"}>{step}</span>
+                    <span className={done ? "text-slate-800" : "text-slate-400"}>{t(stepKey)}</span>
                   </li>
                 );
               })}
@@ -683,19 +678,17 @@ export function BookingTab({ widget }: BookingTabProps) {
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
             {showConcierge ? (
               <div className="space-y-3">
-                <p className="text-sm text-slate-600">
-                  Vi sætter det hele op for jer — kalender, jeres ydelser, åbningstider og test.
-                </p>
+                <p className="text-sm text-slate-600">{t("agent.bookingTab.conciergeIntro")}</p>
                 <div>
                   <label htmlFor="booking-notes" className="mb-1 block text-sm font-medium text-slate-700">
-                    Noget vi skal vide? (valgfrit)
+                    {t("agent.bookingTab.conciergeNotesLabel")} <span className="font-normal text-slate-500">{t("common.optional")}</span>
                   </label>
                   <textarea
                     id="booking-notes"
                     rows={3}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Fx hvilke ydelser I tilbyder, hvor lang tid de tager, og jeres åbningstider."
+                    placeholder={t("agent.bookingTab.conciergeNotesPlaceholder")}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                   />
                 </div>
@@ -706,18 +699,18 @@ export function BookingTab({ widget }: BookingTabProps) {
                   disabled={ordering}
                   className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
                 >
-                  {ordering ? "Sender…" : "Bestil opsætning"}
+                  {ordering ? t("agent.bookingTab.ordering") : t("agent.bookingTab.orderSetup")}
                 </button>
               </div>
             ) : (
               <p className="text-sm text-slate-600">
-                Har I ikke en Cal.com-konto, eller vil I hellere have os til det?{" "}
+                {t("agent.bookingTab.conciergePrompt")}{" "}
                 <button
                   type="button"
                   onClick={() => setShowConcierge(true)}
                   className="font-medium text-brand-600 hover:underline"
                 >
-                  Bed os om at sætte booking op
+                  {t("agent.bookingTab.conciergeLinkLabel")}
                 </button>
                 .
               </p>
