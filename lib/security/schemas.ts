@@ -206,6 +206,15 @@ export const widgetExtraSettingsSchema = z
       })
       .partial()
       .nullable(),
+    // Picked in the wizard's first step ("Navn & type"), before there's
+    // anything else to go on — steers how the "Generér prompt" meta-
+    // instruction is written (see metaSystemPrompt in
+    // app/api/customer/widgets/[id]/generate-prompt/route.ts). Purely
+    // advisory for the prompt text: booking/Shopify *tools* are still gated
+    // by an actually-connected calendar/webshop (see
+    // syncWidgetToVapiAssistant in lib/vapi/sync.ts), not by this choice.
+    agentPurposes: z.array(z.enum(["booking", "shopify", "qa"])).nullable(),
+    purposeNotes: z.string().trim().max(2000).nullable(),
   })
   .partial();
 
