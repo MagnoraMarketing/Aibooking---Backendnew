@@ -1110,6 +1110,84 @@ export const dashboardPages: Namespace = {
     de: "Fehlt eine Integration? Wir fügen laufend neue hinzu — schreiben Sie an den Support, und wir informieren Sie, wenn sie verfügbar ist.",
   },
 
+  // Shopify highlight card — Shopify is a real, working integration (the
+  // per-agent "Webshop" tab, see webshop-tab.tsx), unlike the rest of this
+  // page's COMING_SOON grid. It used to be miscategorised inside that list,
+  // which told customers it didn't exist yet. This card corrects that and
+  // sells it, right on the page where people already look for integrations.
+  "calendar-integrations.shopifyHighlightTitle": {
+    da: "Webshop / Shopify",
+    en: "Webshop / Shopify",
+    es: "Tienda online / Shopify",
+    fr: "Boutique en ligne / Shopify",
+    pt: "Loja online / Shopify",
+    de: "Webshop / Shopify",
+  },
+  "calendar-integrations.shopifyHighlightLiveBadge": {
+    da: "Allerede live",
+    en: "Already live",
+    es: "Ya disponible",
+    fr: "Déjà disponible",
+    pt: "Já disponível",
+    de: "Bereits live",
+  },
+  "calendar-integrations.shopifyHighlightSubtitle": {
+    da: "Forbind jeres Shopify-butik på under et minut — indsæt jeres butiksadresse og godkend. Ingen udvikler, ingen opsætning af produkter.",
+    en: "Connect your Shopify store in under a minute — enter your store address and approve. No developer, no product setup.",
+    es: "Conecte su tienda Shopify en menos de un minuto — indique la dirección de su tienda y apruebe. Sin desarrollador, sin configurar productos.",
+    fr: "Connectez votre boutique Shopify en moins d'une minute — indiquez l'adresse de votre boutique et approuvez. Aucun développeur, aucune configuration de produits.",
+    pt: "Ligue a sua loja Shopify em menos de um minuto — indique o endereço da loja e aprove. Sem programador, sem configurar produtos.",
+    de: "Verbinden Sie Ihren Shopify-Shop in unter einer Minute — Shop-Adresse eingeben und bestätigen. Kein Entwickler, keine Produktkonfiguration nötig.",
+  },
+  "calendar-integrations.shopifyHighlightCta": {
+    da: "Åbn Webshop-fanen for {name} →",
+    en: "Open the Webshop tab for {name} →",
+    es: "Abrir la pestaña Tienda de {name} →",
+    fr: "Ouvrir l'onglet Boutique de {name} →",
+    pt: "Abrir o separador Loja de {name} →",
+    de: "Webshop-Tab für {name} öffnen →",
+  },
+  "calendar-integrations.shopifyHighlightFeature1": {
+    da: "Slår produkter, priser, størrelser og farver op live i butikken",
+    en: "Looks up products, prices, sizes and colours live in your store",
+    es: "Consulta productos, precios, tallas y colores en directo en su tienda",
+    fr: "Consulte produits, prix, tailles et couleurs en direct dans votre boutique",
+    pt: "Consulta produtos, preços, tamanhos e cores em direto na sua loja",
+    de: "Ruft Produkte, Preise, Größen und Farben live aus Ihrem Shop ab",
+  },
+  "calendar-integrations.shopifyHighlightFeature2": {
+    da: "Tjekker lagerstatus, så kunden ikke bestiller noget der er udsolgt",
+    en: "Checks stock levels so customers never order something sold out",
+    es: "Comprueba el stock para que el cliente no pida algo agotado",
+    fr: "Vérifie le stock pour que le client ne commande jamais un article épuisé",
+    pt: "Verifica o stock para o cliente não encomendar algo esgotado",
+    de: "Prüft den Lagerbestand, damit Kunden nichts Ausverkauftes bestellen",
+  },
+  "calendar-integrations.shopifyHighlightFeature3": {
+    da: "Svarer på levering, retur og andre spørgsmål fra jeres egne butiksvilkår",
+    en: "Answers shipping, returns and other questions from your own store policies",
+    es: "Responde a envíos, devoluciones y otras preguntas según las políticas de su tienda",
+    fr: "Répond aux questions de livraison, retour et autres à partir des règles de votre boutique",
+    pt: "Responde sobre entrega, devoluções e outras perguntas das políticas da sua loja",
+    de: "Beantwortet Versand-, Rückgabe- und andere Fragen anhand Ihrer eigenen Shop-Richtlinien",
+  },
+  "calendar-integrations.shopifyHighlightFeature4": {
+    da: "Slår ordrestatus op på ordrenummer — leveret, undervejs eller annulleret",
+    en: "Looks up order status by order number — delivered, on the way or cancelled",
+    es: "Consulta el estado del pedido por número — entregado, en camino o cancelado",
+    fr: "Consulte le statut d'une commande par numéro — livrée, en cours ou annulée",
+    pt: "Consulta o estado da encomenda pelo número — entregue, a caminho ou cancelada",
+    de: "Ruft den Bestellstatus per Bestellnummer ab — geliefert, unterwegs oder storniert",
+  },
+  "calendar-integrations.shopifyHighlightChannels": {
+    da: "Virker med det samme på både jeres webshop-widget og jeres telefonagent (indgående opkald) — samme forbindelse driver begge.",
+    en: "Works instantly on both your webshop widget and your phone agent (inbound calls) — one connection powers both.",
+    es: "Funciona al instante tanto en el widget de su tienda como en el agente telefónico (llamadas entrantes): una sola conexión sirve para ambos.",
+    fr: "Fonctionne instantanément sur votre widget boutique comme sur votre agent téléphonique (appels entrants) — une seule connexion pour les deux.",
+    pt: "Funciona instantaneamente tanto no widget da loja como no agente telefónico (chamadas recebidas) — uma só ligação para ambos.",
+    de: "Funktioniert sofort sowohl auf Ihrem Webshop-Widget als auch auf Ihrem Telefonagenten (eingehende Anrufe) — eine Verbindung für beide.",
+  },
+
   // ---------------------------------------------------------------------
   // components/dashboard/agents-manager.tsx
   // ---------------------------------------------------------------------

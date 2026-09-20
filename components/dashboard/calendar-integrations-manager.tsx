@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import type { Widget } from "@/types/database";
 import type { CalendarConnectionSummary } from "@/app/dashboard/integrations/page";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { agentSectionPath } from "./agent-sections";
 
 interface CalcomEventType {
   id: number;
@@ -25,7 +26,6 @@ interface CalendarIntegrationsManagerProps {
 const COMING_SOON = [
   { name: "WhatsApp", categoryKey: "categoryCommunication", popular: true },
   { name: "Slack", categoryKey: "categoryCommunication", popular: false },
-  { name: "Shopify", categoryKey: "categoryEcommerce", popular: true },
   { name: "Notion", categoryKey: "categoryProductivity", popular: false },
   { name: "WordPress", categoryKey: "categoryWebsite", popular: true },
   { name: "Zapier", categoryKey: "categoryAutomation", popular: true },
@@ -112,6 +112,8 @@ export function CalendarIntegrationsManager({
 
   const connectionForProvider = (provider: string) =>
     connections.find((c) => c.widget_id === widgetId && c.provider === provider) ?? null;
+
+  const selectedWidget = widgets.find((w) => w.id === widgetId) ?? null;
 
   async function handleDisconnect(connectionId: string) {
     setDisconnectingId(connectionId);
@@ -239,6 +241,50 @@ export function CalendarIntegrationsManager({
               ))}
             </select>
           </div>
+
+          {selectedWidget ? (
+            <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold text-slate-900">
+                      {t("dashboardPages.calendar-integrations.shopifyHighlightTitle")}
+                    </h2>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                      {t("dashboardPages.calendar-integrations.shopifyHighlightLiveBadge")}
+                    </span>
+                  </div>
+                  <p className="mt-1 max-w-xl text-sm text-slate-600">
+                    {t("dashboardPages.calendar-integrations.shopifyHighlightSubtitle")}
+                  </p>
+                </div>
+                <a
+                  href={`${agentSectionPath(selectedWidget.agent_type)}/${selectedWidget.id}?tab=webshop`}
+                  className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  {t("dashboardPages.calendar-integrations.shopifyHighlightCta", { name: selectedWidget.name })}
+                </a>
+              </div>
+
+              <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {[
+                  "shopifyHighlightFeature1",
+                  "shopifyHighlightFeature2",
+                  "shopifyHighlightFeature3",
+                  "shopifyHighlightFeature4",
+                ].map((key) => (
+                  <li key={key} className="flex items-start gap-2 text-sm text-slate-700">
+                    <span aria-hidden className="mt-0.5 text-emerald-600">✓</span>
+                    {t(`dashboardPages.calendar-integrations.${key}`)}
+                  </li>
+                ))}
+              </ul>
+
+              <p className="mt-4 text-xs font-medium text-emerald-700">
+                {t("dashboardPages.calendar-integrations.shopifyHighlightChannels")}
+              </p>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {PROVIDERS.map((provider) => {
