@@ -29,9 +29,15 @@ interface InboundManagerProps {
   // paid intro offer (499 kr for 30 days) — false once they've redeemed it
   // or already have a subscription (see app/dashboard/inbound/page.tsx).
   introOfferAvailable: boolean;
+  // Whether this customer has an active package — a real inbound number
+  // (bought, or handed out free by Vapi) is a paid-plan feature, enforced
+  // server-side by requireActivePhoneNumberSubscription
+  // (lib/phone-numbers/service.ts). Building and testing an agent stays
+  // free regardless — the browser-based Test Call tab needs no number.
+  canGetNumber: boolean;
 }
 
-export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailable }: InboundManagerProps) {
+export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailable, canGetNumber }: InboundManagerProps) {
   const { t } = useTranslation();
 
   const STATUS_LABELS: Record<PhoneNumberRow["purchase_status"], string> = useMemo(
@@ -56,7 +62,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
   );
 
   const [phoneNumbers, setPhoneNumbers] = useState(initialPhoneNumbers);
-  const [showForm, setShowForm] = useState(initialPhoneNumbers.length === 0);
+  const [showForm, setShowForm] = useState(initialPhoneNumbers.length === 0 && canGetNumber);
   const [widgetId, setWidgetId] = useState(widgets[0]?.id ?? "");
   const [label, setLabel] = useState("");
   const [requesting, setRequesting] = useState(false);
@@ -145,7 +151,7 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
           <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.inbound.title")}</h1>
           <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.inbound.subtitle")}</p>
         </div>
-        {!showForm ? (
+        {!showForm && canGetNumber ? (
           <button
             type="button"
             onClick={() => setShowForm(true)}
@@ -156,22 +162,32 @@ export function InboundManager({ widgets, initialPhoneNumbers, introOfferAvailab
         ) : null}
       </div>
 
-      {widgets.length > 0 && introOfferAvailable ? (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-brand-200 bg-brand-50 p-5">
+      {widgets.length > 0 && !canGetNumber ? (
+        <div
+          className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5 ${
+            introOfferAvailable ? "border-brand-200 bg-brand-50" : "border-slate-200 bg-white"
+          }`}
+        >
           <div>
-            <span className="inline-block rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
-              {t("dashboardPages.shared.introOfferBadge")}
-            </span>
+            {introOfferAvailable ? (
+              <span className="inline-block rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
+                {t("dashboardPages.shared.introOfferBadge")}
+              </span>
+            ) : null}
             <h2 className="mt-1.5 text-base font-semibold text-slate-900">
-              {t("dashboardPages.inbound.introBannerTitle")}
+              {introOfferAvailable ? t("dashboardPages.inbound.introBannerTitle") : t("dashboardPages.inbound.paywallTitle")}
             </h2>
-            <p className="mt-1 text-sm text-slate-600">{t("dashboardPages.inbound.introBannerSubtitle")}</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {introOfferAvailable
+                ? t("dashboardPages.inbound.introBannerSubtitle")
+                : t("dashboardPages.inbound.paywallSubtitle")}
+            </p>
           </div>
           <Link
-            href="/dashboard/inbound/free-trial"
+            href={introOfferAvailable ? "/dashboard/inbound/free-trial" : "/dashboard/billing"}
             className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
-            {t("dashboardPages.inbound.introBannerCta")}
+            {introOfferAvailable ? t("dashboardPages.inbound.introBannerCta") : t("dashboardPages.inbound.paywallCta")}
           </Link>
         </div>
       ) : null}

@@ -35,7 +35,7 @@ export default async function InboundPage() {
       .order("created_at", { ascending: false })
       .returns<PhoneNumberRow[]>(),
     supabase.from("customers").select("intro_offer_used_at").eq("id", customerId).single<Pick<Customer, "intro_offer_used_at">>(),
-    supabase.from("subscriptions").select("id").eq("customer_id", customerId).maybeSingle(),
+    supabase.from("subscriptions").select("id, status").eq("customer_id", customerId).maybeSingle(),
     supabase
       .from("llm_models")
       .select("*")
@@ -68,6 +68,12 @@ export default async function InboundPage() {
         widgets={phoneAgents}
         initialPhoneNumbers={phoneNumbers ?? []}
         introOfferAvailable={!customer?.intro_offer_used_at && !subscription}
+        // A real inbound number (bought, or handed out free by Vapi) is a
+        // paid-plan feature — see requireActivePhoneNumberSubscription in
+        // lib/phone-numbers/service.ts, which enforces this server-side too.
+        // Mirrored here so the UI shows an upsell instead of a form that
+        // would just fail on submit.
+        canGetNumber={subscription?.status === "active"}
       />
     </div>
   );

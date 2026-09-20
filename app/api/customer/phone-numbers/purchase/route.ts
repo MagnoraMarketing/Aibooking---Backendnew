@@ -9,7 +9,7 @@ import {
   rateLimit,
   getClientIp,
 } from "@/lib/security";
-import { provisionPurchasedNumber, PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
+import { provisionPurchasedNumber, requireActivePhoneNumberSubscription, PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
 import { ensureInboundAssistant } from "@/lib/vapi";
 import { ApiError } from "@/types/errors";
 
@@ -33,18 +33,7 @@ export const POST = withErrorHandling(async (request) => {
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
-  const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select("status")
-    .eq("customer_id", customerId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (subscription?.status !== "active") {
-    throw ApiError.paymentRequired(
-      "Telefonnumre er inkluderet i en betalt pakke — bestil en pakke under Betaling for at få adgang."
-    );
-  }
+  await requireActivePhoneNumberSubscription(customerId);
 
   const { data: widget, error: widgetError } = await supabase
     .from("widgets")

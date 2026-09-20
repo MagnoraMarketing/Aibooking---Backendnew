@@ -4,6 +4,30 @@ import { getOrCreateSubaccount, purchaseTwilioNumber, releaseTwilioNumber, confi
 import { importTwilioPhoneNumber } from "@/lib/vapi";
 import { writeAuditLog } from "@/lib/security/audit";
 import { assertTwilioWebhookBaseUrlConfigured, twilioWebhookUrls } from "@/lib/telephony/urls";
+import { ApiError } from "@/types/errors";
+
+// A phone number — bought through us or handed out free by Vapi — is a
+// paid-plan feature: trial/unsubscribed customers can build and test an
+// agent (the browser-based Test Call tab needs no number at all), but
+// forwarding a real line to it requires an active package. Shared by both
+// acquisition routes (app/api/customer/phone-numbers/purchase and
+// .../vapi) so the one gate stays in one place.
+export async function requireActivePhoneNumberSubscription(customerId: string): Promise<void> {
+  const supabase = getAdminClient();
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("status")
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (subscription?.status !== "active") {
+    throw ApiError.paymentRequired(
+      "Telefonnumre er inkluderet i en betalt pakke — bestil en pakke under Betaling for at få adgang."
+    );
+  }
+}
 
 // Shared provisioning logic for a platform-bought number, called from two
 // places: the Stripe webhook once payment is confirmed

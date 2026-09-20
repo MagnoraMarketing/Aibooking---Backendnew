@@ -9,7 +9,7 @@ import {
   attachAssistantToVapiNumber,
   listVapiPhoneNumbers,
 } from "@/lib/vapi";
-import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
+import { PHONE_NUMBER_CLIENT_COLUMNS, requireActivePhoneNumberSubscription } from "@/lib/phone-numbers";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -39,6 +39,12 @@ export const POST = withErrorHandling(async (request) => {
   const body = await readJsonBody(request, vapiNumberInputSchema);
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
+
+  // Same gate as the platform_twilio purchase route: a real inbound number
+  // is a paid-plan feature, whether it's bought or handed out free by Vapi.
+  // Building and testing the agent (the browser-based Test Call tab) stays
+  // free — see requireActivePhoneNumberSubscription's own comment.
+  await requireActivePhoneNumberSubscription(customerId);
 
   const { data: widget, error: widgetError } = await supabase
     .from("widgets")
