@@ -2133,6 +2133,22 @@ export const agent: Namespace = {
     pt: "Não foi possível atribuir um número de telefone. Tente novamente em Chamadas recebidas.",
     de: "Telefonnummer konnte nicht zugewiesen werden. Versuchen Sie es erneut unter Eingehende Anrufe.",
   },
+  "wizardPhone.paymentRequired": {
+    da: "I kan afprøve {name} med det samme — men det gratis telefonnummer bliver først tildelt, når I har et aktivt abonnement. Start introtilbuddet (30 dage til 499 kr) for at få nummeret automatisk.",
+    en: "You can try {name} out right away — but the free phone number is only assigned once you have an active subscription. Start the intro offer (30 days for 499 kr) to get the number automatically.",
+    es: "Puede probar {name} de inmediato, pero el número de teléfono gratuito solo se asigna cuando tiene una suscripción activa. Inicie la oferta de introducción (30 días por 499 kr) para obtener el número automáticamente.",
+    fr: "Vous pouvez essayer {name} tout de suite — mais le numéro de téléphone gratuit n'est attribué qu'une fois un abonnement actif. Démarrez l'offre de lancement (30 jours pour 499 kr) pour obtenir le numéro automatiquement.",
+    pt: "Pode experimentar {name} já — mas o número de telefone gratuito só é atribuído quando tiver uma subscrição ativa. Inicie a oferta de introdução (30 dias por 499 kr) para obter o número automaticamente.",
+    de: "Sie können {name} sofort ausprobieren — die kostenlose Telefonnummer wird jedoch erst zugewiesen, sobald Sie ein aktives Abonnement haben. Starten Sie das Einführungsangebot (30 Tage für 499 kr), um die Nummer automatisch zu erhalten.",
+  },
+  "wizardPhone.paymentRequiredCta": {
+    da: "Se introtilbuddet →",
+    en: "See the intro offer →",
+    es: "Ver la oferta de introducción →",
+    fr: "Voir l'offre de lancement →",
+    pt: "Ver a oferta de introdução →",
+    de: "Einführungsangebot ansehen →",
+  },
   "wizardPhone.connectButton": {
     da: "Administrér numre under Indgående opkald →",
     en: "Manage numbers under Inbound →",

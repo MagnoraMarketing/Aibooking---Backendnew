@@ -17,6 +17,11 @@ const ROLLOVER_MONTHS_CAP = 3;
 // respect to a given Stripe event (see /api/webhooks/stripe for the
 // dedup check via the stripe_events table).
 
+export interface SyncedSubscription {
+  customerId: string;
+  status: Stripe.Subscription.Status;
+}
+
 export async function syncSubscriptionFromStripe(
   subscription: Stripe.Subscription,
   // Set by the webhook when the subscription came from a package-launch
@@ -25,11 +30,11 @@ export async function syncSubscriptionFromStripe(
   // subscription metadata, so the customer/package pairing rides on the
   // Checkout Session's client_reference_id instead and is passed in here.
   explicitRef?: { customerId: string; packageId: string }
-): Promise<void> {
+): Promise<SyncedSubscription | null> {
   const supabase = getAdminClient();
 
   const customerId = explicitRef?.customerId ?? subscription.metadata?.aibooking_customer_id;
-  if (!customerId) return; // not a subscription created by this platform
+  if (!customerId) return null; // not a subscription created by this platform
 
   let packageId = explicitRef?.packageId ?? subscription.metadata?.aibooking_package_id ?? null;
 
@@ -79,6 +84,8 @@ export async function syncSubscriptionFromStripe(
       .eq("id", customerId)
       .is("intro_offer_used_at", null);
   }
+
+  return { customerId, status: subscription.status };
 }
 
 export async function markSubscriptionCanceled(subscription: Stripe.Subscription): Promise<void> {
