@@ -10,6 +10,19 @@ import {
 import { grantWidgetLaunchCredits, parseWidgetLaunchReference } from "@/lib/billing/widget-launch";
 import { parsePackageLaunchReference } from "@/lib/billing/package-launch-offer";
 import { writeAuditLog } from "@/lib/security/audit";
+import { provisionVapiNumbersForNewlyPaidCustomer } from "@/lib/phone-numbers";
+import type { SyncedSubscription } from "@/lib/billing/subscription-sync";
+
+// A phone agent's number is gated on having an active subscription (see
+// app/api/customer/phone-numbers/vapi/route.ts) — this is what actually
+// grants it the moment that becomes true, for any phone agent the customer
+// already built during the trial. Only "active" counts, same threshold the
+// gate itself checks; a subscription that synced as anything else (past_due,
+// incomplete, canceled) grants nothing.
+async function provisionInboundNumbersIfNewlyActive(synced: SyncedSubscription | null): Promise<void> {
+  if (synced?.status !== "active") return;
+  await provisionVapiNumbersForNewlyPaidCustomer(synced.customerId);
+}
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -82,7 +95,8 @@ export async function POST(request: Request): Promise<NextResponse> {
           // Checkout Session's client_reference_id instead, so pass it
           // through explicitly rather than relying on metadata lookup.
           const packageLaunchRef = parsePackageLaunchReference(session.client_reference_id);
-          await syncSubscriptionFromStripe(subscription, packageLaunchRef ?? undefined);
+          const synced = await syncSubscriptionFromStripe(subscription, packageLaunchRef ?? undefined);
+          await provisionInboundNumbersIfNewlyActive(synced);
         }
 
         // The wizard's closing payment step is a Stripe Payment Link, which
@@ -106,7 +120,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
-        await syncSubscriptionFromStripe(subscription);
+        const synced = await syncSubscriptionFromStripe(subscription);
+        await provisionInboundNumbersIfNewlyActive(synced);
         break;
       }
 
