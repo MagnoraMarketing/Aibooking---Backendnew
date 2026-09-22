@@ -11,6 +11,11 @@ interface AvailablePhoneNumber {
   name: string | null;
 }
 
+interface CalcomEventType {
+  id: number;
+  title: string;
+}
+
 export interface AgentFormWidget {
   id: string;
   name: string;
@@ -50,6 +55,12 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
   const [openingMessage, setOpeningMessage] = useState(initial?.opening_message ?? "");
   const [agentSelection, setAgentSelection] = useState<WapiAgentSelection>({ wapiAgentId: initial?.wapi_agent_id ?? null, wapiAgentExternalId: null });
   const [phoneNumberId, setPhoneNumberId] = useState<string | null>(null);
+  const [calcomApiKey, setCalcomApiKey] = useState("");
+  const [calcomEventTypeId, setCalcomEventTypeId] = useState("");
+  const [calcomEventTypes, setCalcomEventTypes] = useState<CalcomEventType[]>([]);
+  const [calcomAccountLabel, setCalcomAccountLabel] = useState<string | null>(null);
+  const [calcomFetching, setCalcomFetching] = useState(false);
+  const [calcomFetchError, setCalcomFetchError] = useState<string | null>(null);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [availableNumbers, setAvailableNumbers] = useState<AvailablePhoneNumber[]>([]);
@@ -67,6 +78,38 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
       .catch(() => {});
   }, []);
 
+  // Proves the pasted key works and lists what it can book against — the
+  // same "pick an event type from a list" step the customer dashboard offers
+  // (components/dashboard/calendar-integrations-manager.tsx), so the admin
+  // doesn't have to already know the numeric event-type id. Nothing is
+  // persisted here; the actual connect happens on save (Gem), same as the
+  // Wapi agent picker's "Opdater agenter".
+  async function fetchCalcomEventTypes() {
+    if (!calcomApiKey.trim()) return;
+    setCalcomFetching(true);
+    setCalcomFetchError(null);
+    try {
+      const res = await fetch("/api/admin/calendar/calcom/event-types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: calcomApiKey.trim() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message || "failed");
+      setCalcomEventTypes(data.eventTypes ?? []);
+      setCalcomAccountLabel(data.account?.email || data.account?.username || null);
+      if (!calcomEventTypeId.trim() && data.eventTypes?.[0]) {
+        setCalcomEventTypeId(String(data.eventTypes[0].id));
+      }
+    } catch (err) {
+      setCalcomEventTypes([]);
+      setCalcomAccountLabel(null);
+      setCalcomFetchError(err instanceof Error ? err.message : t("adminPages.widgets.calcomFetchError"));
+    } finally {
+      setCalcomFetching(false);
+    }
+  }
+
   async function handleSubmit() {
     if (!name.trim()) {
       setError(t("adminPages.widgets.formErrorName"));
@@ -74,6 +117,10 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
     }
     if (deploymentType === "customer_website" && !customerId && !isEdit) {
       setError(t("adminPages.widgets.formErrorCustomer"));
+      return;
+    }
+    if (Boolean(calcomApiKey.trim()) !== Boolean(calcomEventTypeId.trim())) {
+      setError(t("adminPages.widgets.formErrorCalcom"));
       return;
     }
 
@@ -91,6 +138,10 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
       wapiAgentExternalId: agentSelection.wapiAgentExternalId,
       phoneNumberId: phoneNumberId || undefined,
     };
+    if (calcomApiKey.trim()) {
+      body.calcomApiKey = calcomApiKey.trim();
+      body.calcomEventTypeId = Number(calcomEventTypeId.trim());
+    }
     if (!isEdit) {
       body.agentType = agentType;
       if (deploymentType === "customer_website") body.customerId = customerId;
@@ -219,6 +270,67 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="mb-2 text-sm font-medium text-slate-700">{t("adminPages.widgets.calcomSectionLabel")}</p>
+            <p className="mb-2 text-xs text-slate-500">{t("adminPages.widgets.calcomHelpText")}</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">{t("adminPages.widgets.calcomApiKeyLabel")}</label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={calcomApiKey}
+                    onChange={(e) => {
+                      setCalcomApiKey(e.target.value);
+                      setCalcomEventTypes([]);
+                      setCalcomAccountLabel(null);
+                      setCalcomFetchError(null);
+                    }}
+                    placeholder={t("adminPages.widgets.calcomApiKeyPlaceholder")}
+                    autoComplete="off"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={fetchCalcomEventTypes}
+                    disabled={!calcomApiKey.trim() || calcomFetching}
+                    className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {calcomFetching ? t("adminPages.wapiAgents.syncing") : t("adminPages.widgets.calcomFetchButton")}
+                  </button>
+                </div>
+                {calcomAccountLabel ? (
+                  <p className="mt-1 text-xs text-emerald-600">{t("adminPages.widgets.calcomConnectedAs")}: {calcomAccountLabel}</p>
+                ) : null}
+                {calcomFetchError ? <p className="mt-1 text-xs text-red-600">{calcomFetchError}</p> : null}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">{t("adminPages.widgets.calcomEventTypeIdLabel")}</label>
+                {calcomEventTypes.length > 0 ? (
+                  <select
+                    value={calcomEventTypeId}
+                    onChange={(e) => setCalcomEventTypeId(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  >
+                    {calcomEventTypes.map((eventType) => (
+                      <option key={eventType.id} value={eventType.id}>
+                        {eventType.title} (#{eventType.id})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={calcomEventTypeId}
+                    onChange={(e) => setCalcomEventTypeId(e.target.value)}
+                    inputMode="numeric"
+                    placeholder={t("adminPages.widgets.calcomEventTypeIdPlaceholder")}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  />
+                )}
+              </div>
+            </div>
           </div>
 
           {agentType === "phone" ? (

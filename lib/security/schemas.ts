@@ -174,6 +174,14 @@ export const wapiAgentConnectionSchema = z
     // An existing phone_numbers row (already in the platform's Vapi
     // account, unclaimed) to attach to this agent.
     phoneNumberId: z.string().uuid().nullable(),
+    // Connects this agent's calendar straight from the admin creation/edit
+    // modal, instead of making the customer paste the key themselves later
+    // (see lib/admin/widget-service.ts's connectAdminCalcom). Cal.com shows
+    // an API key exactly once, so this is only sent when an admin is
+    // actually setting/replacing it — omitted (not null) leaves an existing
+    // connection untouched.
+    calcomApiKey: z.string().trim().min(1).max(500).nullable(),
+    calcomEventTypeId: z.coerce.number().int().positive().nullable(),
   })
   .partial();
 
@@ -449,6 +457,13 @@ export const calcomConnectInputSchema = z
 // against — see app/api/customer/calendar/[id]/route.ts's PATCH.
 export const calcomUpdateEventTypeSchema = z.object({
   eventTypeId: z.number().int().positive(),
+});
+
+// Admin Control Center: "Hent event-typer" in the widget/inbound creation
+// modal (app/api/admin/calendar/calcom/event-types/route.ts) — proves a
+// pasted key works and lists what it can book against, read-only.
+export const calcomEventTypesLookupSchema = z.object({
+  apiKey: z.string().trim().min(1).max(500),
 });
 
 // Cal.com OAuth booking request
