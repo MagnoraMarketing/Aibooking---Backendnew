@@ -12,16 +12,21 @@ export const dashboardShell: Namespace = {
     de: "Erste Schritte",
   },
   "nav.dashboard": { da: "Dashboard", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel", de: "Dashboard" },
+
+  // Grouping header for the "Agenter" dropdown (Widget/Inbound/Outbound/Dialer)
+  // in the header nav — keeps the four agent types together instead of
+  // scattered flat in the nav bar, so they read as one family.
+  "nav.agentsGroup": { da: "Agenter", en: "Agents", es: "Agentes", fr: "Agents", pt: "Agentes", de: "Agenten" },
   "nav.widgetAgents": {
-    da: "Widget Agents",
-    en: "Widget Agents",
-    es: "Agentes de widget",
-    fr: "Agents widget",
-    pt: "Agentes de widget",
-    de: "Widget-Agenten",
+    da: "Chat-widget",
+    en: "Chat widget",
+    es: "Widget de chat",
+    fr: "Widget de chat",
+    pt: "Widget de chat",
+    de: "Chat-Widget",
   },
-  "nav.inbound": { da: "Inbound", en: "Inbound", es: "Entrantes", fr: "Entrant", pt: "Recebidas", de: "Eingehend" },
-  "nav.outbound": { da: "Outbound", en: "Outbound", es: "Salientes", fr: "Sortant", pt: "Efetuadas", de: "Ausgehend" },
+  "nav.inbound": { da: "Inbound (indgående opkald)", en: "Inbound (incoming calls)", es: "Entrantes (llamadas)", fr: "Entrant (appels)", pt: "Recebidas (chamadas)", de: "Inbound (eingehende Anrufe)" },
+  "nav.outbound": { da: "Outbound (udgående opkald)", en: "Outbound (outgoing calls)", es: "Salientes (llamadas)", fr: "Sortant (appels)", pt: "Efetuadas (chamadas)", de: "Outbound (ausgehende Anrufe)" },
   "nav.dialer": { da: "Dialer", en: "Dialer", es: "Marcador", fr: "Numéroteur", pt: "Discador", de: "Dialer" },
   "nav.knowledgeBase": {
     da: "Knowledge Base",

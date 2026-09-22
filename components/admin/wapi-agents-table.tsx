@@ -115,7 +115,8 @@ export function AdminWapiAgentsTable({ initialAgents, initialLastSyncedAt }: { i
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">{t("adminShell.nav.wapiAgents")}</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">{t("adminPages.wapiAgents.pageHint")}</p>
+          <p className="mt-1 text-xs text-slate-400">
             {t("adminPages.wapiAgents.lastSynced")}: {formatDate(lastSyncedAt, locale)}
           </p>
         </div>

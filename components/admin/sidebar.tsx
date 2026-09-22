@@ -11,15 +11,41 @@ interface NavItem {
   labelKey: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { href: "/admin", labelKey: "adminShell.nav.dashboard" },
-  { href: "/admin/widgets", labelKey: "adminShell.nav.widgets" },
-  { href: "/admin/inbound", labelKey: "adminShell.nav.inbound" },
-  { href: "/admin/wapi-agents", labelKey: "adminShell.nav.wapiAgents" },
-  { href: "/admin/phone-numbers", labelKey: "adminShell.nav.phoneNumbers" },
-  { href: "/admin/customers", labelKey: "adminShell.nav.customers" },
-  { href: "/admin/integrations", labelKey: "adminShell.nav.integrations" },
-  { href: "/admin/settings", labelKey: "adminShell.nav.settings" },
+interface NavSection {
+  /** Section header label key, or null for the top-level, ungrouped items. */
+  labelKey: string | null;
+  items: NavItem[];
+}
+
+// Grouped so the two customer-facing agent types (Widgets, Inbound) read as
+// one family, while the Wapi Agents cache — a technical, admin-only mirror
+// of the underlying Vapi assistants — sits in its own section and can't be
+// mistaken for a third kind of customer agent.
+const NAV_SECTIONS: NavSection[] = [
+  {
+    labelKey: null,
+    items: [{ href: "/admin", labelKey: "adminShell.nav.dashboard" }],
+  },
+  {
+    labelKey: "adminShell.nav.groupAgents",
+    items: [
+      { href: "/admin/widgets", labelKey: "adminShell.nav.widgets" },
+      { href: "/admin/inbound", labelKey: "adminShell.nav.inbound" },
+    ],
+  },
+  {
+    labelKey: "adminShell.nav.groupVapi",
+    items: [{ href: "/admin/wapi-agents", labelKey: "adminShell.nav.wapiAgents" }],
+  },
+  {
+    labelKey: "adminShell.nav.groupAdmin",
+    items: [
+      { href: "/admin/phone-numbers", labelKey: "adminShell.nav.phoneNumbers" },
+      { href: "/admin/customers", labelKey: "adminShell.nav.customers" },
+      { href: "/admin/integrations", labelKey: "adminShell.nav.integrations" },
+      { href: "/admin/settings", labelKey: "adminShell.nav.settings" },
+    ],
+  },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -30,22 +56,31 @@ function isActive(pathname: string, href: string): boolean {
 function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   const { t } = useTranslation();
   return (
-    <nav className="flex flex-col gap-1">
-      {NAV_ITEMS.map((item) => {
-        const active = isActive(pathname, item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-              active ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-            }`}
-          >
-            {t(item.labelKey)}
-          </Link>
-        );
-      })}
+    <nav className="flex flex-col gap-4">
+      {NAV_SECTIONS.map((section, index) => (
+        <div key={section.labelKey ?? `section-${index}`} className="flex flex-col gap-1">
+          {section.labelKey ? (
+            <span className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              {t(section.labelKey)}
+            </span>
+          ) : null}
+          {section.items.map((item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onNavigate}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  active ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                {t(item.labelKey)}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }

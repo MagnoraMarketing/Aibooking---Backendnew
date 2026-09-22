@@ -4,6 +4,7 @@ import { grantCredits } from "@/lib/credits/ledger";
 import { generatePublicWidgetId } from "@/lib/widgets/public-id";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
 import { sendCustomerInviteEmail } from "@/lib/email/invite";
+import { TRIAL_MINUTES, TRIAL_SECONDS } from "@/lib/billing/trial";
 import type { Customer, LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 
 export interface OnboardCustomerParams {
@@ -50,9 +51,12 @@ export async function getDefaultOrSpecified<T extends { id: string; active: bool
 }
 
 // Admin creates a customer -> subscription placeholder -> credit account
-// (seeded with one included allocation so the widget works immediately) ->
-// default widget -> default voice -> default Claude model, then optionally
-// invites the customer to set their own password. See spec sections 29-30.
+// (seeded with the same free-trial allowance self-signup gets, not the
+// paid package's full minutes — those are only granted once a real Stripe
+// invoice is paid, see grantCreditsForPaidInvoice in
+// lib/billing/subscription-sync.ts) -> default widget -> default voice ->
+// default Claude model, then optionally invites the customer to set their
+// own password. See spec sections 29-30.
 export async function onboardCustomer(params: OnboardCustomerParams): Promise<OnboardCustomerResult> {
   const supabase = getAdminClient();
 
@@ -76,10 +80,13 @@ export async function onboardCustomer(params: OnboardCustomerParams): Promise<On
     status: "incomplete",
   });
 
+  // Same free-trial allowance as self-signup (lib/customers/self-signup.ts)
+  // — the package's full included_minutes only get granted once this
+  // customer's subscription actually has a paid Stripe invoice behind it.
   await grantCredits({
     customerId: customer.id,
-    seconds: pkg.included_minutes * 60,
-    description: `Velkomstpakke: ${pkg.package_name} (${pkg.included_minutes} minutter)`,
+    seconds: TRIAL_SECONDS,
+    description: `Gratis prøveperiode: ${TRIAL_MINUTES} minutter (7 dage)`,
   });
 
   const defaultSystemPrompt = await getDefaultSystemPrompt();

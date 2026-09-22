@@ -370,12 +370,12 @@ export const adminPages: Namespace = {
     de: "Demnächst verfügbar",
   },
   "clientPortal.confirmDelete": {
-    da: "Slet {name}? Dette deaktiverer kundens konto og widgets.",
-    en: "Delete {name}? This will deactivate the client's account and widgets.",
-    es: "¿Eliminar a {name}? Esto desactivará la cuenta y los widgets del cliente.",
-    fr: "Supprimer {name} ? Cela désactivera le compte et les widgets du client.",
-    pt: "Excluir {name}? Isso desativará a conta e os widgets do cliente.",
-    de: "{name} löschen? Dadurch werden das Konto und die Widgets des Kunden deaktiviert.",
+    da: "Slet {name}? Kundens login fjernes permanent (emailen kan bruges igen), og widgets sættes på pause. Forbrugs- og faktureringshistorik bevares.",
+    en: "Delete {name}? The customer's login is permanently removed (the email can be reused) and widgets are paused. Usage and billing history is kept.",
+    es: "¿Eliminar a {name}? El inicio de sesión del cliente se elimina permanentemente (el correo puede reutilizarse) y los widgets se pausan. El historial de uso y facturación se conserva.",
+    fr: "Supprimer {name} ? La connexion du client est définitivement supprimée (l'e-mail peut être réutilisé) et les widgets sont mis en pause. L'historique d'utilisation et de facturation est conservé.",
+    pt: "Excluir {name}? O login do cliente é removido permanentemente (o email pode ser reutilizado) e os widgets são pausados. O histórico de uso e faturamento é mantido.",
+    de: "{name} löschen? Der Login des Kunden wird dauerhaft entfernt (die E-Mail kann wiederverwendet werden), und Widgets werden pausiert. Nutzungs- und Abrechnungsverlauf bleiben erhalten.",
   },
 
   // app/admin/phone-numbers/page.tsx + components/admin/phone-numbers-table.tsx
@@ -733,6 +733,14 @@ export const adminPages: Namespace = {
   // components/admin/wapi-agent-selector.tsx + wapi-agents-table.tsx +
   // app/admin/wapi-agents
   // ---------------------------------------------------------------------
+  "wapiAgents.pageHint": {
+    da: "Teknisk cache af de underliggende Vapi-assistenter. Opret ikke kundeagenter her — tilslut i stedet en Wapi Agent til en Widget eller en Inbound-agent.",
+    en: "A technical cache of the underlying Vapi assistants. Don't create customer agents here — instead connect a Wapi Agent to a Widget or an Inbound agent.",
+    es: "Una caché técnica de los asistentes Vapi subyacentes. No cree agentes de cliente aquí; en su lugar, conecte un agente Wapi a un widget o a un agente entrante.",
+    fr: "Un cache technique des assistants Vapi sous-jacents. Ne créez pas d'agents client ici — connectez plutôt un agent Wapi à un widget ou à un agent entrant.",
+    pt: "Um cache técnico dos assistentes Vapi subjacentes. Não crie agentes de cliente aqui — em vez disso, conecte um agente Wapi a um Widget ou a um agente de entrada.",
+    de: "Ein technischer Cache der zugrunde liegenden Vapi-Assistenten. Erstellen Sie hier keine Kundenagenten — verbinden Sie stattdessen einen Wapi-Agenten mit einem Widget oder einem Inbound-Agenten.",
+  },
   "wapiAgents.loadError": {
     da: "Kunne ikke hente Wapi-agenter lige nu.",
     en: "Couldn't load Wapi agents right now.",
