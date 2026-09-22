@@ -7,6 +7,7 @@ import { getDefaultSystemPrompt } from "@/lib/settings/platform";
 import { refreshWapiAgent, syncWidgetToVapiAssistant, ensureVapiAssistant, type VapiSyncOutcome } from "@/lib/vapi";
 import { attachAssistantToVapiNumber } from "@/lib/vapi";
 import { encryptSecret, writeAuditLog } from "@/lib/security";
+import { mergeUberDirectInput } from "@/lib/uber-direct/connection";
 import { fetchCalcomMe, fetchCalcomEventTypes } from "@/lib/calendar";
 import type { createAdminWidgetSchema, wapiAgentConnectionSchema } from "@/lib/security/schemas";
 import { ApiError } from "@/types/errors";
@@ -251,6 +252,7 @@ export async function createAdminWidget(
     deploymentType: _dt,
     calcomApiKey,
     calcomEventTypeId,
+    uberDirect,
     ...rest
   } = input;
   const dbRow = widgetUpdateToDbRow(rest);
@@ -276,9 +278,12 @@ export async function createAdminWidget(
     .single();
   if (error) throw error;
 
+  const initialExtra: Record<string, unknown> = vapiAssistantId ? { vapiAssistantId } : {};
   await supabase.from("widget_settings").insert({
     widget_id: widget.id,
-    extra: vapiAssistantId ? { vapiAssistantId } : {},
+    // Set before the Vapi push below, so a new agent is born with its
+    // delivery tools instead of getting them on its next edit.
+    extra: uberDirect ? mergeUberDirectInput(initialExtra, uberDirect) : initialExtra,
   });
 
   // Prompt first: an agent created without an existing Vapi assistant gets

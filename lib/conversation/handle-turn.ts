@@ -13,7 +13,8 @@ import { resolveTTSProvider, estimateTTSCost } from "@/lib/tts";
 import { recordLLMUsage, recordTTSUsage, appendTurnUsage, estimateSpeechDurationSeconds } from "@/lib/usage";
 import { getSummarizationModelName } from "@/lib/settings/platform";
 import { decryptSecret } from "@/lib/security";
-import { generateReplyWithTools, type ShopifyToolLoopContext } from "./tool-loop";
+import { generateReplyWithTools, type ShopifyToolLoopContext, type DeliveryToolLoopContext } from "./tool-loop";
+import { loadUberDirectConfig } from "@/lib/uber-direct/connection";
 import type { CalendarToolContext } from "./calendar-tools";
 import { resolveShopifyCapabilities } from "@/lib/shopify/agent-tools";
 import { withBookingFlowDirective } from "@/lib/i18n/agent-content";
@@ -154,16 +155,17 @@ export async function generateConversationReplyText(params: GenerateReplyTextPar
   // webshop on any other provider just doesn't get tool access, same as no
   // connection at all.
   const isAnthropic = llmProvider.name === "anthropic";
-  const [calendarContext, shopifyContext] = await Promise.all([
+  const [calendarContext, shopifyContext, deliveryContext] = await Promise.all([
     isAnthropic ? resolveCalendarToolContext(params) : Promise.resolve(null),
     isAnthropic ? resolveShopifyToolContext(params.widget.id) : Promise.resolve(null),
+    isAnthropic ? resolveDeliveryToolContext(params.widget.id, params.customerId) : Promise.resolve(null),
   ]);
 
   // One loop for both: a webshop agent that also books has a single
   // conversation, and the tools it may use are decided per widget, not per
   // feature.
   const generation =
-    calendarContext || shopifyContext
+    calendarContext || shopifyContext || deliveryContext
       ? await generateReplyWithTools({
           model: params.llmModel.model_name,
           // Same booking flow as the voice agents (see BOOKING_FLOW_DIRECTIVE).
@@ -174,6 +176,7 @@ export async function generateConversationReplyText(params: GenerateReplyTextPar
           maxTokens: params.llmModel.max_tokens,
           calendar: calendarContext,
           shopify: shopifyContext,
+          delivery: deliveryContext,
         })
       : await llmProvider.generateReply({
           model: params.llmModel.model_name,
@@ -311,6 +314,15 @@ async function resolveShopifyToolContext(widgetId: string): Promise<ShopifyToolL
     return { widgetId, capabilities };
   } catch (err) {
     console.error("Failed to resolve Shopify tool context:", err);
+    return null;
+  }
+}
+
+async function resolveDeliveryToolContext(widgetId: string, customerId: string): Promise<DeliveryToolLoopContext | null> {
+  try {
+    return (await loadUberDirectConfig(widgetId)) ? { widgetId, customerId } : null;
+  } catch (err) {
+    console.error("Failed to resolve Uber Direct tool context:", err);
     return null;
   }
 }
