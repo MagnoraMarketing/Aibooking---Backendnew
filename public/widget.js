@@ -120,6 +120,47 @@
     }).catch(function () {});
   }
 
+  // Persists the visible transcript across page loads/reopenings, per widget
+  // and per browser (localStorage, never sent to the server) — so a visitor
+  // who closes the chat and comes back later still sees what they talked
+  // about, even though every open still starts a fresh billed session (see
+  // ensureSession/startCall below; there is no server-side conversation
+  // resume). Wrapped in try/catch throughout: private browsing, a full quota
+  // or a blocked storage API must never break the chat itself, only its
+  // memory of past turns.
+  var HISTORY_LIMIT = 40;
+
+  function historyStorageKey() {
+    return "aibooking_history_" + publicId;
+  }
+
+  function loadHistory() {
+    try {
+      var raw = window.localStorage.getItem(historyStorageKey());
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function appendToHistory(role, text) {
+    try {
+      var list = loadHistory();
+      list.push({ role: role, text: text });
+      window.localStorage.setItem(historyStorageKey(), JSON.stringify(list.slice(-HISTORY_LIMIT)));
+    } catch (e) {
+      // Storage unavailable/full — the current conversation carries on fine
+      // without it, it just won't be there next time.
+    }
+  }
+
+  function clearHistory() {
+    try {
+      window.localStorage.removeItem(historyStorageKey());
+    } catch (e) {}
+  }
+
   // The launcher toggles the panel in every UI mode. Registering that in one
   // place also lets the host page open the agent itself — window.aibooking
   // .open() / .close() / .toggle() — so a site can wire its own "Book en
@@ -238,8 +279,11 @@
 
   // Shared by all three UI builders below (text chat, OpenAI Realtime, Vapi)
   // so the avatar/branding treatment stays identical across every widget
-  // mode instead of drifting between three copies.
-  function buildHeader(config) {
+  // mode instead of drifting between three copies. `onClearHistory`, when
+  // given, adds a small trash icon that lets the visitor wipe their locally
+  // stored transcript (see loadHistory/appendToHistory above) — omitted
+  // entirely when there's nothing to clear.
+  function buildHeader(config, onClearHistory) {
     var avatar = config.avatarUrl
       ? el("img", {
           src: config.avatarUrl,
@@ -258,6 +302,24 @@
           [(config.businessName || "AI").trim().charAt(0).toUpperCase()]
         );
 
+    var children = [avatar, el("span", { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" }, [config.businessName || "AI-assistent"])];
+
+    if (onClearHistory) {
+      children.push(
+        el(
+          "button",
+          {
+            type: "button",
+            title: "Ryd samtalehistorik",
+            "aria-label": "Ryd samtalehistorik",
+            style: "flex-shrink:0;background:none;border:none;color:rgba(255,255,255,.8);cursor:pointer;font-size:15px;padding:4px;line-height:1;",
+            onclick: onClearHistory,
+          },
+          ["🗑"]
+        )
+      );
+    }
+
     return el(
       "div",
       {
@@ -266,7 +328,7 @@
           config.secondaryColor +
           ";color:#fff;padding:14px 16px;font-weight:600;display:flex;align-items:center;gap:10px;",
       },
-      [avatar, el("span", { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" }, [config.businessName || "AI-assistent"])]
+      children
     );
   }
 
@@ -411,7 +473,10 @@
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
-        buildHeader(config),
+        buildHeader(config, function () {
+          clearHistory();
+          messagesEl.innerHTML = "";
+        }),
         messagesEl,
         el(
           "div",
@@ -431,7 +496,7 @@
     document.body.appendChild(panel);
     document.body.appendChild(launcher);
 
-    function addMessage(text, role) {
+    function addMessage(text, role, skipPersist) {
       var bubble = el(
         "div",
         {
@@ -446,7 +511,26 @@
       appendMessageContent(bubble, text, config.primaryColor);
       messagesEl.appendChild(bubble);
       messagesEl.scrollTop = messagesEl.scrollHeight;
+      if (!skipPersist) appendToHistory(role, text);
     }
+
+    // Replays whatever this visitor's browser has stored from earlier visits
+    // (see appendToHistory above), then marks where today's conversation
+    // starts — a fresh session/conversation is still created server-side on
+    // the next message either way, this is purely what the panel shows.
+    function restoreHistory() {
+      var history = loadHistory();
+      if (!history.length) return false;
+      history.forEach(function (entry) {
+        addMessage(entry.text, entry.role, true);
+      });
+      messagesEl.appendChild(
+        el("div", { style: "text-align:center;font-size:11px;color:#999;margin:4px 0;" }, ["— Ny samtale —"])
+      );
+      return true;
+    }
+
+    var hadHistory = restoreHistory();
 
     function playAudio(base64, contentType) {
       try {
@@ -466,7 +550,9 @@
       }).then(function (data) {
         state.sessionId = data.sessionId;
         state.conversationId = data.conversationId;
-        if (data.openingMessage) addMessage(data.openingMessage, "assistant");
+        // Skip the greeting for a visitor who already has a visible history —
+        // they don't need re-welcoming every time they reopen the chat.
+        if (data.openingMessage && !hadHistory) addMessage(data.openingMessage, "assistant");
       });
     }
 
@@ -507,7 +593,9 @@
             err.status === 402
               ? "Denne assistent er midlertidigt utilgængelig."
               : "Der opstod en fejl. Prøv igen om lidt.";
-          addMessage(message, "assistant");
+          // Transient client-side notice, not part of the actual
+          // conversation — shown once, never saved to history.
+          addMessage(message, "assistant", true);
         });
     }
 
@@ -571,7 +659,10 @@
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
-        buildHeader(config),
+        buildHeader(config, function () {
+          clearHistory();
+          transcriptEl.innerHTML = "";
+        }),
         transcriptEl,
         el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
         config.showBranding
@@ -587,7 +678,7 @@
     document.body.appendChild(panel);
     document.body.appendChild(launcher);
 
-    function addTranscriptLine(text, role) {
+    function addTranscriptLine(text, role, skipPersist) {
       var bubble = el(
         "div",
         {
@@ -602,7 +693,21 @@
       appendMessageContent(bubble, text, config.primaryColor);
       transcriptEl.appendChild(bubble);
       transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      if (!skipPersist) appendToHistory(role, text);
     }
+
+    // Replays this visitor's stored transcript from earlier visits (see
+    // appendToHistory above) before today's live transcript starts.
+    (function restoreHistory() {
+      var history = loadHistory();
+      if (!history.length) return;
+      history.forEach(function (entry) {
+        addTranscriptLine(entry.text, entry.role, true);
+      });
+      transcriptEl.appendChild(
+        el("div", { style: "text-align:center;font-size:11px;color:#999;margin:4px 0;" }, ["— Ny samtale —"])
+      );
+    })();
 
     // `starting` covers the gap between the button being pressed and the
     // call being up — see the note on the Vapi UI's own flag below.
@@ -860,7 +965,10 @@
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
-        buildHeader(config),
+        buildHeader(config, function () {
+          clearHistory();
+          transcriptEl.innerHTML = "";
+        }),
         transcriptEl,
         el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
         config.showBranding
@@ -876,7 +984,7 @@
     document.body.appendChild(panel);
     document.body.appendChild(launcher);
 
-    function addTranscriptLine(text, role) {
+    function addTranscriptLine(text, role, skipPersist) {
       var bubble = el(
         "div",
         {
@@ -891,7 +999,21 @@
       appendMessageContent(bubble, text, config.primaryColor);
       transcriptEl.appendChild(bubble);
       transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      if (!skipPersist) appendToHistory(role, text);
     }
+
+    // Replays this visitor's stored transcript from earlier visits (see
+    // appendToHistory above) before today's live transcript starts.
+    (function restoreHistory() {
+      var history = loadHistory();
+      if (!history.length) return;
+      history.forEach(function (entry) {
+        addTranscriptLine(entry.text, entry.role, true);
+      });
+      transcriptEl.appendChild(
+        el("div", { style: "text-align:center;font-size:11px;color:#999;margin:4px 0;" }, ["— Ny samtale —"])
+      );
+    })();
 
     // `starting` covers the gap between the button being pressed and Vapi
     // reporting the call up. It used to be unguarded: a second tap during
