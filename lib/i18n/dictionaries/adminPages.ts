@@ -370,12 +370,12 @@ export const adminPages: Namespace = {
     de: "Demnächst verfügbar",
   },
   "clientPortal.confirmDelete": {
-    da: "Slet {name}? Dette deaktiverer kundens konto og widgets.",
-    en: "Delete {name}? This will deactivate the client's account and widgets.",
-    es: "¿Eliminar a {name}? Esto desactivará la cuenta y los widgets del cliente.",
-    fr: "Supprimer {name} ? Cela désactivera le compte et les widgets du client.",
-    pt: "Excluir {name}? Isso desativará a conta e os widgets do cliente.",
-    de: "{name} löschen? Dadurch werden das Konto und die Widgets des Kunden deaktiviert.",
+    da: "Slet {name}? Kundens login fjernes permanent (emailen kan bruges igen), og widgets sættes på pause. Forbrugs- og faktureringshistorik bevares.",
+    en: "Delete {name}? The customer's login is permanently removed (the email can be reused) and widgets are paused. Usage and billing history is kept.",
+    es: "¿Eliminar a {name}? El inicio de sesión del cliente se elimina permanentemente (el correo puede reutilizarse) y los widgets se pausan. El historial de uso y facturación se conserva.",
+    fr: "Supprimer {name} ? La connexion du client est définitivement supprimée (l'e-mail peut être réutilisé) et les widgets sont mis en pause. L'historique d'utilisation et de facturation est conservé.",
+    pt: "Excluir {name}? O login do cliente é removido permanentemente (o email pode ser reutilizado) e os widgets são pausados. O histórico de uso e faturamento é mantido.",
+    de: "{name} löschen? Der Login des Kunden wird dauerhaft entfernt (die E-Mail kann wiederverwendet werden), und Widgets werden pausiert. Nutzungs- und Abrechnungsverlauf bleiben erhalten.",
   },
 
   // app/admin/phone-numbers/page.tsx + components/admin/phone-numbers-table.tsx
