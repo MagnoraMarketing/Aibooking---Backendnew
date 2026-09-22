@@ -351,7 +351,7 @@ export function BookingTab({ widget }: BookingTabProps) {
 
         {live && connection ? (
           <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-            Agenten kan booke tider. Prøv den under <strong>Test Agent</strong> — bed om en tid og se at
+            Agenten kan booke tider. Prøv den under <strong>Test agenten</strong> — bed om en tid og se at
             den kun tilbyder tidspunkter der faktisk er ledige i jeres kalender.
           </p>
         ) : null}

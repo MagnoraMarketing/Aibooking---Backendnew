@@ -4,9 +4,8 @@ import { findWidgetIdForAssistant } from "./assistant-owner";
 import { decryptSecret } from "@/lib/security";
 import {
   bookingFailureAdvice,
-  looksLikeEmail,
-  normalizeDictatedEmail,
-  MALFORMED_EMAIL_ADVICE,
+  checkBookingDetails,
+  type BookingDetailsInput,
   fetchCalcomAvailability,
   createCalcomBooking,
   fetchCalcomEventTypes,
@@ -169,20 +168,15 @@ export async function checkAvailability(
   }
 }
 
-export async function createBooking(
-  input: { start_time?: string; customer_name?: string; customer_email?: string },
-  ctx: BookingToolContext
-): Promise<string> {
+export async function createBooking(input: BookingDetailsInput, ctx: BookingToolContext): Promise<string> {
   const calendar = await getCalendarDetails(ctx);
   if (!calendar) return NO_BOOKING;
 
-  const startTime = input.start_time;
-  const customerName = input.customer_name;
-  const customerEmail = input.customer_email ? normalizeDictatedEmail(input.customer_email) : undefined;
-  if (!startTime || !customerName || !customerEmail) {
-    return "Der mangler oplysninger til bookingen. Spørg om tidspunkt, navn og email, og prøv igen.";
-  }
-  if (!looksLikeEmail(customerEmail)) return MALFORMED_EMAIL_ADVICE;
+  // Name, a read-back email and a time — or no booking at all, and the
+  // agent is told which one to ask for (see checkBookingDetails).
+  const details = checkBookingDetails(input);
+  if (!details.ok) return details.advice;
+  const { startTime, customerName, customerEmail } = details;
 
   const supabase = getAdminClient();
 
@@ -386,7 +380,7 @@ export async function executeBookingTool(
       return checkAvailability(args as { date?: string }, ctx);
     case "create_booking":
       return createBooking(
-        args as { start_time?: string; customer_name?: string; customer_email?: string },
+        args as BookingDetailsInput,
         ctx
       );
     case "get_booking":

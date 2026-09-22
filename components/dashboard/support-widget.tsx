@@ -147,7 +147,7 @@ export function SupportWidget() {
       onClick={handleClick}
       aria-label={label}
       title={label}
-      className={`fixed bottom-5 left-5 z-[999998] flex h-14 w-14 items-center justify-center rounded-full text-2xl text-white shadow-lg transition hover:scale-105 ${
+      className={`fixed bottom-5 left-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-2xl text-white shadow-lg transition hover:scale-105 ${
         status === "active" ? "bg-red-600 hover:bg-red-700" : "bg-brand-600 hover:bg-brand-700"
       }`}
     >

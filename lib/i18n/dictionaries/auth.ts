@@ -2,7 +2,8 @@ import type { Namespace } from "./types";
 
 // app/signup/page.tsx and app/login/page.tsx — rendered before any
 // authenticated profile.language exists, so these use the
-// Accept-Language-detected / NEXT_LOCALE cookie locale (see middleware.ts).
+// NEXT_LOCALE cookie locale — Danish unless the person chose otherwise
+// (see middleware.ts).
 export const auth: Namespace = {
   "signup.tagline": {
     da: "Opret jeres konto",
@@ -28,7 +29,7 @@ export const auth: Namespace = {
     pt: "Idioma preferido",
     de: "Bevorzugte Sprache",
   },
-  "signup.email": { da: "Email", en: "Email", es: "Correo electrónico", fr: "E-mail", pt: "E-mail", de: "E-Mail" },
+  "signup.email": { da: "E-mail", en: "Email", es: "Correo electrónico", fr: "E-mail", pt: "E-mail", de: "E-Mail" },
   "signup.phone": {
     da: "Telefon (valgfrit)",
     en: "Phone (optional)",

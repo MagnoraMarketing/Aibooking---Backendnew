@@ -203,7 +203,7 @@ export function AdminWapiAgentsTable({ initialAgents, initialLastSyncedAt }: { i
                   {expandedId === agent.id ? (
                     <tr>
                       <td colSpan={7} className="bg-slate-50 px-4 py-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             {t("adminPages.wapiAgents.connectedWidgets")}
                           </h3>

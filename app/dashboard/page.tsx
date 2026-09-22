@@ -154,7 +154,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-slate-900">{t("dashboardPages.dashboard.voiceWidgetHeading")}</h2>
             <Link href="/dashboard/agent" className="text-xs font-medium text-brand-600 hover:text-brand-700">
               {t("dashboardPages.dashboard.seeAgents")}
@@ -177,7 +177,7 @@ export default async function DashboardPage() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-slate-900">{t("dashboardPages.dashboard.phoneHeading")}</h2>
             <Link href="/dashboard/inbound" className="text-xs font-medium text-brand-600 hover:text-brand-700">
               {t("dashboardPages.dashboard.seeAgents")}

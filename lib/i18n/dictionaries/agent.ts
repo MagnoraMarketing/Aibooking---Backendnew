@@ -9,7 +9,7 @@ export const agent: Namespace = {
   // agent-configurator.tsx
   // ---------------------------------------------------------------------
   "configurator.title": {
-    da: "Configure Agent",
+    da: "Konfigurer agent",
     en: "Configure Agent",
     es: "Configurar agente",
     fr: "Configurer l'agent",
@@ -25,7 +25,7 @@ export const agent: Namespace = {
     de: "Prompt Lab",
   },
   "configurator.tab.settings": {
-    da: "Settings",
+    da: "Indstillinger",
     en: "Settings",
     es: "Configuración",
     fr: "Paramètres",
@@ -33,7 +33,7 @@ export const agent: Namespace = {
     de: "Einstellungen",
   },
   "configurator.tab.knowledgeBase": {
-    da: "Knowledge Base",
+    da: "Vidensbase",
     en: "Knowledge Base",
     es: "Base de conocimiento",
     fr: "Base de connaissances",
@@ -49,7 +49,7 @@ export const agent: Namespace = {
     de: "Buchung",
   },
   "configurator.tab.customizeWidget": {
-    da: "Customise Widget",
+    da: "Tilpas widget",
     en: "Customise Widget",
     es: "Personalizar widget",
     fr: "Personnaliser le widget",
@@ -57,7 +57,7 @@ export const agent: Namespace = {
     de: "Widget anpassen",
   },
   "configurator.tab.testAgent": {
-    da: "Test Agent",
+    da: "Test agenten",
     en: "Test Agent",
     es: "Probar agente",
     fr: "Tester l'agent",
@@ -65,7 +65,7 @@ export const agent: Namespace = {
     de: "Agent testen",
   },
   "configurator.tab.embedCode": {
-    da: "Embed Code",
+    da: "Indlejringskode",
     en: "Embed Code",
     es: "Código de inserción",
     fr: "Code d'intégration",
@@ -118,7 +118,7 @@ export const agent: Namespace = {
     de: "Ein Chat-/Sprach-Widget für Ihre Website — Besucher sprechen direkt mit dem Agenten im Browser.",
   },
   "wizard.type.phoneTitle": {
-    da: "Telefon (Inbound/Outbound)",
+    da: "Telefon (indgående og udgående opkald)",
     en: "Phone (Inbound/Outbound)",
     es: "Teléfono (Inbound/Outbound)",
     fr: "Téléphone (Inbound/Outbound)",
@@ -238,7 +238,7 @@ export const agent: Namespace = {
     de: "Zahlung",
   },
   "wizard.agentNameLabel": {
-    da: "Agent Name",
+    da: "Agentens navn",
     en: "Agent Name",
     es: "Nombre del agente",
     fr: "Nom de l'agent",
@@ -766,7 +766,7 @@ export const agent: Namespace = {
     de: "Der Inhalt Ihrer Wissensdatenbank ({count} Quellen) wird bei jedem Gespräch automatisch an den Prompt angehängt. Dort holt sich der Agent Fakten wie Preise und Öffnungszeiten.",
   },
   "promptLab.howItFitsKnowledgeEmpty": {
-    da: "Indholdet fra jeres vidensbase lægges automatisk oven i prompten ved hver samtale. I har ikke tilføjet nogen kilder endnu — gør det under Knowledge Base.",
+    da: "Indholdet fra jeres vidensbase lægges automatisk oven i prompten ved hver samtale. I har ikke tilføjet nogen kilder endnu — gør det under Vidensbase.",
     en: "The content from your knowledge base is automatically added on top of the prompt for every conversation. You haven't added any sources yet — do that under Knowledge Base.",
     es: "El contenido de su base de conocimiento se añade automáticamente al prompt en cada conversación. Aún no ha añadido ninguna fuente — hágalo en Base de conocimiento.",
     fr: "Le contenu de votre base de connaissances est automatiquement ajouté au prompt à chaque conversation. Vous n'avez pas encore ajouté de sources — faites-le sous Base de connaissances.",
@@ -1110,7 +1110,7 @@ export const agent: Namespace = {
     de: "Nach Kundeninformationen fragen",
   },
   "settings.postCallAnalysisLabel": {
-    da: "Post Call Analysis Schema / Tags",
+    da: "Analyse efter opkald / tags",
     en: "Post Call Analysis Schema / Tags",
     es: "Post Call Analysis Schema / Tags",
     fr: "Post Call Analysis Schema / Tags",
@@ -1134,7 +1134,7 @@ export const agent: Namespace = {
     de: "Kalender-Zeitzone",
   },
   "settings.calComEventIdLabel": {
-    da: "Cal.com Event ID",
+    da: "Cal.com event-ID",
     en: "Cal.com Event ID",
     es: "Cal.com Event ID",
     fr: "Cal.com Event ID",
@@ -1462,7 +1462,7 @@ export const agent: Namespace = {
     de: "Z. B. AIbooking Assistent",
   },
   "customize.taglineLabel": {
-    da: "Tagline",
+    da: "Slogan",
     en: "Tagline",
     es: "Tagline",
     fr: "Tagline",
@@ -1670,7 +1670,7 @@ export const agent: Namespace = {
     de: "Transparenter Hintergrund",
   },
   "customize.muteAgentLabel": {
-    da: "Mute agent",
+    da: "Slå agentens lyd fra",
     en: "Mute agent",
     es: "Silenciar agente",
     fr: "Couper le son de l'agent",
@@ -1714,7 +1714,7 @@ export const agent: Namespace = {
     de: "Der Einbettungscode verweist auf eine andere Domain",
   },
   "testAgent.embedOriginWarningBody": {
-    da: "Koden under Embed Code henter widget.js fra {origin}, som ikke er dette dashboard. Forhåndsvisningen herunder bruger derfor dette domæne i stedet, så I kan teste agenten — men sæt NEXT_PUBLIC_APP_URL til jeres rigtige domæne, før I giver koden videre til en kunde.",
+    da: "Koden under Indlejringskode henter widget.js fra {origin}, som ikke er dette dashboard. Forhåndsvisningen herunder bruger derfor dette domæne i stedet, så I kan teste agenten — men sæt NEXT_PUBLIC_APP_URL til jeres rigtige domæne, før I giver koden videre til en kunde.",
     en: "The code under Embed Code loads widget.js from {origin}, which is not this dashboard. The preview below uses this domain instead so you can still test the agent — but set NEXT_PUBLIC_APP_URL to your real domain before handing the code to a customer.",
     es: "El código de Embed Code carga widget.js desde {origin}, que no es este panel. La vista previa usa este dominio para que pueda probar el agente, pero configure NEXT_PUBLIC_APP_URL con su dominio real antes de entregar el código a un cliente.",
     fr: "Le code d'Embed Code charge widget.js depuis {origin}, qui n'est pas ce tableau de bord. L'aperçu ci-dessous utilise ce domaine afin que vous puissiez tester l'agent — mais définissez NEXT_PUBLIC_APP_URL sur votre vrai domaine avant de transmettre le code à un client.",
@@ -1818,7 +1818,7 @@ export const agent: Namespace = {
     de: "HTML anzeigen",
   },
   "testAgent.iframeTitle": {
-    da: "Test agent",
+    da: "Test agenten",
     en: "Test agent",
     es: "Test agent",
     fr: "Test agent",
@@ -2475,7 +2475,7 @@ export const agent: Namespace = {
     de: "{count} Quelle(n) mit diesem Agenten verbunden.",
   },
   "settings.knowledgeBaseHint": {
-    da: "Tilføj eller fjern indhold under fanen Knowledge Base.",
+    da: "Tilføj eller fjern indhold under fanen Vidensbase.",
     en: "Add or remove content under the Knowledge Base tab.",
     es: "Añada o elimine contenido en la pestaña Base de conocimiento.",
     fr: "Ajoutez ou retirez du contenu dans l'onglet Base de connaissances.",

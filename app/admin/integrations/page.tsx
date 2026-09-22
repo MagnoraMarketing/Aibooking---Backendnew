@@ -64,7 +64,7 @@ export default async function AdminIntegrationsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {integrations.map((integration) => (
           <div key={integration.name} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-slate-900">{integration.name}</h2>
               <span
                 className={`rounded-full px-2 py-0.5 text-xs font-semibold ${

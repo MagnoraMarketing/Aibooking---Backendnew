@@ -96,7 +96,7 @@ export const adminPages: Namespace = {
 
   // components/admin/client-portal.tsx
   "clientPortal.title": {
-    da: "Client Portal",
+    da: "Kundeportal",
     en: "Client Portal",
     es: "Portal de clientes",
     fr: "Portail client",
@@ -438,9 +438,9 @@ export const adminPages: Namespace = {
   },
   // Telephony direction terms — kept as the same English words in every
   // locale, matching the current Danish UI (already unstranslated there).
-  "phoneNumbers.directionInbound": { da: "Inbound", en: "Inbound", es: "Inbound", fr: "Inbound", pt: "Inbound", de: "Inbound" },
+  "phoneNumbers.directionInbound": { da: "Indgående", en: "Inbound", es: "Inbound", fr: "Inbound", pt: "Inbound", de: "Inbound" },
   "phoneNumbers.directionOutbound": {
-    da: "Outbound",
+    da: "Udgående",
     en: "Outbound",
     es: "Outbound",
     fr: "Outbound",
@@ -448,7 +448,7 @@ export const adminPages: Namespace = {
     de: "Outbound",
   },
   "phoneNumbers.directionBoth": {
-    da: "Inbound + Outbound",
+    da: "Indgående + udgående",
     en: "Inbound + Outbound",
     es: "Inbound + Outbound",
     fr: "Inbound + Outbound",
@@ -643,7 +643,7 @@ export const adminPages: Namespace = {
   },
   "overview.activeCustomers": { da: "Aktive kunder", en: "Active customers", es: "Clientes activos", fr: "Clients actifs", pt: "Clientes ativos", de: "Aktive Kunden" },
   "overview.activeWidgets": { da: "Aktive widgets", en: "Active widgets", es: "Widgets activos", fr: "Widgets actifs", pt: "Widgets ativos", de: "Aktive Widgets" },
-  "overview.inboundAgents": { da: "Inbound-agenter", en: "Inbound agents", es: "Agentes entrantes", fr: "Agents entrants", pt: "Agentes de entrada", de: "Inbound-Agenten" },
+  "overview.inboundAgents": { da: "Telefonagenter", en: "Inbound agents", es: "Agentes entrantes", fr: "Agents entrants", pt: "Agentes de entrada", de: "Inbound-Agenten" },
   "overview.voiceWidgets": { da: "Voice widgets", en: "Voice widgets", es: "Widgets de voz", fr: "Widgets vocaux", pt: "Widgets de voz", de: "Voice-Widgets" },
   "overview.wapiAgents": { da: "Wapi-agenter", en: "Wapi agents", es: "Agentes Wapi", fr: "Agents Wapi", pt: "Agentes Wapi", de: "Wapi-Agenten" },
   "overview.phoneNumbers": { da: "Telefonnumre", en: "Phone numbers", es: "Números de teléfono", fr: "Numéros de téléphone", pt: "Números de telefone", de: "Telefonnummern" },
@@ -734,7 +734,7 @@ export const adminPages: Namespace = {
   // app/admin/wapi-agents
   // ---------------------------------------------------------------------
   "wapiAgents.pageHint": {
-    da: "Teknisk cache af de underliggende Vapi-assistenter. Opret ikke kundeagenter her — tilslut i stedet en Wapi Agent til en Widget eller en Inbound-agent.",
+    da: "Teknisk cache af de underliggende Vapi-assistenter. Opret ikke kundeagenter her — tilslut i stedet en Wapi Agent til en Widget eller en telefonagent.",
     en: "A technical cache of the underlying Vapi assistants. Don't create customer agents here — instead connect a Wapi Agent to a Widget or an Inbound agent.",
     es: "Una caché técnica de los asistentes Vapi subyacentes. No cree agentes de cliente aquí; en su lugar, conecte un agente Wapi a un widget o a un agente entrante.",
     fr: "Un cache technique des assistants Vapi sous-jacents. Ne créez pas d'agents client ici — connectez plutôt un agent Wapi à un widget ou à un agent entrant.",
@@ -784,7 +784,7 @@ export const adminPages: Namespace = {
   "wapiAgents.lastSynced": { da: "Sidst synkroniseret", en: "Last synced", es: "Última sincronización", fr: "Dernière synchronisation", pt: "Última sincronização", de: "Zuletzt synchronisiert" },
   "wapiAgents.syncAgents": { da: "Synkroniser Wapi Agents", en: "Sync Wapi Agents", es: "Sincronizar agentes Wapi", fr: "Synchroniser les agents Wapi", pt: "Sincronizar agentes Wapi", de: "Wapi-Agenten synchronisieren" },
   "wapiAgents.tableName": { da: "Navn", en: "Name", es: "Nombre", fr: "Nom", pt: "Nome", de: "Name" },
-  "wapiAgents.tableId": { da: "Agent ID", en: "Agent ID", es: "ID de agente", fr: "ID d'agent", pt: "ID do agente", de: "Agent-ID" },
+  "wapiAgents.tableId": { da: "Agent-ID", en: "Agent ID", es: "ID de agente", fr: "ID d'agent", pt: "ID do agente", de: "Agent-ID" },
   "wapiAgents.tableLanguage": { da: "Sprog", en: "Language", es: "Idioma", fr: "Langue", pt: "Idioma", de: "Sprache" },
   "wapiAgents.tableVoice": { da: "Stemme", en: "Voice", es: "Voz", fr: "Voix", pt: "Voz", de: "Stimme" },
   "wapiAgents.tableLastSynced": { da: "Sidst synkroniseret", en: "Last synced", es: "Última sincronización", fr: "Dernière synchronisation", pt: "Última sincronização", de: "Zuletzt synchronisiert" },
@@ -836,7 +836,7 @@ export const adminPages: Namespace = {
   },
   "widgets.actionEdit": { da: "Rediger", en: "Edit", es: "Editar", fr: "Modifier", pt: "Editar", de: "Bearbeiten" },
   "widgets.actionOpen": { da: "Åbn", en: "Open", es: "Abrir", fr: "Ouvrir", pt: "Abrir", de: "Öffnen" },
-  "widgets.actionEmbed": { da: "Embed code", en: "Embed code", es: "Código de inserción", fr: "Code d'intégration", pt: "Código de incorporação", de: "Einbettungscode" },
+  "widgets.actionEmbed": { da: "Indlejringskode", en: "Embed code", es: "Código de inserción", fr: "Code d'intégration", pt: "Código de incorporação", de: "Einbettungscode" },
   "widgets.actionDuplicate": { da: "Dupliker", en: "Duplicate", es: "Duplicar", fr: "Dupliquer", pt: "Duplicar", de: "Duplizieren" },
   "widgets.actionDeactivate": { da: "Deaktiver", en: "Deactivate", es: "Desactivar", fr: "Désactiver", pt: "Desativar", de: "Deaktivieren" },
   "widgets.actionActivate": { da: "Aktiver", en: "Activate", es: "Activar", fr: "Activer", pt: "Ativar", de: "Aktivieren" },
@@ -848,15 +848,15 @@ export const adminPages: Namespace = {
     pt: "Tem certeza de que deseja excluir este widget? Ele será desativado.",
     de: "Möchten Sie dieses Widget wirklich löschen? Es wird deaktiviert.",
   },
-  "widgets.embedTitle": { da: "Embed code", en: "Embed code", es: "Código de inserción", fr: "Code d'intégration", pt: "Código de incorporação", de: "Einbettungscode" },
+  "widgets.embedTitle": { da: "Indlejringskode", en: "Embed code", es: "Código de inserción", fr: "Code d'intégration", pt: "Código de incorporação", de: "Einbettungscode" },
   "widgets.copyEmbedCode": { da: "Kopiér embed code", en: "Copy embed code", es: "Copiar código", fr: "Copier le code", pt: "Copiar código", de: "Code kopieren" },
   "widgets.createTitle": { da: "Opret Voice Widget", en: "Create Voice Widget", es: "Crear widget de voz", fr: "Créer un widget vocal", pt: "Criar widget de voz", de: "Voice-Widget erstellen" },
   "widgets.editTitle": { da: "Rediger Voice Widget", en: "Edit Voice Widget", es: "Editar widget de voz", fr: "Modifier le widget vocal", pt: "Editar widget de voz", de: "Voice-Widget bearbeiten" },
   "widgets.nameLabel": { da: "Widget navn", en: "Widget name", es: "Nombre del widget", fr: "Nom du widget", pt: "Nome do widget", de: "Widget-Name" },
   "widgets.descriptionLabel": { da: "Intern beskrivelse", en: "Internal description", es: "Descripción interna", fr: "Description interne", pt: "Descrição interna", de: "Interne Beschreibung" },
-  "widgets.deploymentTypeLabel": { da: "Deployment type", en: "Deployment type", es: "Tipo de implementación", fr: "Type de déploiement", pt: "Tipo de implantação", de: "Deployment-Typ" },
-  "widgets.deploymentCustomer": { da: "Customer website", en: "Customer website", es: "Sitio del cliente", fr: "Site du client", pt: "Site do cliente", de: "Kunden-Website" },
-  "widgets.deploymentAibooking": { da: "AIbooking website", en: "AIbooking website", es: "Sitio de AIbooking", fr: "Site AIbooking", pt: "Site AIbooking", de: "AIbooking-Website" },
+  "widgets.deploymentTypeLabel": { da: "Placering", en: "Deployment type", es: "Tipo de implementación", fr: "Type de déploiement", pt: "Tipo de implantação", de: "Deployment-Typ" },
+  "widgets.deploymentCustomer": { da: "Kundens hjemmeside", en: "Customer website", es: "Sitio del cliente", fr: "Site du client", pt: "Site do cliente", de: "Kunden-Website" },
+  "widgets.deploymentAibooking": { da: "AIbookings hjemmeside", en: "AIbooking website", es: "Sitio de AIbooking", fr: "Site AIbooking", pt: "Site AIbooking", de: "AIbooking-Website" },
   "widgets.phoneNumberLabel": { da: "Telefonnummer", en: "Phone number", es: "Número de teléfono", fr: "Numéro de téléphone", pt: "Número de telefone", de: "Telefonnummer" },
   "widgets.noPhoneNumber": { da: "Intet telefonnummer", en: "No phone number", es: "Sin número de teléfono", fr: "Aucun numéro de téléphone", pt: "Sem número de telefone", de: "Keine Telefonnummer" },
   "widgets.formErrorName": {
@@ -975,7 +975,7 @@ export const adminPages: Namespace = {
     pt: "Todos os agentes de entrada de todos os clientes.",
     de: "Alle Inbound-Agenten über alle Kunden hinweg.",
   },
-  "inbound.createButton": { da: "+ Opret Inbound", en: "+ Create Inbound", es: "+ Crear entrante", fr: "+ Créer un entrant", pt: "+ Criar entrada", de: "+ Inbound erstellen" },
+  "inbound.createButton": { da: "+ Opret telefonagent", en: "+ Create Inbound", es: "+ Crear entrante", fr: "+ Créer un entrant", pt: "+ Criar entrada", de: "+ Inbound erstellen" },
   "inbound.empty": {
     da: "Ingen inbound-agenter endnu.",
     en: "No inbound agents yet.",
@@ -984,8 +984,8 @@ export const adminPages: Namespace = {
     pt: "Ainda não há agentes de entrada.",
     de: "Noch keine Inbound-Agenten.",
   },
-  "inbound.createTitle": { da: "Opret Inbound-agent", en: "Create Inbound agent", es: "Crear agente entrante", fr: "Créer un agent entrant", pt: "Criar agente de entrada", de: "Inbound-Agent erstellen" },
-  "inbound.editTitle": { da: "Rediger Inbound-agent", en: "Edit Inbound agent", es: "Editar agente entrante", fr: "Modifier l'agent entrant", pt: "Editar agente de entrada", de: "Inbound-Agent bearbeiten" },
-  "inbound.greetingLabel": { da: "Greeting", en: "Greeting", es: "Saludo", fr: "Message d'accueil", pt: "Saudação", de: "Begrüßung" },
-  "inbound.systemPromptLabel": { da: "System prompt", en: "System prompt", es: "Prompt del sistema", fr: "Prompt système", pt: "Prompt do sistema", de: "System-Prompt" },
+  "inbound.createTitle": { da: "Opret telefonagent", en: "Create Inbound agent", es: "Crear agente entrante", fr: "Créer un agent entrant", pt: "Criar agente de entrada", de: "Inbound-Agent erstellen" },
+  "inbound.editTitle": { da: "Rediger telefonagent", en: "Edit Inbound agent", es: "Editar agente entrante", fr: "Modifier l'agent entrant", pt: "Editar agente de entrada", de: "Inbound-Agent bearbeiten" },
+  "inbound.greetingLabel": { da: "Hilsen", en: "Greeting", es: "Saludo", fr: "Message d'accueil", pt: "Saudação", de: "Begrüßung" },
+  "inbound.systemPromptLabel": { da: "Systemprompt", en: "System prompt", es: "Prompt del sistema", fr: "Prompt système", pt: "Prompt do sistema", de: "System-Prompt" },
 };

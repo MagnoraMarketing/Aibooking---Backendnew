@@ -66,7 +66,7 @@ export function TwilioBalanceCard({ phoneNumberId }: { phoneNumberId: string }) 
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="font-medium text-slate-700">
           Twilio-saldo: {summary.balance.toFixed(2)} {summary.currency}
         </p>

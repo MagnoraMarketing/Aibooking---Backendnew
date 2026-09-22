@@ -179,17 +179,24 @@ function buildBookingTools() {
               type: "string",
               description: "Starttidspunkt i ISO 8601 med tidszone, fx 2026-03-15T14:00:00+01:00.",
             },
-            customer_name: { type: "string", description: "Kundens fulde navn." },
+            customer_name: { type: "string", description: "Kundens fulde navn, som kunden selv har oplyst det." },
             customer_email: {
               type: "string",
               // Read back and confirmed, because an address heard wrong is
               // the one booking failure the caller can fix on the spot —
               // and the one that otherwise ends the call with nothing.
               description:
-                "Kundens e-mailadresse til bekræftelsen. Læs adressen op for kunden og få den bekræftet, før du booker.",
+                "Kundens e-mailadresse, som bekræftelsen sendes til. Læs adressen op for kunden og få den bekræftet, før du booker.",
+            },
+            // Enforced server-side (checkBookingDetails): a booking without
+            // it is refused and the agent is told to read the address back.
+            email_confirmed: {
+              type: "boolean",
+              description:
+                "true, når du har læst e-mailadressen op for kunden og kunden har sagt, at den er korrekt. Bookingen afvises ellers.",
             },
           },
-          required: ["start_time", "customer_name", "customer_email"],
+          required: ["start_time", "customer_name", "customer_email", "email_confirmed"],
         },
       },
     },

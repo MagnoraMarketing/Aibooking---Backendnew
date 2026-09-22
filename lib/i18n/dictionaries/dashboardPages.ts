@@ -99,7 +99,7 @@ export const dashboardPages: Namespace = {
   // ---------------------------------------------------------------------
   // app/dashboard/page.tsx
   // ---------------------------------------------------------------------
-  "dashboard.title": { da: "Dashboard", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel", de: "Dashboard" },
+  "dashboard.title": { da: "Overblik", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel", de: "Dashboard" },
   "dashboard.subtitle": {
     da: "Følg jeres AI-widgets' performance",
     en: "Track your AI widgets' performance",
@@ -174,7 +174,7 @@ export const dashboardPages: Namespace = {
   },
   "dashboard.minutes": { da: "Minutter", en: "Minutes", es: "Minutos", fr: "Minutes", pt: "Minutos", de: "Minuten" },
   "dashboard.phoneHeading": {
-    da: "Telefon (Inbound/Outbound)",
+    da: "Telefon (indgående og udgående opkald)",
     en: "Phone (Inbound/Outbound)",
     es: "Teléfono (entrante/saliente)",
     fr: "Téléphone (entrant/sortant)",
@@ -283,8 +283,8 @@ export const dashboardPages: Namespace = {
     de: "2. Schreiben Sie den Prompt und wählen Sie eine Stimme",
   },
   "getting-started.step2Description": {
-    da: "Fortæl agenten om jeres virksomhed, og vælg en dansk stemme under Prompt Lab / Settings.",
-    en: "Tell the agent about your business, and pick a voice under Prompt Lab / Settings.",
+    da: "Fortæl agenten om jeres virksomhed, og vælg en dansk stemme under Prompt Lab / Indstillinger.",
+    en: "Tell the agent about your business, and pick a voice under Prompt Lab / Indstillinger.",
     es: "Cuéntele al agente sobre su empresa y elija una voz en Prompt Lab / Settings.",
     fr: "Parlez de votre entreprise à l'agent et choisissez une voix dans Prompt Lab / Settings.",
     pt: "Conte ao agente sobre sua empresa e escolha uma voz em Prompt Lab / Settings.",
@@ -966,7 +966,7 @@ export const dashboardPages: Namespace = {
     de: "Verbinden Sie sich mit Ihrem Cal.com-API-Schlüssel und wählen Sie, in welchen Termintyp der Agent buchen soll.",
   },
   "calendar-integrations.connectedLabel": {
-    da: "Connected",
+    da: "Forbundet",
     en: "Connected",
     es: "Conectado",
     fr: "Connecté",
@@ -982,7 +982,7 @@ export const dashboardPages: Namespace = {
     de: "Fehler — Verbindung prüfen",
   },
   "calendar-integrations.accountLabel": {
-    da: "Account",
+    da: "Konto",
     en: "Account",
     es: "Cuenta",
     fr: "Compte",
@@ -990,7 +990,7 @@ export const dashboardPages: Namespace = {
     de: "Konto",
   },
   "calendar-integrations.eventTypeLabel": {
-    da: "Event Type",
+    da: "Begivenhedstype",
     en: "Event Type",
     es: "Tipo de evento",
     fr: "Type d'événement",
@@ -998,7 +998,7 @@ export const dashboardPages: Namespace = {
     de: "Termintyp",
   },
   "calendar-integrations.timezoneLabel": {
-    da: "Timezone",
+    da: "Tidszone",
     en: "Timezone",
     es: "Zona horaria",
     fr: "Fuseau horaire",
@@ -1256,7 +1256,7 @@ export const dashboardPages: Namespace = {
   // components/dashboard/agents-manager.tsx
   // ---------------------------------------------------------------------
   "agents-manager.widgetTitle": {
-    da: "Widget Agents",
+    da: "Widget-agenter",
     en: "Widget Agents",
     es: "Agentes de widget",
     fr: "Agents widget",
@@ -1288,12 +1288,12 @@ export const dashboardPages: Namespace = {
     de: "Telefon-Agenten",
   },
   "agents-manager.phoneSubtitle": {
-    da: "Administrer og opret jeres inbound/outbound AI-agenter",
-    en: "Manage and create your inbound/outbound AI agents",
-    es: "Administre y cree sus agentes de IA de llamadas entrantes/salientes",
-    fr: "Gérez et créez vos agents IA d'appels entrants/sortants",
-    pt: "Administre e crie seus agentes de IA de chamadas recebidas/efetuadas",
-    de: "Verwalten und erstellen Sie Ihre eingehenden/ausgehenden KI-Agenten",
+    da: "Én telefonagent besvarer jeres indgående opkald og ringer også ud i jeres kampagner under Udgående opkald — I opretter den kun ét sted.",
+    en: "One phone agent answers your incoming calls and also calls out in your campaigns under Outbound — you only create it in one place.",
+    es: "Un agente telefónico atiende sus llamadas entrantes y también llama en sus campañas salientes — solo lo crea en un lugar.",
+    fr: "Un seul agent téléphonique répond à vos appels entrants et appelle aussi dans vos campagnes sortantes — vous ne le créez qu'à un seul endroit.",
+    pt: "Um agente telefônico atende suas chamadas recebidas e também liga nas suas campanhas de saída — vocês o criam em um só lugar.",
+    de: "Ein Telefon-Agent nimmt Ihre eingehenden Anrufe an und ruft auch in Ihren ausgehenden Kampagnen an — Sie erstellen ihn nur an einer Stelle.",
   },
   "agents-manager.phoneListTitle": {
     da: "Dine telefon-agenter",
@@ -1435,7 +1435,7 @@ export const dashboardPages: Namespace = {
   // ---------------------------------------------------------------------
   // components/dashboard/inbound-manager.tsx
   // ---------------------------------------------------------------------
-  "inbound.title": { da: "Inbound", en: "Inbound", es: "Entrantes", fr: "Entrant", pt: "Recebidas", de: "Eingehend" },
+  "inbound.title": { da: "Indgående opkald", en: "Inbound", es: "Entrantes", fr: "Entrant", pt: "Recebidas", de: "Eingehend" },
   "inbound.subtitle": {
     da: "Få et telefonnummer, og viderestil jeres eksisterende nummer til det, så AI-agenten svarer kunderne.",
     en: "Get a phone number and forward your existing number to it so the AI agent answers your customers.",
@@ -1580,10 +1580,10 @@ export const dashboardPages: Namespace = {
     pt: "Função do número",
     de: "Rolle der Nummer",
   },
-  "inbound.directionInbound": { da: "Inbound", en: "Inbound", es: "Entrante", fr: "Entrant", pt: "Recebida", de: "Eingehend" },
-  "inbound.directionOutbound": { da: "Outbound", en: "Outbound", es: "Saliente", fr: "Sortant", pt: "Efetuada", de: "Ausgehend" },
+  "inbound.directionInbound": { da: "Indgående", en: "Inbound", es: "Entrante", fr: "Entrant", pt: "Recebida", de: "Eingehend" },
+  "inbound.directionOutbound": { da: "Udgående", en: "Outbound", es: "Saliente", fr: "Sortant", pt: "Efetuada", de: "Ausgehend" },
   "inbound.directionBoth": {
-    da: "Inbound + Outbound",
+    da: "Indgående + udgående",
     en: "Inbound + Outbound",
     es: "Entrante + Saliente",
     fr: "Entrant + Sortant",
@@ -2030,7 +2030,7 @@ export const dashboardPages: Namespace = {
     de: "Sicher bezahlt über Stripe. Sie können jederzeit unter Abrechnung kündigen. Die 75 kostenlosen Minuten sind Twilios eigenes Kontingent für ein neues Twilio-Konto — wenn Sie bereits ein Twilio-Konto haben, kann Ihr Guthaben anders aussehen.",
   },
   "inbound-free-trial.alreadyUsedOffer": {
-    da: "I har allerede brugt introtilbuddet — men kan stadig forbinde flere numre under Inbound.",
+    da: "I har allerede brugt introtilbuddet — men kan stadig forbinde flere numre under Indgående opkald.",
     en: "You've already used the intro offer — but you can still connect more numbers under Inbound.",
     es: "Ya han utilizado la oferta de bienvenida — pero aún pueden conectar más números en Entrantes.",
     fr: "Vous avez déjà utilisé l'offre de bienvenue — mais vous pouvez toujours connecter d'autres numéros dans Entrant.",
@@ -2046,7 +2046,7 @@ export const dashboardPages: Namespace = {
     de: "Sie haben bereits ein Abonnement — das Einführungsangebot gilt nur für Neukunden.",
   },
   "inbound-free-trial.goToInbound": {
-    da: "Gå til Inbound →",
+    da: "Gå til Indgående opkald →",
     en: "Go to Inbound →",
     es: "Ir a Entrantes →",
     fr: "Aller à Entrant →",
@@ -2222,7 +2222,7 @@ export const dashboardPages: Namespace = {
     de: ", oder fügen Sie es direkt mit dem Einbettungscode auf Ihrer Website ein. Alle neuen Konten erhalten dafür 5 kostenlose Minuten für 7 Tage, völlig unabhängig vom obigen Einführungsangebot.",
   },
   "inbound-free-trial.testAgentLink": {
-    da: "Test Agent",
+    da: "Test agenten",
     en: "Test Agent",
     es: "Probar agente",
     fr: "Tester l'agent",
@@ -2233,14 +2233,14 @@ export const dashboardPages: Namespace = {
   // ---------------------------------------------------------------------
   // components/dashboard/outbound-manager.tsx
   // ---------------------------------------------------------------------
-  "outbound.title": { da: "Outbound", en: "Outbound", es: "Salientes", fr: "Sortant", pt: "Efetuadas", de: "Ausgehend" },
+  "outbound.title": { da: "Udgående opkald", en: "Outbound", es: "Salientes", fr: "Sortant", pt: "Efetuadas", de: "Ausgehend" },
   "outbound.subtitle": {
-    da: "Ring automatisk ud til en liste af numre med jeres AI-agent.",
-    en: "Automatically call a list of numbers with your AI agent.",
-    es: "Llame automáticamente a una lista de números con su agente de IA.",
-    fr: "Appelez automatiquement une liste de numéros avec votre agent IA.",
-    pt: "Ligue automaticamente para uma lista de números com seu agente de IA.",
-    de: "Rufen Sie automatisch eine Liste von Nummern mit Ihrem KI-Agenten an.",
+    da: "Ring automatisk ud til en liste af numre med den samme telefonagent, der besvarer jeres indgående opkald.",
+    en: "Automatically call a list of numbers with the same phone agent that answers your incoming calls.",
+    es: "Llame automáticamente a una lista de números con el mismo agente telefónico que atiende sus llamadas entrantes.",
+    fr: "Appelez automatiquement une liste de numéros avec le même agent téléphonique qui répond à vos appels entrants.",
+    pt: "Ligue automaticamente para uma lista de números com o mesmo agente telefônico que atende suas chamadas recebidas.",
+    de: "Rufen Sie automatisch eine Liste von Nummern mit demselben Telefon-Agenten an, der Ihre eingehenden Anrufe annimmt.",
   },
   "outbound.newCampaign": {
     da: "+ Ny kampagne",
@@ -2251,12 +2251,28 @@ export const dashboardPages: Namespace = {
     de: "+ Neue Kampagne",
   },
   "outbound.noNumbersYet": {
-    da: 'Tilføj et telefonnummer under "Inbound" først — outbound-opkald skal ringes fra et nummer.',
+    da: 'Tilføj et telefonnummer under "Indgående opkald" først — udgående opkald ringes fra et nummer.',
     en: 'Add a phone number under "Inbound" first — outbound calls have to be made from a number.',
     es: 'Añada primero un número de teléfono en "Inbound" — las llamadas salientes deben hacerse desde un número.',
     fr: 'Ajoutez d\'abord un numéro de téléphone dans « Inbound » — les appels sortants doivent être passés depuis un numéro.',
     pt: 'Adicionem primeiro um número de telefone em "Inbound" — chamadas efetuadas precisam partir de um número.',
     de: "Fügen Sie zuerst eine Telefonnummer unter „Eingehend“ hinzu — ausgehende Anrufe müssen von einer Nummer aus getätigt werden.",
+  },
+  "outbound.noAgentsYet": {
+    da: "Opret først en telefonagent under Indgående opkald — den samme agent bruges til både indgående og udgående opkald.",
+    en: "Create a phone agent under Inbound first — the same agent handles both incoming and outgoing calls.",
+    es: "Cree primero un agente telefónico en Inbound — el mismo agente gestiona las llamadas entrantes y salientes.",
+    fr: "Créez d'abord un agent téléphonique dans Inbound — le même agent gère les appels entrants et sortants.",
+    pt: "Criem primeiro um agente telefônico em Inbound — o mesmo agente atende chamadas recebidas e efetuadas.",
+    de: "Erstellen Sie zuerst einen Telefon-Agenten unter Eingehend — derselbe Agent übernimmt eingehende und ausgehende Anrufe.",
+  },
+  "outbound.goToInbound": {
+    da: "Gå til Indgående opkald →",
+    en: "Go to Inbound →",
+    es: "Ir a Inbound →",
+    fr: "Aller à Inbound →",
+    pt: "Ir para Inbound →",
+    de: "Zu Eingehend →",
   },
   "outbound.campaignNameLabel": {
     da: "Kampagnenavn",
@@ -2294,7 +2310,7 @@ export const dashboardPages: Namespace = {
   // the customer's numbers, so the agent having one of its own says nothing
   // about whether it can dial.
   "outbound.noUsableNumber": {
-    da: "I har ingen numre, denne agent kan ringe ud fra. Tildel et nummer under Inbound.",
+    da: "I har ingen numre, denne agent kan ringe ud fra. Tildel et nummer under Indgående opkald.",
     en: "You have no numbers this agent can call from. Assign one under Inbound.",
     es: "No tenéis números desde los que este agente pueda llamar. Asigna uno en Inbound.",
     fr: "Vous n'avez aucun numéro depuis lequel cet agent peut appeler. Attribuez-en un dans Inbound.",
