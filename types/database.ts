@@ -33,6 +33,10 @@ export interface Customer {
   stripe_customer_id: string | null;
   intro_offer_used_at: string | null;
   widget_launch_paid_at: string | null;
+  // Reserved account that owns AIbooking's own "AIbooking website" widgets
+  // (see 0043_admin_wapi_control_center.sql) — never a real tenant, so
+  // customer-facing lists/stats exclude it the same way status='deleted' is.
+  is_platform_owned: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -121,6 +125,13 @@ export interface VoiceModel {
 // takes calls on a number (Inbound/Outbound/Dialer). Both run on Vapi.
 export type AgentType = "widget" | "phone";
 
+// Which site a widget/agent is deployed on — "aibooking_website" is
+// AIbooking's own agent (owned by the reserved is_platform_owned customer,
+// see 0043_admin_wapi_control_center.sql), "customer_website" is every
+// normal tenant widget. Purely descriptive: it changes nothing about how the
+// agent runs.
+export type WidgetDeploymentType = "customer_website" | "aibooking_website";
+
 export interface Widget {
   id: string;
   customer_id: string;
@@ -131,6 +142,11 @@ export interface Widget {
   business_name: string | null;
   llm_model_id: string | null;
   voice_model_id: string | null;
+  // Display-only FK to the cached Vapi assistant this agent is connected to
+  // — the assistant that actually answers calls is
+  // widget_settings.extra.vapiAssistantId (see 0043's header comment).
+  wapi_agent_id: string | null;
+  deployment_type: WidgetDeploymentType;
   language: string;
   system_prompt: string | null;
   welcome_message: string | null;
@@ -144,6 +160,21 @@ export interface Widget {
   show_branding: boolean;
   max_response_chars: number;
   booking_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Local cache of a Vapi assistant ("Wapi Agent" in the admin UI) — refreshed
+// by lib/vapi/agent-sync.ts's syncWapiAgents(). See 0043_admin_wapi_control_center.sql.
+export interface WapiAgent {
+  id: string;
+  wapi_agent_id: string;
+  name: string | null;
+  status: string | null;
+  language: string | null;
+  voice: string | null;
+  metadata: Record<string, unknown>;
+  last_synced_at: string | null;
   created_at: string;
   updated_at: string;
 }

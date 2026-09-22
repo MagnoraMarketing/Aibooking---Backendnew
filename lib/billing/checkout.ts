@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { getStripeClient } from "./stripe-client";
 import { getAdminClient } from "@/lib/database/admin";
 import { getPublicAppUrl } from "@/lib/app-url";
+import { getConfiguredStripePriceId } from "./package-catalog";
 import type { Customer, Package } from "@/types/database";
 import { ApiError } from "@/types/errors";
 
@@ -61,19 +62,20 @@ function nextBillingCycleAnchor(): number {
 
 // Every package is priced in our own database (monthly_price, currency,
 // included_minutes), but Stripe needs a Price object to bill a subscription
-// against. packages.stripe_price_id is where that lives — and on this
-// platform it was null for every package, so checkout failed for every
-// customer with "Pakken er ikke sat op til betaling endnu", which no
-// customer can act on and no admin screen can fix (the field exists on the
-// admin pricing API but on no admin page).
-//
-// So create the Price from the package's own numbers the first time someone
-// checks out, and store the id back on the package — get-or-create, the
-// same shape as getOrCreateIntroOfferCoupon below. An id set by hand in
-// Stripe still wins; this only fills the gap. Changing a package's price
-// afterwards needs a new Stripe Price (they're immutable), which is what
-// the admin pricing API's stripePriceId field is for.
-async function resolveStripePriceId(pkg: Package): Promise<string> {
+// against. Resolution order: an explicit STRIPE_PRICE_ID_* env var (see
+// lib/billing/package-catalog.ts — the "separate Stripe Price IDs" the admin
+// can pin per package), then packages.stripe_price_id (set by hand, or by
+// this function the first time someone checks out), then — since that
+// column used to be null for every package, which made checkout fail for
+// every customer with "Pakken er ikke sat op til betaling endnu" and no way
+// for an admin to fix it — create the Price from the package's own numbers
+// and store the id back, get-or-create, the same shape as
+// getOrCreateIntroOfferCoupon below. Changing a package's price afterwards
+// needs a new Stripe Price (they're immutable), which is what the admin
+// pricing API's stripePriceId field is for.
+export async function resolveStripePriceId(pkg: Package): Promise<string> {
+  const configured = getConfiguredStripePriceId(pkg.package_name);
+  if (configured) return configured;
   if (pkg.stripe_price_id) return pkg.stripe_price_id;
 
   const stripe = getStripeClient();
@@ -99,6 +101,12 @@ async function resolveStripePriceId(pkg: Package): Promise<string> {
 export async function createCheckoutSession(params: {
   customer: Customer;
   pkg: Package;
+  // Setup/onboarding is a genuinely optional one-time add-on (spec: "Der
+  // skal være mulighed for at købe en valgfri opsætning") — never added
+  // unless the customer explicitly asked for it at checkout, and never
+  // billed again on a renewal since it's a Checkout Session line item, not
+  // part of the recurring price.
+  includeSetup?: boolean;
   // Optional overrides for a special-cased checkout (e.g. the Inbound
   // page's intro offer) — a specific Stripe coupon to apply, redirect URLs
   // other than the billing page, and extra subscription metadata for the
@@ -115,11 +123,11 @@ export async function createCheckoutSession(params: {
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: priceId, quantity: 1 }];
 
-  // A one-time setup/onboarding fee, billed alongside the first invoice —
-  // no pre-created Stripe Price needed, unlike the recurring price above
-  // (which admin configures per package), since this only ever needs to
-  // exist as this one line item on this one session.
-  if (params.pkg.setup_fee && params.pkg.setup_fee > 0) {
+  // A one-time setup/onboarding fee, billed alongside the first invoice only
+  // when the customer opted in — no pre-created Stripe Price needed, unlike
+  // the recurring price above (which admin configures per package), since
+  // this only ever needs to exist as this one line item on this one session.
+  if (params.includeSetup && params.pkg.setup_fee && params.pkg.setup_fee > 0) {
     lineItems.push({
       price_data: {
         currency: params.pkg.currency.toLowerCase(),

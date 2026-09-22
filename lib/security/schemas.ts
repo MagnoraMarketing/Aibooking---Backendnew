@@ -156,6 +156,27 @@ export const createWidgetSchema = widgetUpdateSchema.extend({
   agentType: z.enum(["widget", "phone"]).default("widget"),
 });
 
+// ---------------------------------------------------------------------------
+// Admin Control Center: connecting a widget/inbound agent to a cached Wapi
+// (Vapi) agent and/or an existing phone number, and where it's deployed —
+// shared by the admin widgets and admin inbound routes (see
+// lib/admin/widget-service.ts and 0043_admin_wapi_control_center.sql).
+// ---------------------------------------------------------------------------
+export const wapiAgentConnectionSchema = z
+  .object({
+    deploymentType: z.enum(["customer_website", "aibooking_website"]),
+    // A row already in the local wapi_agents cache (the searchable
+    // dropdown's normal path).
+    wapiAgentId: z.string().uuid().nullable(),
+    // The manual-entry fallback (spec: "Wapi Agent ID" typed by hand when
+    // the agent isn't in the synced list yet) — a raw Vapi assistant id.
+    wapiAgentExternalId: z.string().trim().min(1).max(200).nullable(),
+    // An existing phone_numbers row (already in the platform's Vapi
+    // account, unclaimed) to attach to this agent.
+    phoneNumberId: z.string().uuid().nullable(),
+  })
+  .partial();
+
 // Free-form widget preferences that don't have a dedicated widgets column —
 // stored in widget_settings.extra (jsonb) and merged in on PATCH, never
 // replaced wholesale, so unrelated keys set by other tabs survive.
@@ -217,6 +238,23 @@ export const widgetExtraSettingsSchema = z
     purposeNotes: z.string().trim().max(2000).nullable(),
   })
   .partial();
+
+// .extend({...x.shape}) rather than .merge(x): with the zod version this
+// project resolves to, .merge()'s inferred output type widened an
+// already-`.default()`-backed required field (name) back to optional —
+// .extend() with a plain shape object doesn't go through that path.
+export const createAdminWidgetSchema = createWidgetSchema.extend({
+  // Required for deploymentType "customer_website"; ignored (and resolved
+  // server-side to the reserved internal customer) for "aibooking_website"
+  // — see lib/admin/aibooking-customer.ts.
+  customerId: z.string().uuid().optional(),
+  ...wapiAgentConnectionSchema.shape,
+});
+
+export const updateAdminWidgetSchema = widgetUpdateSchema.extend({
+  extra: widgetExtraSettingsSchema.optional(),
+  ...wapiAgentConnectionSchema.shape,
+});
 
 // ---------------------------------------------------------------------------
 // Admin: Vapi voice templates ("Mand"/"Dame") — see
@@ -483,6 +521,10 @@ export const leadUpdateSchema = z.object({
 // ---------------------------------------------------------------------------
 export const checkoutRequestSchema = z.object({
   packageId: z.string().uuid().optional(),
+  // Setup/onboarding is an optional one-time add-on (spec: "Der skal være
+  // mulighed for at købe en valgfri opsætning") — never included unless the
+  // customer explicitly checks it at checkout.
+  includeSetup: z.boolean().optional().default(false),
 });
 
 // ---------------------------------------------------------------------------

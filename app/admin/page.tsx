@@ -1,108 +1,120 @@
 import { requireMasterAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
-import { getSystemStats } from "@/lib/analytics";
-import { ClientPortal, type AdminStats, type ClientRow } from "@/components/admin/client-portal";
-import type { Customer, Package, Subscription } from "@/types/database";
+import { AdminStatCard } from "@/components/admin/stat-card";
+import { translate } from "@/lib/i18n/dictionaries";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
+import type { AuditLog } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage() {
-  await requireMasterAdminForPage();
+interface SystemCheck {
+  label: string;
+  ok: boolean;
+}
+
+function checkSystemStatus(): SystemCheck[] {
+  return [
+    { label: "Vapi", ok: Boolean(process.env.VAPI_PRIVATE_KEY && process.env.VAPI_PUBLIC_KEY) },
+    { label: "Twilio", ok: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) },
+    { label: "Stripe", ok: Boolean(process.env.STRIPE_SECRET_KEY) },
+    { label: "Supabase", ok: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) },
+    { label: "Cal.com", ok: Boolean(process.env.CALCOM_CLIENT_ID && process.env.CALCOM_CLIENT_SECRET) },
+  ];
+}
+
+// Overview dashboard — spec section 1. A genuinely separate page from
+// "Kunder" (moved to /admin/customers), so it can show platform-wide counts
+// that span every resource this Control Center manages, not just customers.
+export default async function AdminOverviewPage() {
+  const ctx = await requireMasterAdminForPage();
+  const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
   const supabase = getAdminClient();
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
   const [
-    systemStats,
-    { data: customers },
-    { count: newClients30d },
-    { data: creditAccounts },
-    { data: widgets },
-    { data: usageSessions },
-    { data: subscriptions },
+    { count: activeCustomers },
+    { count: activeWidgets },
+    { count: inboundAgents },
+    { count: voiceWidgets },
+    { count: wapiAgents },
+    { count: phoneNumbers },
+    { data: recentActivity },
   ] = await Promise.all([
-    getSystemStats(),
-    supabase.from("customers").select("*").neq("status", "deleted").order("created_at", { ascending: false }).returns<Customer[]>(),
     supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
-      .neq("status", "deleted")
-      .gte("created_at", thirtyDaysAgo),
+      .eq("status", "active")
+      .eq("is_platform_owned", false),
+    supabase.from("widgets").select("id", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("widgets").select("id", { count: "exact", head: true }).eq("agent_type", "phone"),
+    supabase.from("widgets").select("id", { count: "exact", head: true }).eq("agent_type", "widget"),
+    supabase.from("wapi_agents").select("id", { count: "exact", head: true }),
+    supabase.from("phone_numbers").select("id", { count: "exact", head: true }).eq("purchase_status", "active"),
     supabase
-      .from("credit_accounts")
-      .select("customer_id, balance_seconds")
-      .returns<{ customer_id: string; balance_seconds: number }[]>(),
-    supabase.from("widgets").select("customer_id, status").returns<{ customer_id: string; status: string }[]>(),
-    supabase
-      .from("usage_sessions")
-      .select("customer_id, billed_duration_seconds")
-      .returns<{ customer_id: string; billed_duration_seconds: number }[]>(),
-    supabase
-      .from("subscriptions")
-      .select("*, packages(*)")
+      .from("audit_logs")
+      .select("*")
       .order("created_at", { ascending: false })
-      .returns<(Subscription & { packages: Package | null })[]>(),
+      .limit(10)
+      .returns<AuditLog[]>(),
   ]);
 
-  const balanceByCustomer = new Map<string, number>();
-  for (const row of creditAccounts ?? []) {
-    balanceByCustomer.set(row.customer_id, row.balance_seconds);
-  }
+  const systemStatus = checkSystemStatus();
 
-  const widgetsByCustomer = new Map<string, { active: number; total: number }>();
-  for (const w of widgets ?? []) {
-    const entry = widgetsByCustomer.get(w.customer_id) ?? { active: 0, total: 0 };
-    entry.total += 1;
-    if (w.status === "active") entry.active += 1;
-    widgetsByCustomer.set(w.customer_id, entry);
-  }
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900">{translate(locale, "adminShell.nav.dashboard")}</h1>
+        <p className="mt-1 text-sm text-slate-500">{translate(locale, "adminPages.overview.subtitle")}</p>
+      </div>
 
-  const usedSecondsByCustomer = new Map<string, number>();
-  for (const s of usageSessions ?? []) {
-    usedSecondsByCustomer.set(
-      s.customer_id,
-      (usedSecondsByCustomer.get(s.customer_id) ?? 0) + (s.billed_duration_seconds ?? 0)
-    );
-  }
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <AdminStatCard label={translate(locale, "adminPages.overview.activeCustomers")} value={String(activeCustomers ?? 0)} />
+        <AdminStatCard label={translate(locale, "adminPages.overview.activeWidgets")} value={String(activeWidgets ?? 0)} />
+        <AdminStatCard label={translate(locale, "adminPages.overview.inboundAgents")} value={String(inboundAgents ?? 0)} />
+        <AdminStatCard label={translate(locale, "adminPages.overview.voiceWidgets")} value={String(voiceWidgets ?? 0)} />
+        <AdminStatCard label={translate(locale, "adminPages.overview.wapiAgents")} value={String(wapiAgents ?? 0)} />
+        <AdminStatCard label={translate(locale, "adminPages.overview.phoneNumbers")} value={String(phoneNumbers ?? 0)} />
+      </div>
 
-  const latestSubscriptionByCustomer = new Map<string, Subscription & { packages: Package | null }>();
-  for (const s of subscriptions ?? []) {
-    if (!latestSubscriptionByCustomer.has(s.customer_id)) {
-      latestSubscriptionByCustomer.set(s.customer_id, s);
-    }
-  }
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-900">{translate(locale, "adminPages.overview.recentActivity")}</h2>
+          <div className="mt-3 divide-y divide-slate-100">
+            {(recentActivity ?? []).length === 0 ? (
+              <p className="py-4 text-sm text-slate-500">{translate(locale, "adminPages.overview.noActivity")}</p>
+            ) : (
+              (recentActivity ?? []).map((log) => (
+                <div key={log.id} className="py-3 text-sm">
+                  <p className="font-medium text-slate-800">{log.action}</p>
+                  <p className="text-xs text-slate-500">
+                    {log.entity_type ? `${log.entity_type} · ` : ""}
+                    {new Date(log.created_at).toLocaleString(locale === "da" ? "da-DK" : "en-US")}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
 
-  const clients: ClientRow[] = (customers ?? []).map((customer) => {
-    const sub = latestSubscriptionByCustomer.get(customer.id);
-    const widgetCounts = widgetsByCustomer.get(customer.id) ?? { active: 0, total: 0 };
-
-    return {
-      id: customer.id,
-      name: customer.name,
-      email: customer.email,
-      status: customer.status === "active" ? "active" : "inactive",
-      createdAt: customer.created_at,
-      creditPricePerMinute: sub?.packages?.overage_price_per_minute ?? null,
-      currency: sub?.packages?.currency ?? "DKK",
-      minutesRemaining: Math.round(((balanceByCustomer.get(customer.id) ?? 0) / 60) * 100) / 100,
-      minutesUsed: Math.round(((usedSecondsByCustomer.get(customer.id) ?? 0) / 60) * 100) / 100,
-      activeAgents: widgetCounts.active,
-      totalAgents: widgetCounts.total,
-    };
-  });
-
-  const totalMinutesRemaining =
-    Array.from(balanceByCustomer.values()).reduce((sum, s) => sum + s, 0) / 60;
-
-  const stats: AdminStats = {
-    totalClients: systemStats.totalCustomers,
-    newClients30d: newClients30d ?? 0,
-    mrr: systemStats.mrr,
-    grossMargin: systemStats.estimatedGrossMargin,
-    totalMinutesRemaining,
-    totalAgents: systemStats.totalWidgets,
-    currency: systemStats.currency,
-  };
-
-  return <ClientPortal initialClients={clients} stats={stats} />;
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-900">{translate(locale, "adminPages.overview.systemStatus")}</h2>
+          <div className="mt-3 space-y-2">
+            {systemStatus.map((check) => (
+              <div key={check.label} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm">
+                <span className="text-slate-700">{check.label}</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    check.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                  }`}
+                >
+                  {check.ok
+                    ? translate(locale, "adminPages.overview.statusOk")
+                    : translate(locale, "adminPages.overview.statusMissing")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
