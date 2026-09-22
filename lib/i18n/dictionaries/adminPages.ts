@@ -988,4 +988,21 @@ export const adminPages: Namespace = {
   "inbound.editTitle": { da: "Rediger Inbound-agent", en: "Edit Inbound agent", es: "Editar agente entrante", fr: "Modifier l'agent entrant", pt: "Editar agente de entrada", de: "Inbound-Agent bearbeiten" },
   "inbound.greetingLabel": { da: "Greeting", en: "Greeting", es: "Saludo", fr: "Message d'accueil", pt: "Saudação", de: "Begrüßung" },
   "inbound.systemPromptLabel": { da: "System prompt", en: "System prompt", es: "Prompt del sistema", fr: "Prompt système", pt: "Prompt do sistema", de: "System-Prompt" },
+  "widgets.promptSectionLabel": { da: "Agentens prompt", en: "Agent prompt", es: "Prompt del agente", fr: "Prompt de l'agent", pt: "Prompt do agente", de: "Prompt des Agenten" },
+  "widgets.promptSectionHelp": {
+    da: "Styrer hvad agenten siger og gør. Gemmes her og sendes automatisk til Vapi — du skal ikke redigere agenten i Vapi. Vælger du ingen Wapi-agent, oprettes en ny ud fra denne prompt.",
+    en: "Controls what the agent says and does. Saved here and pushed to Vapi automatically — no need to edit the agent in Vapi. If you pick no Wapi agent, a new one is created from this prompt.",
+    es: "Controla lo que dice y hace el agente. Se guarda aquí y se envía a Vapi automáticamente; no hace falta editar el agente en Vapi. Si no eliges un agente Wapi, se crea uno nuevo a partir de este prompt.",
+    fr: "Contrôle ce que l'agent dit et fait. Enregistré ici et envoyé automatiquement à Vapi — inutile de modifier l'agent dans Vapi. Si aucun agent Wapi n'est choisi, un nouvel agent est créé à partir de ce prompt.",
+    pt: "Controla o que o agente diz e faz. Guardado aqui e enviado automaticamente para a Vapi — não é preciso editar o agente na Vapi. Se não escolher um agente Wapi, é criado um novo a partir deste prompt.",
+    de: "Steuert, was der Agent sagt und tut. Wird hier gespeichert und automatisch an Vapi übertragen — der Agent muss nicht in Vapi bearbeitet werden. Ohne gewählten Wapi-Agenten wird aus diesem Prompt ein neuer erstellt.",
+  },
+  "widgets.vapiSyncFailed": {
+    da: "Agenten er gemt, men prompten kunne ikke sendes til Vapi:",
+    en: "The agent is saved, but the prompt could not be sent to Vapi:",
+    es: "El agente se ha guardado, pero el prompt no se pudo enviar a Vapi:",
+    fr: "L'agent est enregistré, mais le prompt n'a pas pu être envoyé à Vapi :",
+    pt: "O agente foi guardado, mas o prompt não pôde ser enviado para a Vapi:",
+    de: "Der Agent ist gespeichert, aber der Prompt konnte nicht an Vapi gesendet werden:",
+  },
 };

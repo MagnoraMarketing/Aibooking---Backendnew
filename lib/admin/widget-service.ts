@@ -4,7 +4,7 @@ import { getAdminClient } from "@/lib/database/admin";
 import { getOrCreateAibookingCustomerId } from "./aibooking-customer";
 import { generatePublicWidgetId, buildShareUrl, buildEmbedSnippet, widgetUpdateToDbRow } from "@/lib/widgets";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
-import { refreshWapiAgent, syncWidgetToVapiAssistant } from "@/lib/vapi";
+import { refreshWapiAgent, syncWidgetToVapiAssistant, ensureVapiAssistant, type VapiSyncOutcome } from "@/lib/vapi";
 import { attachAssistantToVapiNumber } from "@/lib/vapi";
 import { encryptSecret, writeAuditLog } from "@/lib/security";
 import { fetchCalcomMe, fetchCalcomEventTypes } from "@/lib/calendar";
@@ -19,6 +19,48 @@ export interface AdminWidgetResult {
   widget: Widget;
   shareUrl: string;
   embedSnippet: string;
+  vapiSync: VapiSyncOutcome;
+}
+
+// The agent's prompt, greeting, knowledge base and tools are written in
+// AIbooking — this pushes them onto its Vapi assistant, so nobody has to
+// edit the assistant in Vapi's own dashboard. Without it, an admin-created
+// agent kept whatever prompt its Vapi assistant happened to have, and the
+// prompt typed here was stored but never used.
+//
+// createIfMissing: an agent created without picking an existing Vapi
+// assistant gets one built from its own prompt. Only on creation — an
+// existing agent without one may deliberately run on another model.
+//
+// Best-effort, like every other sync: a Vapi outage must not lose the agent
+// the admin just saved, so the outcome is returned for the UI to show.
+export async function pushAdminWidgetToVapi(
+  widgetId: string,
+  options: { createIfMissing?: boolean } = {}
+): Promise<VapiSyncOutcome> {
+  const supabase = getAdminClient();
+  try {
+    const { data: settings } = await supabase
+      .from("widget_settings")
+      .select("extra")
+      .eq("widget_id", widgetId)
+      .maybeSingle();
+    const extra = (settings?.extra as Record<string, unknown> | null) ?? {};
+
+    if (typeof extra.vapiAssistantId !== "string" || !extra.vapiAssistantId) {
+      if (!options.createIfMissing) return { status: "skipped", reason: "no_vapi_assistant" };
+      // Builds the assistant from the agent's prompt and runs the full sync.
+      await ensureVapiAssistant(widgetId);
+      return { status: "synced" };
+    }
+
+    const { data: widget } = await supabase.from("widgets").select("*").eq("id", widgetId).maybeSingle();
+    if (!widget) return { status: "skipped", reason: "widget_not_found" };
+    return await syncWidgetToVapiAssistant(widget as Widget, extra);
+  } catch (err) {
+    console.error(`[admin] Failed to push agent ${widgetId} to Vapi:`, err);
+    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 interface ResolvedConnection {
@@ -239,8 +281,18 @@ export async function createAdminWidget(
     extra: vapiAssistantId ? { vapiAssistantId } : {},
   });
 
+  // Prompt first: an agent created without an existing Vapi assistant gets
+  // one here, built from the prompt typed in AIbooking — which is also what
+  // a phone number below needs to point at. An agent on a model the admin
+  // picked explicitly is left alone.
+  let vapiSync: VapiSyncOutcome = { status: "skipped", reason: "explicit_llm_model" };
+  if (!rest.llmModelId || vapiAssistantId) {
+    vapiSync = await pushAdminWidgetToVapi(widget.id, { createIfMissing: true });
+  }
+  const assistantForPhone = vapiAssistantId ?? (await currentVapiAssistantId(widget.id));
+
   if (phoneNumberId) {
-    await attachPhoneNumber(phoneNumberId, widget as Widget, vapiAssistantId);
+    await attachPhoneNumber(phoneNumberId, widget as Widget, assistantForPhone);
   }
 
   if (calcomApiKey) {
@@ -257,10 +309,13 @@ export async function createAdminWidget(
     metadata: { deploymentType, agentType: input.agentType },
   });
 
+  const { data: fresh } = await supabase.from("widgets").select("*").eq("id", widget.id).maybeSingle();
+
   return {
-    widget: widget as Widget,
+    widget: (fresh ?? widget) as Widget,
     shareUrl: buildShareUrl(widget.public_id),
     embedSnippet: buildEmbedSnippet(widget.public_id),
+    vapiSync,
   };
 }
 
