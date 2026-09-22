@@ -459,6 +459,13 @@ export const calcomUpdateEventTypeSchema = z.object({
   eventTypeId: z.number().int().positive(),
 });
 
+// Admin Control Center: "Hent event-typer" in the widget/inbound creation
+// modal (app/api/admin/calendar/calcom/event-types/route.ts) — proves a
+// pasted key works and lists what it can book against, read-only.
+export const calcomEventTypesLookupSchema = z.object({
+  apiKey: z.string().trim().min(1).max(500),
+});
+
 // Cal.com OAuth booking request
 export const calcomOAuthBookingSchema = z.object({
   name: z.string().trim().min(1).max(200),

@@ -867,6 +867,30 @@ export const adminPages: Namespace = {
     pt: "ex.: 123456",
     de: "z. B. 123456",
   },
+  "widgets.calcomFetchButton": {
+    da: "Hent event-typer",
+    en: "Fetch event types",
+    es: "Obtener tipos de evento",
+    fr: "Récupérer les types d'événements",
+    pt: "Buscar tipos de evento",
+    de: "Event-Typen abrufen",
+  },
+  "widgets.calcomConnectedAs": {
+    da: "Forbundet som",
+    en: "Connected as",
+    es: "Conectado como",
+    fr: "Connecté en tant que",
+    pt: "Conectado como",
+    de: "Verbunden als",
+  },
+  "widgets.calcomFetchError": {
+    da: "Kunne ikke hente event-typer. Tjek API-nøglen.",
+    en: "Couldn't fetch event types. Check the API key.",
+    es: "No se pudieron obtener los tipos de evento. Comprueba la clave API.",
+    fr: "Impossible de récupérer les types d'événements. Vérifiez la clé API.",
+    pt: "Não foi possível buscar os tipos de evento. Verifique a chave API.",
+    de: "Event-Typen konnten nicht abgerufen werden. API-Schlüssel prüfen.",
+  },
 
   // ---------------------------------------------------------------------
   // app/admin/inbound + components/admin/inbound-table.tsx
