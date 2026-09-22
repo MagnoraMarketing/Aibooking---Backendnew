@@ -12,6 +12,8 @@ import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content
 // that would be an import cycle straight back into this file.
 import { resolveShopifyCapabilities } from "@/lib/shopify/agent-tools";
 import { buildShopifyVapiTools } from "@/lib/shopify/tool-definitions";
+import { resolveUberDirectConfig } from "@/lib/uber-direct/connection";
+import { buildUberVapiTools, UBER_TOOL_GUIDANCE } from "@/lib/uber-direct/agent-tools";
 import { updateVapiAssistant, type VapiVoiceGender } from "./assistants";
 import { DEFAULT_VOICE_GENDER } from "./voice-gender";
 
@@ -56,7 +58,9 @@ export async function syncWidgetToVapiAssistant(
   );
   const basePrompt = widget.system_prompt ?? (await getDefaultSystemPrompt());
   const systemPrompt = withLanguageDirective(
-    [basePrompt, knowledgeBase].filter(Boolean).join("\n\n"),
+    [basePrompt, knowledgeBase, resolveUberDirectConfig(extra) ? UBER_TOOL_GUIDANCE : null]
+      .filter(Boolean)
+      .join("\n\n"),
     widget.language
   );
 
@@ -78,6 +82,10 @@ export async function syncWidgetToVapiAssistant(
     console.error("Failed to resolve Shopify tools for assistant sync:", err);
   }
 
+  // Delivery tools only for an agent with a complete, enabled Uber Direct
+  // setup — same reasoning as the webshop tools above.
+  const uberTools = resolveUberDirectConfig(extra) ? buildUberVapiTools() : [];
+
   const silenceTimeoutSeconds = typeof extra.silenceTimeoutSeconds === "number" ? extra.silenceTimeoutSeconds : null;
   const maxDurationSeconds = typeof extra.maxDurationSeconds === "number" ? extra.maxDurationSeconds : null;
 
@@ -94,7 +102,7 @@ export async function syncWidgetToVapiAssistant(
         language: widget.language,
       },
       includeBookingTools,
-      shopifyTools
+      [...shopifyTools, ...uberTools]
     );
     return { status: "synced" };
   } catch (err) {

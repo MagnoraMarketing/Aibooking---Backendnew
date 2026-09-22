@@ -4,6 +4,8 @@ import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, updateAdminWidgetSchema } from "@/lib/security";
 import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
 import { applyAdminWidgetConnections, pushAdminWidgetToVapi } from "@/lib/admin/widget-service";
+import { mergeUberDirectInput, removeUberDirect, summarizeUberDirect } from "@/lib/uber-direct/connection";
+import { getPublicAppUrl } from "@/lib/app-url";
 import { ApiError } from "@/types/errors";
 import type { Widget } from "@/types/database";
 
@@ -23,8 +25,13 @@ export const GET = withErrorHandling(async (_request, { params }) => {
   if (error) throw error;
   if (!widget) throw ApiError.notFound("Widget not found");
 
+  const { data: settings } = await supabase.from("widget_settings").select("extra").eq("widget_id", params.id).maybeSingle();
+
   return NextResponse.json({
     widget: { ...widget, shareUrl: buildShareUrl(widget.public_id), embedSnippet: buildEmbedSnippet(widget.public_id) },
+    // Summary only — never the stored secrets.
+    uberDirect: summarizeUberDirect((settings?.extra as Record<string, unknown> | null) ?? null),
+    uberDirectWebhookUrl: `${getPublicAppUrl().replace(/\/+$/, "")}/api/webhooks/uber-direct/${widget.id}`,
   });
 });
 
@@ -42,6 +49,7 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     deploymentType,
     calcomApiKey,
     calcomEventTypeId,
+    uberDirect,
     ...widgetFields
   } = await readJsonBody(request, updateAdminWidgetSchema);
   const supabase = getAdminClient();
@@ -62,13 +70,19 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
 
   // Merged, never replaced: the other tabs' keys live in the same blob, and
   // support editing one field must not wipe the knowledge base.
-  if (extraUpdate) {
+  if (extraUpdate || uberDirect !== undefined) {
     const { data: settings } = await supabase
       .from("widget_settings")
       .select("extra")
       .eq("widget_id", params.id)
       .maybeSingle();
-    const extra = { ...((settings?.extra as Record<string, unknown> | null) ?? {}), ...extraUpdate };
+    let extra: Record<string, unknown> = {
+      ...((settings?.extra as Record<string, unknown> | null) ?? {}),
+      ...(extraUpdate ?? {}),
+    };
+    // Secrets are encrypted on the way in; null switches delivery off.
+    if (uberDirect === null) extra = removeUberDirect(extra);
+    else if (uberDirect) extra = mergeUberDirectInput(extra, uberDirect);
     const { error: extraError } = await supabase
       .from("widget_settings")
       .upsert({ widget_id: params.id, extra });
@@ -91,6 +105,7 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     metadata: {
       ...widgetFields,
       ...(extraUpdate ? { extra: extraUpdate } : {}),
+      ...(uberDirect !== undefined ? { uberDirect: uberDirect ? "configured" : "removed" } : {}),
       ...(connection ? { wapiAgentConnected: connection.vapiAssistantId, phoneNumberId } : {}),
     },
   });

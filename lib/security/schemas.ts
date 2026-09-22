@@ -255,17 +255,45 @@ export const widgetExtraSettingsSchema = z
 // project resolves to, .merge()'s inferred output type widened an
 // already-`.default()`-backed required field (name) back to optional —
 // .extend() with a plain shape object doesn't go through that path.
+// ---------------------------------------------------------------------------
+// Uber Direct delivery for one agent (see lib/uber-direct/connection.ts).
+// ---------------------------------------------------------------------------
+// What an admin or customer sends to set it up. Secrets are only sent when
+// they are being set or replaced — omitted keeps the stored one.
+export const uberDirectInputSchema = z.object({
+  enabled: z.boolean(),
+  customerId: z.string().trim().min(1).max(200),
+  clientId: z.string().trim().min(1).max(200),
+  clientSecret: z.string().trim().min(1).max(500).optional(),
+  webhookSigningKey: z.string().trim().min(1).max(500).optional(),
+  pickup: z.object({
+    name: z.string().trim().min(1).max(200),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^\+[1-9]\d{6,14}$/, "Telefonnummeret skal være i internationalt format, fx +4512345678"),
+    street: z.string().trim().min(1).max(300),
+    postalCode: z.string().trim().min(1).max(20),
+    city: z.string().trim().min(1).max(100),
+    country: z.string().trim().length(2).default("DK"),
+    notes: z.string().trim().max(500).optional(),
+  }),
+});
+
 export const createAdminWidgetSchema = createWidgetSchema.extend({
   // Required for deploymentType "customer_website"; ignored (and resolved
   // server-side to the reserved internal customer) for "aibooking_website"
   // — see lib/admin/aibooking-customer.ts.
   customerId: z.string().uuid().optional(),
   ...wapiAgentConnectionSchema.shape,
+  uberDirect: uberDirectInputSchema.optional(),
 });
 
 export const updateAdminWidgetSchema = widgetUpdateSchema.extend({
   extra: widgetExtraSettingsSchema.optional(),
   ...wapiAgentConnectionSchema.shape,
+  // null removes the agent's Uber Direct setup; omitted leaves it alone.
+  uberDirect: uberDirectInputSchema.nullable().optional(),
 });
 
 // ---------------------------------------------------------------------------
