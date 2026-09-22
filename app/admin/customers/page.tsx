@@ -1,6 +1,7 @@
 import { requireMasterAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { getSystemStats } from "@/lib/analytics";
+import { getBillingStatus } from "@/lib/billing/trial";
 import { ClientPortal, type AdminStats, type ClientRow } from "@/components/admin/client-portal";
 import type { Customer, Package, Subscription } from "@/types/database";
 
@@ -82,6 +83,7 @@ export default async function AdminCustomersPage() {
   const clients: ClientRow[] = (customers ?? []).map((customer) => {
     const sub = latestSubscriptionByCustomer.get(customer.id);
     const widgetCounts = widgetsByCustomer.get(customer.id) ?? { active: 0, total: 0 };
+    const balanceSeconds = balanceByCustomer.get(customer.id) ?? 0;
 
     return {
       id: customer.id,
@@ -89,9 +91,16 @@ export default async function AdminCustomersPage() {
       email: customer.email,
       status: customer.status === "active" ? "active" : "inactive",
       createdAt: customer.created_at,
+      reference: customer.reference,
+      billingStatus: getBillingStatus({
+        customerCreatedAt: customer.created_at,
+        subscriptionStatus: sub?.status ?? null,
+        balanceSeconds,
+        widgetLaunchPaidAt: customer.widget_launch_paid_at,
+      }),
       creditPricePerMinute: sub?.packages?.overage_price_per_minute ?? null,
       currency: sub?.packages?.currency ?? "DKK",
-      minutesRemaining: Math.round(((balanceByCustomer.get(customer.id) ?? 0) / 60) * 100) / 100,
+      minutesRemaining: Math.round((balanceSeconds / 60) * 100) / 100,
       minutesUsed: Math.round(((usedSecondsByCustomer.get(customer.id) ?? 0) / 60) * 100) / 100,
       activeAgents: widgetCounts.active,
       totalAgents: widgetCounts.total,

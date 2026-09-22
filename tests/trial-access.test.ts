@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasEmbedCodeAccess, TRIAL_DAYS, TRIAL_SECONDS } from "@/lib/billing/trial";
+import { getBillingStatus, hasEmbedCodeAccess, TRIAL_DAYS, TRIAL_SECONDS } from "@/lib/billing/trial";
 
 function daysAgo(days: number): string {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -64,5 +64,52 @@ describe("hasEmbedCodeAccess (5-minute / 7-day trial)", () => {
         balanceSeconds: 500,
       })
     ).toBe(false);
+  });
+});
+
+describe("getBillingStatus (client portal green/orange/red indicator)", () => {
+  it("is 'paid' with an active subscription", () => {
+    expect(
+      getBillingStatus({ customerCreatedAt: daysAgo(30), subscriptionStatus: "active", balanceSeconds: 0 })
+    ).toBe("paid");
+  });
+
+  it("is 'paid' with a Stripe-side trialing subscription", () => {
+    expect(
+      getBillingStatus({ customerCreatedAt: daysAgo(30), subscriptionStatus: "trialing", balanceSeconds: 0 })
+    ).toBe("paid");
+  });
+
+  it("is 'paid' after the one-off Voice Widget launch purchase, even without a subscription", () => {
+    expect(
+      getBillingStatus({
+        customerCreatedAt: daysAgo(30),
+        subscriptionStatus: null,
+        balanceSeconds: 0,
+        widgetLaunchPaidAt: daysAgo(10),
+      })
+    ).toBe("paid");
+  });
+
+  it("is 'trial' within the 7-day window while trial minutes remain", () => {
+    expect(
+      getBillingStatus({ customerCreatedAt: daysAgo(1), subscriptionStatus: null, balanceSeconds: TRIAL_SECONDS })
+    ).toBe("trial");
+  });
+
+  it("is 'expired' once trial minutes are used up, even within the 7 days", () => {
+    expect(
+      getBillingStatus({ customerCreatedAt: daysAgo(1), subscriptionStatus: null, balanceSeconds: 0 })
+    ).toBe("expired");
+  });
+
+  it("is 'expired' once the 7 days pass without an active subscription", () => {
+    expect(
+      getBillingStatus({
+        customerCreatedAt: daysAgo(TRIAL_DAYS + 1),
+        subscriptionStatus: "past_due",
+        balanceSeconds: TRIAL_SECONDS,
+      })
+    ).toBe("expired");
   });
 });

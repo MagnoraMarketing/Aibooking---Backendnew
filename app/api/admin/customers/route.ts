@@ -36,6 +36,7 @@ export const POST = withErrorHandling(async (request) => {
     voiceModelId: body.voiceModelId,
     businessName: body.businessName,
     sendInvitation: body.sendInvitation,
+    reference: body.reference,
   });
 
   await writeAuditLog({
@@ -45,7 +46,7 @@ export const POST = withErrorHandling(async (request) => {
     action: "customer.created",
     entityType: "customer",
     entityId: result.customer.id,
-    metadata: { invitationSent: result.invitationSent },
+    metadata: { invitationSent: result.invitationSent, reference: body.reference ?? null },
   });
 
   return NextResponse.json(

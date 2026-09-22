@@ -45,9 +45,25 @@ export function hasEmbedCodeAccess(params: {
   balanceSeconds: number;
   widgetLaunchPaidAt?: string | null;
 }): boolean {
+  return getBillingStatus(params) !== "expired";
+}
+
+export type BillingStatus = "paid" | "trial" | "expired";
+
+// The client portal's green/orange/red indicator (spec: grøn for betalt
+// pakke, orange for prøveperiode, rød hvis betaling mangler). Same inputs
+// and precedence as hasEmbedCodeAccess above, just split into the three
+// states instead of collapsed to a boolean.
+export function getBillingStatus(params: {
+  customerCreatedAt: string;
+  subscriptionStatus: string | null | undefined;
+  balanceSeconds: number;
+  widgetLaunchPaidAt?: string | null;
+}): BillingStatus {
   if (params.subscriptionStatus && ACTIVE_SUBSCRIPTION_STATUSES.includes(params.subscriptionStatus)) {
-    return true;
+    return "paid";
   }
-  if (params.widgetLaunchPaidAt) return true;
-  return isWithinTrial(params.customerCreatedAt) && params.balanceSeconds > 0;
+  if (params.widgetLaunchPaidAt) return "paid";
+  if (isWithinTrial(params.customerCreatedAt) && params.balanceSeconds > 0) return "trial";
+  return "expired";
 }
