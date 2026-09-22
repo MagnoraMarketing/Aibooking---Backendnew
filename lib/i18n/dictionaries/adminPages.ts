@@ -733,6 +733,14 @@ export const adminPages: Namespace = {
   // components/admin/wapi-agent-selector.tsx + wapi-agents-table.tsx +
   // app/admin/wapi-agents
   // ---------------------------------------------------------------------
+  "wapiAgents.pageHint": {
+    da: "Teknisk cache af de underliggende Vapi-assistenter. Opret ikke kundeagenter her — tilslut i stedet en Wapi Agent til en Widget eller en Inbound-agent.",
+    en: "A technical cache of the underlying Vapi assistants. Don't create customer agents here — instead connect a Wapi Agent to a Widget or an Inbound agent.",
+    es: "Una caché técnica de los asistentes Vapi subyacentes. No cree agentes de cliente aquí; en su lugar, conecte un agente Wapi a un widget o a un agente entrante.",
+    fr: "Un cache technique des assistants Vapi sous-jacents. Ne créez pas d'agents client ici — connectez plutôt un agent Wapi à un widget ou à un agent entrant.",
+    pt: "Um cache técnico dos assistentes Vapi subjacentes. Não crie agentes de cliente aqui — em vez disso, conecte um agente Wapi a um Widget ou a um agente de entrada.",
+    de: "Ein technischer Cache der zugrunde liegenden Vapi-Assistenten. Erstellen Sie hier keine Kundenagenten — verbinden Sie stattdessen einen Wapi-Agenten mit einem Widget oder einem Inbound-Agenten.",
+  },
   "wapiAgents.loadError": {
     da: "Kunne ikke hente Wapi-agenter lige nu.",
     en: "Couldn't load Wapi agents right now.",
