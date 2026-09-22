@@ -33,6 +33,10 @@ export interface Customer {
   stripe_customer_id: string | null;
   intro_offer_used_at: string | null;
   widget_launch_paid_at: string | null;
+  // Free-text reference set by Master Admin on creation (see
+  // lib/customers/onboarding.ts) — typically who sold the customer.
+  // Always null for self-signups.
+  reference: string | null;
   // Reserved account that owns AIbooking's own "AIbooking website" widgets
   // (see 0043_admin_wapi_control_center.sql) — never a real tenant, so
   // customer-facing lists/stats exclude it the same way status='deleted' is.

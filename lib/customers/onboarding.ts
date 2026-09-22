@@ -14,6 +14,9 @@ export interface OnboardCustomerParams {
   voiceModelId?: string;
   businessName?: string;
   sendInvitation?: boolean;
+  // Who sold this customer, e.g. a salesperson's name — see
+  // supabase/migrations/0045_customer_reference.sql.
+  reference?: string;
 }
 
 export interface OnboardCustomerResult {
@@ -59,7 +62,7 @@ export async function onboardCustomer(params: OnboardCustomerParams): Promise<On
 
   const { data: customer, error: customerError } = await supabase
     .from("customers")
-    .insert({ name: params.name, email: params.email, status: "active" })
+    .insert({ name: params.name, email: params.email, status: "active", reference: params.reference?.trim() || null })
     .select("*")
     .single();
 

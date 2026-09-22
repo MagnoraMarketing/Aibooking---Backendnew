@@ -12,6 +12,9 @@ export const createCustomerSchema = z.object({
   voiceModelId: z.string().uuid().optional(),
   businessName: z.string().trim().max(200).optional(),
   sendInvitation: z.boolean().optional().default(true),
+  // Who sold this customer, e.g. a salesperson's name — shown in the client
+  // portal so Master Admin can see who to attribute a customer to.
+  reference: z.string().trim().max(200).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -41,6 +44,7 @@ export const updateCustomerSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   email: z.string().trim().email().max(320).optional(),
   status: z.enum(["active", "inactive", "deleted"]).optional(),
+  reference: z.string().trim().max(200).optional().nullable(),
 });
 
 // ---------------------------------------------------------------------------
