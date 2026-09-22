@@ -9,4 +9,4 @@ export {
   expireCredits,
   listTransactions,
 } from "./ledger";
-export { checkAndRefillIfNeeded, type RefillResult } from "./refill";
+export { checkAndRefillIfNeeded, canUserMakeCall, type RefillResult } from "./refill";

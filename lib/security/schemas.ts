@@ -521,6 +521,10 @@ export const leadUpdateSchema = z.object({
 // ---------------------------------------------------------------------------
 export const checkoutRequestSchema = z.object({
   packageId: z.string().uuid().optional(),
+  // Setup/onboarding is an optional one-time add-on (spec: "Der skal være
+  // mulighed for at købe en valgfri opsætning") — never included unless the
+  // customer explicitly checks it at checkout.
+  includeSetup: z.boolean().optional().default(false),
 });
 
 // ---------------------------------------------------------------------------
