@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireMasterAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
-import {
-  readJsonBody,
-  withErrorHandling,
-  writeAuditLog,
-  widgetUpdateSchema,
-  widgetExtraSettingsSchema,
-} from "@/lib/security";
+import { readJsonBody, withErrorHandling, writeAuditLog, updateAdminWidgetSchema } from "@/lib/security";
 import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
+import { applyAdminWidgetConnections } from "@/lib/admin/widget-service";
 import { ApiError } from "@/types/errors";
+import type { Widget } from "@/types/database";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -19,7 +15,11 @@ export const GET = withErrorHandling(async (_request, { params }) => {
   await requireMasterAdmin();
   const supabase = getAdminClient();
 
-  const { data: widget, error } = await supabase.from("widgets").select("*").eq("id", params.id).maybeSingle();
+  const { data: widget, error } = await supabase
+    .from("widgets")
+    .select("*, customers(id, name, email), wapi_agents(id, wapi_agent_id, name), phone_numbers(id, phone_number)")
+    .eq("id", params.id)
+    .maybeSingle();
   if (error) throw error;
   if (!widget) throw ApiError.notFound("Widget not found");
 
@@ -29,23 +29,27 @@ export const GET = withErrorHandling(async (_request, { params }) => {
 });
 
 // The widget's own columns, plus the free-form settings in
-// widget_settings.extra — the customer dashboard could already edit those,
-// support could not, so anything living there (an agent's outbound assistant,
-// say) was a database job.
-const adminWidgetUpdateSchema = widgetUpdateSchema.extend({
-  extra: widgetExtraSettingsSchema.optional(),
-});
-
+// widget_settings.extra (already supported for admin edits — see comment
+// below) and, new here, its Wapi agent / phone number connection and
+// deployment type (spec sections 4, 6, 8, 9).
 export const PATCH = withErrorHandling(async (request, { params }) => {
   const ctx = await requireMasterAdmin();
-  const { extra: extraUpdate, ...widgetFields } = await readJsonBody(request, adminWidgetUpdateSchema);
+  const {
+    extra: extraUpdate,
+    wapiAgentId,
+    wapiAgentExternalId,
+    phoneNumberId,
+    deploymentType,
+    ...widgetFields
+  } = await readJsonBody(request, updateAdminWidgetSchema);
   const supabase = getAdminClient();
 
   const widgetRow = widgetUpdateToDbRow(widgetFields);
+  if (deploymentType !== undefined) widgetRow.deployment_type = deploymentType;
 
-  // An extra-only edit must not send an empty UPDATE — fetch instead, so the
-  // response still carries the widget and the audit log still has its
-  // customer.
+  // An extra-only/connection-only edit must not send an empty UPDATE — fetch
+  // instead, so the response still carries the widget and the audit log
+  // still has its customer.
   const { data, error } =
     Object.keys(widgetRow).length > 0
       ? await supabase.from("widgets").update(widgetRow).eq("id", params.id).select("*").maybeSingle()
@@ -69,6 +73,8 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     if (extraError) throw extraError;
   }
 
+  const connection = await applyAdminWidgetConnections(data as Widget, { wapiAgentId, wapiAgentExternalId, phoneNumberId });
+
   await writeAuditLog({
     actorId: ctx.userId,
     actorRole: ctx.profile.role,
@@ -76,7 +82,11 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     action: "widget.updated",
     entityType: "widget",
     entityId: params.id,
-    metadata: { ...widgetFields, ...(extraUpdate ? { extra: extraUpdate } : {}) },
+    metadata: {
+      ...widgetFields,
+      ...(extraUpdate ? { extra: extraUpdate } : {}),
+      ...(connection ? { wapiAgentConnected: connection.vapiAssistantId, phoneNumberId } : {}),
+    },
   });
 
   return NextResponse.json({ widget: data });

@@ -26,8 +26,16 @@ export async function getSystemStats(): Promise<SystemStats> {
     { data: sessions },
     { data: activeSubscriptions },
   ] = await Promise.all([
-    supabase.from("customers").select("id", { count: "exact", head: true }).neq("status", "deleted"),
-    supabase.from("customers").select("id", { count: "exact", head: true }).eq("status", "active"),
+    supabase
+      .from("customers")
+      .select("id", { count: "exact", head: true })
+      .neq("status", "deleted")
+      .eq("is_platform_owned", false),
+    supabase
+      .from("customers")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .eq("is_platform_owned", false),
     supabase.from("widgets").select("id", { count: "exact", head: true }),
     supabase.from("conversations").select("id", { count: "exact", head: true }),
     supabase

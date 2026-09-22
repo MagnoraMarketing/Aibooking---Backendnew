@@ -2,8 +2,17 @@ import "server-only";
 import { ApiError } from "@/types/errors";
 import { requireCredentialEnv } from "@/lib/security/env";
 
-export { createVapiAssistant, updateVapiAssistant, type VapiAssistantParams, type VapiVoiceGender } from "./assistants";
+export {
+  createVapiAssistant,
+  updateVapiAssistant,
+  listVapiAssistants,
+  getVapiAssistantDetails,
+  type VapiAssistantParams,
+  type VapiVoiceGender,
+  type VapiAssistantSummary,
+} from "./assistants";
 export { syncWidgetToVapiAssistant, type VapiSyncOutcome } from "./sync";
+export { syncWapiAgents, refreshWapiAgent, type WapiAgentSyncResult } from "./agent-sync";
 export { importTwilioPhoneNumber, type ImportTwilioNumberParams, type VapiPhoneNumber } from "./phone-numbers";
 export { createOutboundCall, describeOutboundCallFailure, type CreateOutboundCallParams } from "./calls";
 

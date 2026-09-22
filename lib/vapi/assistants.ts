@@ -337,6 +337,72 @@ async function buildAssistantBody(
   };
 }
 
+// A raw assistant as Vapi's list/get endpoints return it — used only by the
+// admin "Wapi Agents" catalog (lib/vapi/agent-sync.ts), never by the
+// call-answering path, which only ever needs the id (see
+// VapiAssistantParams above). Every field is read defensively since Vapi's
+// response shape for a hand-built assistant (created directly in their
+// dashboard, not by createVapiAssistant) can omit any of them.
+export interface VapiAssistantSummary {
+  id: string;
+  name: string | null;
+  voiceProvider: string | null;
+  voiceId: string | null;
+  modelProvider: string | null;
+  modelName: string | null;
+  language: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+function toAssistantSummary(raw: Record<string, unknown>): VapiAssistantSummary | null {
+  const id = raw.id;
+  if (typeof id !== "string") return null;
+
+  const voice = (raw.voice ?? {}) as Record<string, unknown>;
+  const model = (raw.model ?? {}) as Record<string, unknown>;
+  const transcriber = (raw.transcriber ?? {}) as Record<string, unknown>;
+
+  return {
+    id,
+    name: typeof raw.name === "string" ? raw.name : null,
+    voiceProvider: typeof voice.provider === "string" ? voice.provider : null,
+    voiceId: typeof voice.voiceId === "string" ? voice.voiceId : null,
+    modelProvider: typeof model.provider === "string" ? model.provider : null,
+    modelName: typeof model.model === "string" ? model.model : null,
+    language: typeof transcriber.language === "string" ? transcriber.language : null,
+    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : null,
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : null,
+  };
+}
+
+// GET /assistant — every assistant in the platform's Vapi account. Backs the
+// admin "Wapi Agent" selector/sync (see lib/vapi/agent-sync.ts) — Vapi has no
+// separate "list templates vs. customer assistants" endpoint, so this is
+// every assistant the account owns, voice templates and per-widget
+// assistants alike.
+export async function listVapiAssistants(): Promise<VapiAssistantSummary[]> {
+  const response = await vapiFetch("/assistant", { method: "GET" });
+  const data = (await response.json()) as unknown;
+  if (!Array.isArray(data)) return [];
+
+  const summaries: VapiAssistantSummary[] = [];
+  for (const row of data) {
+    const summary = toAssistantSummary((row ?? {}) as Record<string, unknown>);
+    if (summary) summaries.push(summary);
+  }
+  return summaries;
+}
+
+// GET /assistant/{id} — a single assistant's current config, for the "View"
+// / per-row "Refresh" action on the admin Wapi Agents page and for a manually
+// typed agent id the sync hasn't seen yet.
+export async function getVapiAssistantDetails(assistantId: string): Promise<VapiAssistantSummary | null> {
+  const response = await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, { method: "GET" });
+  const data = (await response.json()) as Record<string, unknown>;
+  return toAssistantSummary(data);
+}
+
 export async function createVapiAssistant(
   params: VapiAssistantParams,
   includeBookingTools = false,

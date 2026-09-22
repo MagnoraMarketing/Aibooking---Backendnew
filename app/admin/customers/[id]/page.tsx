@@ -66,7 +66,7 @@ export default async function AdminCustomerDetailPage({ params }: { params: { id
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/admin" className="text-sm font-medium text-brand-600 hover:text-brand-700">
+        <Link href="/admin/customers" className="text-sm font-medium text-brand-600 hover:text-brand-700">
           {translate(locale, "adminPages.customerDetail.backToPortal")}
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">{customer.name}</h1>
