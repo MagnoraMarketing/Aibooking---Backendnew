@@ -50,6 +50,8 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
   const [openingMessage, setOpeningMessage] = useState(initial?.opening_message ?? "");
   const [agentSelection, setAgentSelection] = useState<WapiAgentSelection>({ wapiAgentId: initial?.wapi_agent_id ?? null, wapiAgentExternalId: null });
   const [phoneNumberId, setPhoneNumberId] = useState<string | null>(null);
+  const [calcomApiKey, setCalcomApiKey] = useState("");
+  const [calcomEventTypeId, setCalcomEventTypeId] = useState("");
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [availableNumbers, setAvailableNumbers] = useState<AvailablePhoneNumber[]>([]);
@@ -76,6 +78,10 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
       setError(t("adminPages.widgets.formErrorCustomer"));
       return;
     }
+    if (Boolean(calcomApiKey.trim()) !== Boolean(calcomEventTypeId.trim())) {
+      setError(t("adminPages.widgets.formErrorCalcom"));
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -91,6 +97,10 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
       wapiAgentExternalId: agentSelection.wapiAgentExternalId,
       phoneNumberId: phoneNumberId || undefined,
     };
+    if (calcomApiKey.trim()) {
+      body.calcomApiKey = calcomApiKey.trim();
+      body.calcomEventTypeId = Number(calcomEventTypeId.trim());
+    }
     if (!isEdit) {
       body.agentType = agentType;
       if (deploymentType === "customer_website") body.customerId = customerId;
@@ -219,6 +229,34 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="mb-2 text-sm font-medium text-slate-700">{t("adminPages.widgets.calcomSectionLabel")}</p>
+            <p className="mb-2 text-xs text-slate-500">{t("adminPages.widgets.calcomHelpText")}</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">{t("adminPages.widgets.calcomApiKeyLabel")}</label>
+                <input
+                  type="password"
+                  value={calcomApiKey}
+                  onChange={(e) => setCalcomApiKey(e.target.value)}
+                  placeholder={t("adminPages.widgets.calcomApiKeyPlaceholder")}
+                  autoComplete="off"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">{t("adminPages.widgets.calcomEventTypeIdLabel")}</label>
+                <input
+                  value={calcomEventTypeId}
+                  onChange={(e) => setCalcomEventTypeId(e.target.value)}
+                  inputMode="numeric"
+                  placeholder={t("adminPages.widgets.calcomEventTypeIdPlaceholder")}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                />
+              </div>
+            </div>
           </div>
 
           {agentType === "phone" ? (

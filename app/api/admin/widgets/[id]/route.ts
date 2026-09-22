@@ -40,6 +40,8 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     wapiAgentExternalId,
     phoneNumberId,
     deploymentType,
+    calcomApiKey,
+    calcomEventTypeId,
     ...widgetFields
   } = await readJsonBody(request, updateAdminWidgetSchema);
   const supabase = getAdminClient();
@@ -73,7 +75,11 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     if (extraError) throw extraError;
   }
 
-  const connection = await applyAdminWidgetConnections(data as Widget, { wapiAgentId, wapiAgentExternalId, phoneNumberId });
+  const connection = await applyAdminWidgetConnections(
+    data as Widget,
+    { wapiAgentId, wapiAgentExternalId, phoneNumberId, calcomApiKey, calcomEventTypeId },
+    { userId: ctx.userId, role: ctx.profile.role }
+  );
 
   await writeAuditLog({
     actorId: ctx.userId,
