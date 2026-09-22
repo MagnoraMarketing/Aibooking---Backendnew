@@ -93,7 +93,7 @@ export function AdminSidebar({ userLabel }: { userLabel: string }) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white md:flex md:flex-col">
+      <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white md:sticky md:top-0 md:flex md:h-screen md:flex-col">
         <div className="flex h-14 items-center gap-2 border-b border-slate-200 px-4">
           <span className="text-sm font-semibold text-brand-700">AIbooking.dk</span>
           <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
@@ -112,7 +112,7 @@ export function AdminSidebar({ userLabel }: { userLabel: string }) {
       </aside>
 
       {/* Mobile top bar + slide-down nav */}
-      <div className="border-b border-slate-200 bg-white md:hidden">
+      <div className="sticky top-0 z-20 border-b border-slate-200 bg-white md:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-brand-700">AIbooking.dk</span>
@@ -131,7 +131,7 @@ export function AdminSidebar({ userLabel }: { userLabel: string }) {
           </button>
         </div>
         {mobileOpen ? (
-          <div className="border-t border-slate-200 p-3">
+          <div className="max-h-[calc(100vh-3.5rem)] overflow-y-auto border-t border-slate-200 p-3">
             <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
             <Link
               href="/admin/profile"

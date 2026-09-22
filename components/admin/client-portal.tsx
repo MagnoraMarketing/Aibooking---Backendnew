@@ -196,7 +196,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
         <AdminStatCard label={t("adminPages.clientPortal.statTotalAgents")} value={String(stats.totalAgents)} />
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-slate-900">{t("adminShell.nav.customers")}</h2>
         <button
           type="button"
