@@ -2,7 +2,12 @@ import "server-only";
 import { getVapiVoiceTemplateAssistantId } from "@/lib/settings/platform";
 import { DEFAULT_VOICE_GENDER, FALLBACK_VOICE_BY_GENDER, type VapiVoiceGender } from "./voice-gender";
 import { getPublicAppUrl, isPubliclyReachableAppUrl } from "@/lib/app-url";
-import { toolWaitText, toolFailedText, withNoBookingDirective } from "@/lib/i18n/agent-content";
+import {
+  toolWaitText,
+  toolFailedText,
+  withNoBookingDirective,
+  withBookingFlowDirective,
+} from "@/lib/i18n/agent-content";
 import { vapiFetch } from "./client";
 
 export type { VapiVoiceGender };
@@ -276,6 +281,27 @@ function withSpokenToolMessages(tools: unknown[], language: string | null | unde
   });
 }
 
+// Once the agent has asked for an email address, it waits for a full second
+// of silence before answering. People dictate addresses in bursts ("anna …
+// punktum … hansen"), and the default endpointing jumps in at the first
+// pause — the agent then reads back half an address. The rule only matches
+// right after the agent's own question, so every other turn keeps its normal
+// snappy timing. Matched against the assistant's last message; written with
+// explicit case alternatives rather than regexOptions to keep the payload to
+// the fields Vapi documents for every rule type.
+export const EMAIL_PAUSE_RULE = {
+  type: "assistant",
+  regex: "[Mm]ail|[Cc]orreo|[Cc]ourriel",
+  timeoutSeconds: 1,
+} as const;
+
+// If Vapi ever rejects the endpointing plan, the prompt and tools must still
+// reach the assistant (same reasoning as isVoiceRejection below).
+function isStartSpeakingPlanRejection(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /startSpeakingPlan|customEndpointingRules/i.test(message);
+}
+
 // Transcriber is still fixed (Soniox STT RT v5) — voice and model both come
 // from whichever male/female template the customer's widget is set to (see
 // VapiAssistantParams.voiceGender), read in a single fetch.
@@ -294,8 +320,12 @@ async function buildAssistantBody(
   // the tool list knows whether it can — and without this the agent invents
   // the booking rather than admitting it cannot make one. See
   // NO_BOOKING_DIRECTIVE in lib/i18n/agent-content.ts.
+  //
+  // An agent that can book gets the platform's booking flow instead (fast
+  // offer, email read back and confirmed, explicit yes before booking) — see
+  // BOOKING_FLOW_DIRECTIVE.
   const systemPrompt = includeBookingTools
-    ? params.systemPrompt
+    ? withBookingFlowDirective(params.systemPrompt, params.language)
     : withNoBookingDirective(params.systemPrompt, params.language);
 
   const model: Record<string, unknown> = {
@@ -329,6 +359,10 @@ async function buildAssistantBody(
       model: "stt-rt-v5",
     },
     voice: resolveVoiceConfig(template, gender),
+    // Always sent (not only with booking tools), so a PATCH never leaves a
+    // stale plan behind — the rule only ever lengthens the pause after the
+    // agent asked for an email.
+    startSpeakingPlan: { customEndpointingRules: [EMAIL_PAUSE_RULE] },
     ...(typeof params.silenceTimeoutSeconds === "number"
       ? { silenceTimeoutSeconds: params.silenceTimeoutSeconds }
       : {}),
@@ -408,10 +442,19 @@ export async function createVapiAssistant(
   includeBookingTools = false,
   extraTools: unknown[] = []
 ): Promise<{ id: string }> {
-  const response = await vapiFetch("/assistant", {
-    method: "POST",
-    body: JSON.stringify(await buildAssistantBody(params, includeBookingTools, extraTools)),
-  });
+  const body = await buildAssistantBody(params, includeBookingTools, extraTools);
+  let response: Response;
+  try {
+    response = await vapiFetch("/assistant", { method: "POST", body: JSON.stringify(body) });
+  } catch (err) {
+    if (!isStartSpeakingPlanRejection(err)) throw err;
+    const { startSpeakingPlan: rejectedPlan, ...withoutPlan } = body;
+    console.error(
+      `[vapi] New assistant: startSpeakingPlan rejected (${JSON.stringify(rejectedPlan)}). Retrying without it.`,
+      err
+    );
+    response = await vapiFetch("/assistant", { method: "POST", body: JSON.stringify(withoutPlan) });
+  }
   const data = (await response.json()) as { id: string };
   return { id: data.id };
 }
@@ -442,6 +485,16 @@ export async function updateVapiAssistant(
   try {
     await vapiFetch(path, { method: "PATCH", body: JSON.stringify(body) });
   } catch (err) {
+    if (isStartSpeakingPlanRejection(err)) {
+      const { startSpeakingPlan: rejectedPlan, ...withoutPlan } = body;
+      console.error(
+        `[vapi] Assistant ${assistantId}: startSpeakingPlan rejected (${JSON.stringify(rejectedPlan)}). ` +
+          "Retrying without it so the prompt, knowledge base and tools still sync.",
+        err
+      );
+      await vapiFetch(path, { method: "PATCH", body: JSON.stringify(withoutPlan) });
+      return;
+    }
     if (!isVoiceRejection(err)) throw err;
 
     // Retry without the voice: the assistant keeps whatever voice it already

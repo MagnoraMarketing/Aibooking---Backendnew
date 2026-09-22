@@ -57,7 +57,7 @@ describe("updateVapiAssistant", () => {
     expect(retry.voice).toBeUndefined();
     // Everything else survived the retry.
     expect(retry.name).toBe("Agent");
-    expect((retry.model as { messages: { content: string }[] }).messages[0]!.content).toBe("prompt");
+    expect((retry.model as { messages: { content: string }[] }).messages[0]!.content.startsWith("prompt")).toBe(true);
     expect((retry.model as { tools: unknown[] }).tools.length).toBeGreaterThan(0);
   });
 
