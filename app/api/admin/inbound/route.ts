@@ -48,5 +48,8 @@ export const POST = withErrorHandling(async (request) => {
     { userId: ctx.userId, role: ctx.profile.role }
   );
 
-  return NextResponse.json({ widget: result.widget, shareUrl: result.shareUrl, embedSnippet: result.embedSnippet }, { status: 201 });
+  return NextResponse.json(
+    { widget: result.widget, shareUrl: result.shareUrl, embedSnippet: result.embedSnippet, vapiSync: result.vapiSync },
+    { status: 201 }
+  );
 });

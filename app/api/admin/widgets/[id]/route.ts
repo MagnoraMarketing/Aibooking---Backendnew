@@ -3,7 +3,7 @@ import { requireMasterAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { readJsonBody, withErrorHandling, writeAuditLog, updateAdminWidgetSchema } from "@/lib/security";
 import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
-import { applyAdminWidgetConnections } from "@/lib/admin/widget-service";
+import { applyAdminWidgetConnections, pushAdminWidgetToVapi } from "@/lib/admin/widget-service";
 import { ApiError } from "@/types/errors";
 import type { Widget } from "@/types/database";
 
@@ -95,7 +95,11 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     },
   });
 
-  return NextResponse.json({ widget: data });
+  // Whatever changed — prompt, greeting, name, knowledge base, calendar —
+  // the agent's Vapi assistant follows AIbooking, not the other way round.
+  const vapiSync = await pushAdminWidgetToVapi((data as Widget).id);
+
+  return NextResponse.json({ widget: data, vapiSync });
 });
 
 export const DELETE = withErrorHandling(async (_request, { params }) => {

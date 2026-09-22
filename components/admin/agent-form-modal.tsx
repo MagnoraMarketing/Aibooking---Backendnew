@@ -67,6 +67,19 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // A new agent starts from the platform's default prompt, so the admin
+  // edits a working prompt instead of guessing at a blank box. Editing an
+  // existing agent keeps its own.
+  useEffect(() => {
+    if (isEdit) return;
+    fetch("/api/admin/settings/default-prompt")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data?.prompt === "string") setSystemPrompt((current) => current || data.prompt);
+      })
+      .catch(() => {});
+  }, [isEdit]);
+
   useEffect(() => {
     fetch("/api/admin/customers")
       .then((res) => res.json())
@@ -158,9 +171,16 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
 
     setSaving(false);
 
+    const data = await res.json().catch(() => null);
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
       setError(data?.error?.message || t("adminPages.widgets.formErrorSave"));
+      return;
+    }
+
+    // Saved either way; if Vapi refused the prompt, say so instead of
+    // closing as if the agent were already running on it.
+    if (data?.vapiSync?.status === "failed") {
+      setError(`${t("adminPages.widgets.vapiSyncFailed")} ${data.vapiSync.error ?? ""}`.trim());
       return;
     }
 
@@ -333,7 +353,11 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
             </div>
           </div>
 
-          {agentType === "phone" ? (
+          <div className="rounded-lg border border-brand-200 bg-brand-50/40 p-3 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-slate-800">{t("adminPages.widgets.promptSectionLabel")}</p>
+              <p className="mt-1 text-xs text-slate-500">{t("adminPages.widgets.promptSectionHelp")}</p>
+            </div>
             <>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">{t("adminPages.inbound.greetingLabel")}</label>
@@ -348,12 +372,12 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
                 <textarea
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
-                  rows={4}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  rows={10}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 />
               </div>
             </>
-          ) : null}
+          </div>
         </div>
 
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
