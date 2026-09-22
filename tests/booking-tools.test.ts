@@ -129,7 +129,7 @@ describe("booking tools: the agent must never invent a booking", () => {
 
   it("does not book when booking is not enabled", async () => {
     const reply = await createBooking(
-      { start_time: "2026-09-01T10:00:00+02:00", customer_name: "A", customer_email: "a@b.dk" },
+      { start_time: "2026-09-01T10:00:00+02:00", customer_name: "Anna Hansen", customer_email: "a@b.dk", email_confirmed: true },
       DISABLED
     );
 
@@ -148,7 +148,7 @@ describe("booking tools: the agent must never invent a booking", () => {
     createCalcomBooking.mockRejectedValue(new Error("slot taken"));
 
     const reply = await createBooking(
-      { start_time: "2026-09-01T10:00:00+02:00", customer_name: "A", customer_email: "a@b.dk" },
+      { start_time: "2026-09-01T10:00:00+02:00", customer_name: "Anna Hansen", customer_email: "a@b.dk", email_confirmed: true },
       ENABLED
     );
 
@@ -189,7 +189,7 @@ describe("booking tools: the agent must never invent a booking", () => {
     createCalcomBooking.mockResolvedValue({ id: 1, uid: "bk_1", status: "accepted" });
 
     await createBooking(
-      { start_time: "2026-09-01T10:00:00+02:00", customer_name: "A", customer_email: "a@b.dk" },
+      { start_time: "2026-09-01T10:00:00+02:00", customer_name: "Anna Hansen", customer_email: "a@b.dk", email_confirmed: true },
       ENABLED
     );
 
@@ -368,7 +368,8 @@ describe("tool dispatch", () => {
           customer_email: "a@b.dk",
           new_start_time: "2026-09-02T11:00:00+02:00",
           start_time: "2026-09-02T11:00:00+02:00",
-          customer_name: "A",
+          customer_name: "Anna Hansen",
+          email_confirmed: true,
         },
         ENABLED
       );
@@ -397,7 +398,7 @@ describe("a booking refused over the email address", () => {
     createCalcomBooking.mockRejectedValue(CALCOM_EMAIL_REFUSAL);
 
     const reply = await createBooking(
-      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "mail@magnora.marketing.dk" },
+      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "mail@magnora.marketing.dk", email_confirmed: true },
       ENABLED
     );
 
@@ -412,7 +413,7 @@ describe("a booking refused over the email address", () => {
     createCalcomBooking.mockRejectedValue(new Error("no_available_users_found_error"));
 
     const reply = await createBooking(
-      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "a@b.dk" },
+      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "a@b.dk", email_confirmed: true },
       ENABLED
     );
 
@@ -423,7 +424,7 @@ describe("a booking refused over the email address", () => {
   // round-trip and one failed booking record later.
   it("does not even try an address that cannot be one", async () => {
     const reply = await createBooking(
-      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "mail hos magnora" },
+      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "mail hos magnora", email_confirmed: true },
       ENABLED
     );
 
@@ -438,7 +439,7 @@ describe("a booking refused over the email address", () => {
     createCalcomBooking.mockResolvedValue({ id: 1, uid: "bk_1", status: "accepted" });
 
     await createBooking(
-      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "mail @ magnoramarketing.dk" },
+      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "mail @ magnoramarketing.dk", email_confirmed: true },
       ENABLED
     );
 
@@ -478,5 +479,76 @@ describe("an agent that does not know what day it is", () => {
     // Searched from now, not from a week in 2020 that would return nothing.
     const [call] = fetchCalcomAvailability.mock.calls.at(-1) as [{ startTime: string }];
     expect(new Date(call.startTime).getFullYear()).toBe(new Date().getFullYear());
+  });
+});
+
+// Fewer failed bookings by default: no booking goes to Cal.com without the
+// customer's real name and an email address they have heard read back and
+// said yes to — that address is where the confirmation goes. Each refusal
+// names the one thing to ask for, and says nothing was booked.
+describe("a booking needs a name and a confirmed email", () => {
+  const TIME = "2026-09-17T09:00:00+02:00";
+
+  it("refuses a booking without a name and asks for it", async () => {
+    const reply = await createBooking({ start_time: TIME, customer_email: "a@b.dk", email_confirmed: true }, ENABLED);
+
+    expect(createCalcomBooking).not.toHaveBeenCalled();
+    expect(reply).toContain("IKKE");
+    expect(reply).toMatch(/navn/);
+  });
+
+  it.each(["Kunden", "ukendt", "customer", "A", "  ", "anna@b.dk"])(
+    "does not accept %j as the customer's name",
+    async (name) => {
+      const reply = await createBooking(
+        { start_time: TIME, customer_name: name, customer_email: "a@b.dk", email_confirmed: true },
+        ENABLED
+      );
+
+      expect(createCalcomBooking).not.toHaveBeenCalled();
+      expect(reply).toMatch(/navn/);
+    }
+  );
+
+  it("refuses a booking without an email and says the confirmation goes there", async () => {
+    const reply = await createBooking({ start_time: TIME, customer_name: "Anna Hansen", email_confirmed: true }, ENABLED);
+
+    expect(createCalcomBooking).not.toHaveBeenCalled();
+    expect(reply).toContain("IKKE");
+    expect(reply).toMatch(/bekræftelsen/);
+  });
+
+  it("refuses an email the customer has not confirmed, and keeps the time open", async () => {
+    const reply = await createBooking({ start_time: TIME, customer_name: "Anna Hansen", customer_email: "a@b.dk" }, ENABLED);
+
+    expect(createCalcomBooking).not.toHaveBeenCalled();
+    expect(insertedAppointments).toHaveLength(0);
+    expect(reply).toContain("IKKE");
+    expect(reply).toContain("Er det korrekt?");
+    expect(reply).toContain("stadig ledig");
+  });
+
+  it("refuses a booking without a time", async () => {
+    const reply = await createBooking(
+      { customer_name: "Anna Hansen", customer_email: "a@b.dk", email_confirmed: true },
+      ENABLED
+    );
+
+    expect(createCalcomBooking).not.toHaveBeenCalled();
+    expect(reply).toMatch(/tidspunktet/);
+  });
+
+  it("books with a real name and a confirmed email, trimmed", async () => {
+    createCalcomBooking.mockResolvedValue({ id: 1, uid: "bk_1", status: "accepted" });
+
+    const reply = await createBooking(
+      { start_time: TIME, customer_name: "  Anna   Hansen ", customer_email: "anna@firma.dk", email_confirmed: "true" },
+      ENABLED
+    );
+
+    expect(createCalcomBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Anna Hansen", email: "anna@firma.dk" })
+    );
+    expect(reply).toContain("Tiden er booket");
   });
 });

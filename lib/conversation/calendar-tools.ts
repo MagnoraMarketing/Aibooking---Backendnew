@@ -2,9 +2,8 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import {
   bookingFailureAdvice,
-  looksLikeEmail,
-  normalizeDictatedEmail,
-  MALFORMED_EMAIL_ADVICE,
+  checkBookingDetails,
+  type BookingDetailsInput,
   fetchCalcomAvailability,
   createCalcomBooking,
 } from "@/lib/calendar";
@@ -49,14 +48,19 @@ export const CALENDAR_TOOLS: Anthropic.Tool[] = [
           type: "string",
           description: "Starttidspunkt i ISO 8601 med tidszone, fx 2026-03-15T14:00:00+01:00 — skal være en af de tider check_availability lige returnerede.",
         },
-        customer_name: { type: "string", description: "Kundens navn." },
+        customer_name: { type: "string", description: "Kundens fulde navn, som kunden selv har oplyst det." },
         customer_email: {
           type: "string",
           description:
-            "Kundens e-mailadresse, til bekræftelse af mødet. Gentag adressen for kunden og få den bekræftet, før du booker.",
+            "Kundens e-mailadresse, som bekræftelsen sendes til. Gentag adressen for kunden og få den bekræftet, før du booker.",
+        },
+        email_confirmed: {
+          type: "boolean",
+          description:
+            "true, når du har gentaget e-mailadressen for kunden og kunden har sagt, at den er korrekt. Bookingen afvises ellers.",
         },
       },
-      required: ["start_time", "customer_name", "customer_email"],
+      required: ["start_time", "customer_name", "customer_email", "email_confirmed"],
     },
   },
 ];
@@ -77,7 +81,7 @@ export async function executeCalendarTool(name: string, rawInput: unknown, ctx: 
     return executeCheckAvailability(rawInput as { date?: string }, ctx);
   }
   if (name === "book_meeting") {
-    return executeBookMeeting(rawInput as { start_time?: string; customer_name?: string; customer_email?: string }, ctx);
+    return executeBookMeeting(rawInput as BookingDetailsInput, ctx);
   }
   return "Ukendt funktion.";
 }
@@ -102,16 +106,10 @@ async function executeCheckAvailability(input: { date?: string }, ctx: CalendarT
   }
 }
 
-async function executeBookMeeting(
-  input: { start_time?: string; customer_name?: string; customer_email?: string },
-  ctx: CalendarToolContext
-): Promise<string> {
-  const { start_time: startTime, customer_name: customerName } = input;
-  const customerEmail = input.customer_email ? normalizeDictatedEmail(input.customer_email) : undefined;
-  if (!startTime || !customerName || !customerEmail) {
-    return "Mangler oplysninger til at booke mødet (tidspunkt, navn og email er alle påkrævet).";
-  }
-  if (!looksLikeEmail(customerEmail)) return MALFORMED_EMAIL_ADVICE;
+async function executeBookMeeting(input: BookingDetailsInput, ctx: CalendarToolContext): Promise<string> {
+  const details = checkBookingDetails(input);
+  if (!details.ok) return details.advice;
+  const { startTime, customerName, customerEmail } = details;
 
   const supabase = getAdminClient();
 
