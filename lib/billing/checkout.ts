@@ -50,16 +50,6 @@ export async function ensureStripeCustomer(customer: Customer): Promise<string> 
   return stripeCustomer.id;
 }
 
-// Every package renews on the 1st of the month, prepaid, regardless of the
-// day someone actually checks out — Stripe bills a prorated amount for the
-// partial first period up front (proration_behavior: "create_prorations")
-// and then settles into the 1st-of-month cadence from there.
-function nextBillingCycleAnchor(): number {
-  const now = new Date();
-  const nextMonthFirst = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0);
-  return Math.floor(nextMonthFirst / 1000);
-}
-
 // Stripe Managed Payments (on by default for this account) rejects any
 // Checkout line item whose Product has no tax_code: "Invalid line_items[0]:
 // the product tax code is missing". Every product we sell is the platform
@@ -207,9 +197,13 @@ export async function createCheckoutSession(params: {
           aibooking_customer_id: params.customer.id,
           aibooking_package_id: params.pkg.id,
         },
+        // No billing_cycle_anchor: the subscription renews on the day the
+        // customer checked out, so every invoice, the first one included, is
+        // a full month at the package's full price. It used to anchor on the
+        // 1st of the next month with a prorated first charge, which left a
+        // partial amount per sale that a salesperson's commission can't be
+        // settled against.
         subscription_data: {
-          billing_cycle_anchor: nextBillingCycleAnchor(),
-          proration_behavior: "create_prorations",
           metadata: {
             aibooking_customer_id: params.customer.id,
             aibooking_package_id: params.pkg.id,

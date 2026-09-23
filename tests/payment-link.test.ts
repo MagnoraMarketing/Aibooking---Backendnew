@@ -155,6 +155,14 @@ describe("checkout for a package with no Stripe price", () => {
     });
   });
 
+  it("bills a full month from the day of purchase, never a prorated partial first month", async () => {
+    await createCheckoutSession({ customer: CUSTOMER, pkg: pkg() });
+
+    const subscriptionData = created.sessions[0]!.subscription_data as Record<string, unknown>;
+    expect(subscriptionData).not.toHaveProperty("billing_cycle_anchor");
+    expect(subscriptionData).not.toHaveProperty("proration_behavior");
+  });
+
   it("leaves the one-time setup fee out by default — it's an opt-in add-on", async () => {
     await createCheckoutSession({ customer: CUSTOMER, pkg: pkg({ setup_fee: 999 }) });
 
