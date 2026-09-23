@@ -9,6 +9,7 @@ import {
 } from "@/lib/billing/subscription-sync";
 import { grantWidgetLaunchCredits, parseWidgetLaunchReference } from "@/lib/billing/widget-launch";
 import { parsePackageLaunchReference } from "@/lib/billing/package-launch-offer";
+import { getInvoiceSubscriptionId } from "@/lib/billing/stripe-payload";
 import { writeAuditLog } from "@/lib/security/audit";
 import { provisionVapiNumbersForNewlyPaidCustomer } from "@/lib/phone-numbers";
 import type { SyncedSubscription } from "@/lib/billing/subscription-sync";
@@ -133,8 +134,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId =
-          typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
+        const subscriptionId = getInvoiceSubscriptionId(invoice);
         if (subscriptionId) {
           await grantCreditsForPaidInvoice({
             stripeSubscriptionId: subscriptionId,
@@ -149,8 +149,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId =
-          typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
+        const subscriptionId = getInvoiceSubscriptionId(invoice);
         if (subscriptionId) {
           await supabase
             .from("subscriptions")
