@@ -82,6 +82,11 @@ describe("Stripe product tax codes (Managed Payments)", () => {
     expect(params.line_items[1]!.price_data!.product_data.tax_code).toBe("txcd_10103001");
   });
 
+  it("creates the Checkout Session on an API version Managed Payments accepts", async () => {
+    await createCheckoutSession({ customer, pkg: pkg() });
+    expect(sessionsCreate.mock.calls[0]![1]).toEqual({ apiVersion: "2025-03-31.basil" });
+  });
+
   it("uses STRIPE_PRODUCT_TAX_CODE when set", async () => {
     process.env.STRIPE_PRODUCT_TAX_CODE = "txcd_99999999";
     await resolveStripePriceId(pkg());

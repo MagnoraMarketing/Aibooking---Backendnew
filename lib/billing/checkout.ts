@@ -143,6 +143,14 @@ export async function resolveStripePriceId(pkg: Package): Promise<string> {
   return price.id;
 }
 
+// Stripe Managed Payments (on by default for this account) refuses to
+// create a Checkout Session on API versions older than 2025-03-31.basil, and
+// the SDK client pins 2025-02-24.acacia (stripe-client.ts). Only this one
+// request is sent on the newer version: we read nothing back but the URL, so
+// no response-shape change reaches our code, while moving the whole client
+// would change the shape of every subscription and invoice we read.
+const CHECKOUT_API_VERSION = "2025-03-31.basil";
+
 export async function createCheckoutSession(params: {
   customer: Customer;
   pkg: Package;
@@ -187,27 +195,30 @@ export async function createCheckoutSession(params: {
   }
 
   const session = await callStripe(() =>
-    stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: stripeCustomerId,
-      line_items: lineItems,
-      success_url: params.successUrl ?? `${appUrl}/dashboard/billing?checkout=success`,
-      cancel_url: params.cancelUrl ?? `${appUrl}/dashboard/billing?checkout=cancelled`,
-      discounts: params.discountCouponId ? [{ coupon: params.discountCouponId }] : undefined,
-      metadata: {
-        aibooking_customer_id: params.customer.id,
-        aibooking_package_id: params.pkg.id,
-      },
-      subscription_data: {
-        billing_cycle_anchor: nextBillingCycleAnchor(),
-        proration_behavior: "create_prorations",
+    stripe.checkout.sessions.create(
+      {
+        mode: "subscription",
+        customer: stripeCustomerId,
+        line_items: lineItems,
+        success_url: params.successUrl ?? `${appUrl}/dashboard/billing?checkout=success`,
+        cancel_url: params.cancelUrl ?? `${appUrl}/dashboard/billing?checkout=cancelled`,
+        discounts: params.discountCouponId ? [{ coupon: params.discountCouponId }] : undefined,
         metadata: {
           aibooking_customer_id: params.customer.id,
           aibooking_package_id: params.pkg.id,
-          ...params.subscriptionMetadata,
+        },
+        subscription_data: {
+          billing_cycle_anchor: nextBillingCycleAnchor(),
+          proration_behavior: "create_prorations",
+          metadata: {
+            aibooking_customer_id: params.customer.id,
+            aibooking_package_id: params.pkg.id,
+            ...params.subscriptionMetadata,
+          },
         },
       },
-    })
+      { apiVersion: CHECKOUT_API_VERSION }
+    )
   );
 
   if (!session.url) throw ApiError.internal("Stripe returnerede ingen betalings-URL. Prøv igen.");
