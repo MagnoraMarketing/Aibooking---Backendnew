@@ -105,7 +105,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         // rides along in client_reference_id instead (see
         // lib/billing/widget-launch.ts). A one-off payment produces no
         // invoice.paid for a subscription of ours, so this is where those
-        // 200 minutes get credited. The return page may beat this webhook to
+        // 150 minutes get credited. The return page may beat this webhook to
         // it; grantWidgetLaunchCredits is idempotent either way.
         const launchReference = parseWidgetLaunchReference(session.client_reference_id);
         if (launchReference && session.payment_status === "paid" && !session.subscription) {

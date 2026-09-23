@@ -78,9 +78,9 @@ describe("widget launch payment link", () => {
     expect(url.searchParams.has("prefilled_email")).toBe(false);
   });
 
-  it("buys 200 minutes, expressed in seconds for the ledger", () => {
-    expect(WIDGET_LAUNCH_MINUTES).toBe(200);
-    expect(WIDGET_LAUNCH_SECONDS).toBe(200 * 60);
+  it("buys 150 minutes, expressed in seconds for the ledger", () => {
+    expect(WIDGET_LAUNCH_MINUTES).toBe(150);
+    expect(WIDGET_LAUNCH_SECONDS).toBe(150 * 60);
   });
 });
 
