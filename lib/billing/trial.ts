@@ -34,7 +34,7 @@ const ACTIVE_SUBSCRIPTION_STATUSES = ["active", "trialing"];
 // satisfies this via subscriptionStatus — no separate bypass needed.
 //
 // The wizard's closing payment step (lib/billing/widget-launch.ts) is a
-// one-off purchase of 200 minutes rather than a subscription, so it leaves
+// one-off purchase of 150 minutes rather than a subscription, so it leaves
 // nothing in `subscriptions` to check: widgetLaunchPaidAt is how that
 // purchase keeps the embed code unlocked once the minutes are spent. The
 // minutes still run out like any others — this only governs whether the

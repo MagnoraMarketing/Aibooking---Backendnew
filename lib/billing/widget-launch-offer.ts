@@ -22,7 +22,7 @@
 // the full URL through login as ?next=, so someone who paid in a browser
 // without a live session still lands back on their agent. See the Stripe
 // block in .env.example.
-export const WIDGET_LAUNCH_MINUTES = 200;
+export const WIDGET_LAUNCH_MINUTES = 150;
 export const WIDGET_LAUNCH_SECONDS = WIDGET_LAUNCH_MINUTES * 60;
 
 const DEFAULT_PAYMENT_LINK = "https://buy.stripe.com/cNi6oGa9t6RJ8wQgrF4AU0a";
