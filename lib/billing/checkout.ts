@@ -60,6 +60,48 @@ function nextBillingCycleAnchor(): number {
   return Math.floor(nextMonthFirst / 1000);
 }
 
+// Stripe Managed Payments (on by default for this account) rejects any
+// Checkout line item whose Product has no tax_code: "Invalid line_items[0]:
+// the product tax code is missing". Every product we sell is the platform
+// itself — hosted software used by businesses — so it all carries Stripe's
+// "Software as a service (SaaS) - business use" code. Overridable in case
+// the accountant wants a different eligible code (STRIPE_PRODUCT_TAX_CODE).
+const DEFAULT_PRODUCT_TAX_CODE = "txcd_10103001";
+
+export function getProductTaxCode(): string {
+  const configured = process.env.STRIPE_PRODUCT_TAX_CODE?.trim();
+  return configured && configured.length > 0 ? configured : DEFAULT_PRODUCT_TAX_CODE;
+}
+
+// Prices whose Product we already stamped (or found stamped) in this server
+// instance, so a warm function doesn't re-read the same Price every checkout.
+const pricesWithTaxedProduct = new Set<string>();
+
+// A Price pinned by env var, stored in packages.stripe_price_id, or created
+// before this code existed belongs to a Product without a tax code — and
+// Managed Payments then rejects the whole checkout. Stamp the code onto that
+// Product once, rather than asking an admin to fix each one in the Stripe
+// dashboard.
+async function ensurePriceProductHasTaxCode(priceId: string): Promise<void> {
+  if (pricesWithTaxedProduct.has(priceId)) return;
+
+  const stripe = getStripeClient();
+  const price = await callStripe(() => stripe.prices.retrieve(priceId, { expand: ["product"] }));
+  const product = price.product;
+  const productId = typeof product === "string" ? product : product.id;
+  const currentTaxCode =
+    typeof product === "string" || product.deleted
+      ? null
+      : typeof product.tax_code === "string"
+        ? product.tax_code
+        : (product.tax_code?.id ?? null);
+
+  if (!currentTaxCode) {
+    await callStripe(() => stripe.products.update(productId, { tax_code: getProductTaxCode() }));
+  }
+  pricesWithTaxedProduct.add(priceId);
+}
+
 // Every package is priced in our own database (monthly_price, currency,
 // included_minutes), but Stripe needs a Price object to bill a subscription
 // against. Resolution order: an explicit STRIPE_PRICE_ID_* env var (see
@@ -74,9 +116,11 @@ function nextBillingCycleAnchor(): number {
 // needs a new Stripe Price (they're immutable), which is what the admin
 // pricing API's stripePriceId field is for.
 export async function resolveStripePriceId(pkg: Package): Promise<string> {
-  const configured = getConfiguredStripePriceId(pkg.package_name);
-  if (configured) return configured;
-  if (pkg.stripe_price_id) return pkg.stripe_price_id;
+  const existing = getConfiguredStripePriceId(pkg.package_name) ?? pkg.stripe_price_id;
+  if (existing) {
+    await ensurePriceProductHasTaxCode(existing);
+    return existing;
+  }
 
   const stripe = getStripeClient();
   const price = await callStripe(() =>
@@ -84,10 +128,11 @@ export async function resolveStripePriceId(pkg: Package): Promise<string> {
       currency: pkg.currency.toLowerCase(),
       unit_amount: Math.round(pkg.monthly_price * 100),
       recurring: { interval: "month" },
-      product_data: { name: pkg.package_name },
+      product_data: { name: pkg.package_name, tax_code: getProductTaxCode() },
       metadata: { aibooking_package_id: pkg.id },
     })
   );
+  pricesWithTaxedProduct.add(price.id);
 
   const supabase = getAdminClient();
   const { error } = await supabase.from("packages").update({ stripe_price_id: price.id }).eq("id", pkg.id);
@@ -132,7 +177,10 @@ export async function createCheckoutSession(params: {
       price_data: {
         currency: params.pkg.currency.toLowerCase(),
         unit_amount: Math.round(params.pkg.setup_fee * 100),
-        product_data: { name: `${params.pkg.package_name}: opsætning og onboarding` },
+        product_data: {
+          name: `${params.pkg.package_name}: opsætning og onboarding`,
+          tax_code: getProductTaxCode(),
+        },
       },
       quantity: 1,
     });

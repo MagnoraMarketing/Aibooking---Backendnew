@@ -64,6 +64,7 @@ vi.mock("@/lib/billing/stripe-client", () => ({
         created.prices.push(payload);
         return { id: "price_created_1" };
       },
+      retrieve: async (id: string) => ({ id, product: { id: "prod_manual", tax_code: "txcd_10103001" } }),
     },
     checkout: {
       sessions: {
