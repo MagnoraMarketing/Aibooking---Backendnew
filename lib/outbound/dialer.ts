@@ -4,7 +4,7 @@ import { createOutboundCall } from "@/lib/vapi";
 import { outboundAssistantId } from "@/lib/vapi/assistant-owner";
 import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
 import { createTwilioOutboundCall, getOrCreateSubaccount } from "@/lib/twilio";
-import { twilioWebhookUrls } from "@/lib/telephony/urls";
+import { assertTwilioWebhookBaseUrlConfigured, twilioWebhookUrls } from "@/lib/telephony/urls";
 import { isWithinCallWindow, nextWindowOpening, parseWallClock, type CallWindow } from "./call-window";
 import { isDialable, type CampaignStatus } from "./status";
 
@@ -318,6 +318,9 @@ async function resolveDialer(
   if (!phoneNumber) throw new Error("Phone number no longer exists");
 
   if (await widgetDialsThroughTwilio(campaign.widget_id)) {
+    // Twilio fetches the answer URL from the outside; a localhost one
+    // rings the contact and then drops the call on pickup.
+    assertTwilioWebhookBaseUrlConfigured();
     const credentials = await getOrCreateSubaccount(campaign.customer_id);
     return async (to: string) =>
       (

@@ -26,8 +26,9 @@
 // https://vercel.com/docs/environment-variables/system-environment-variables
 //
 // Not used by lib/telephony/urls.ts: Twilio signs the exact URL string it
-// was configured with, so that module deliberately keeps its own strict
-// resolution and fails loudly rather than falling back at all.
+// was configured with, so that module keeps its own stricter resolution —
+// NEXT_PUBLIC_APP_URL or the production domain, never the per-deployment
+// VERCEL_URL — and fails loudly rather than falling back further.
 function normalize(rawUrl: string): string {
   return rawUrl.trim().replace(/\/+$/, "");
 }
