@@ -1,7 +1,7 @@
 "use client";
 
 import type { CampaignRow } from "@/app/dashboard/outbound/page";
-import { canLaunch, canPause, canResume, canEditSettings } from "@/lib/outbound/status";
+import { canLaunch, canPause, canResume, canEditSettings, canStop } from "@/lib/outbound/status";
 import { useTranslation } from "@/components/i18n/language-provider";
 
 // What a campaign can be told to do right now, and what it is doing.
@@ -17,6 +17,7 @@ const BADGE_CLASS: Record<string, string> = {
   paused: "bg-amber-50 text-amber-700",
   completed: "bg-brand-50 text-brand-700",
   failed: "bg-red-50 text-red-700",
+  cancelled: "bg-slate-100 text-slate-600",
 };
 
 export function CampaignStatusBadge({ status }: { status: CampaignRow["status"] }) {
@@ -40,6 +41,9 @@ interface CampaignActionsProps {
   onResume: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onStop: () => void;
+  onTest: () => void;
+  onDuplicate: () => void;
 }
 
 export function CampaignActions({
@@ -50,6 +54,9 @@ export function CampaignActions({
   onResume,
   onEdit,
   onDelete,
+  onStop,
+  onTest,
+  onDuplicate,
 }: CampaignActionsProps) {
   const { t } = useTranslation();
   const secondary =
@@ -63,6 +70,10 @@ export function CampaignActions({
         </button>
       ) : null}
 
+      <button type="button" onClick={onDuplicate} disabled={busy} className={secondary}>
+        {t("dashboardPages.outbound.duplicateCampaign")}
+      </button>
+
       {/* Only a draft can be deleted. Once calls have gone out the campaign
           is the record of them, recordings included. */}
       {campaign.status === "draft" ? (
@@ -73,6 +84,14 @@ export function CampaignActions({
           className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
         >
           {t("common.delete")}
+        </button>
+      ) : null}
+
+      {/* One real call before the whole list — the agent, the number and
+          the lead's {{variables}} heard on an actual phone. */}
+      {campaign.status === "draft" || campaign.status === "paused" ? (
+        <button type="button" onClick={onTest} disabled={busy} className={secondary}>
+          {t("dashboardPages.outbound.testOneLead")}
         </button>
       ) : null}
 
@@ -101,6 +120,17 @@ export function CampaignActions({
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
           {t("dashboardPages.outbound.resumeCampaign")}
+        </button>
+      ) : null}
+
+      {canStop(campaign.status) ? (
+        <button
+          type="button"
+          onClick={onStop}
+          disabled={busy}
+          className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+        >
+          {t("dashboardPages.outbound.stopCampaign")}
         </button>
       ) : null}
     </div>

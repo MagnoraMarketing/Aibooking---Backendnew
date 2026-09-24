@@ -5,29 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { LogoutButton } from "./logout-button";
 import { useTranslation } from "@/components/i18n/language-provider";
-
-const LEADING_NAV_ITEMS = [
-  { key: "dashboardShell.nav.gettingStarted", href: "/dashboard/getting-started" },
-  { key: "dashboardShell.nav.dashboard", href: "/dashboard" },
-] as const;
-
-// The four agent types (chat widget, inbound/outbound calls, dialer) grouped
-// under one "Agenter" menu instead of sitting flat in the nav bar, so they
-// read as one family rather than four unrelated items.
-const AGENT_NAV_ITEMS = [
-  { key: "dashboardShell.nav.widgetAgents", href: "/dashboard/agent" },
-  { key: "dashboardShell.nav.inbound", href: "/dashboard/inbound" },
-  { key: "dashboardShell.nav.outbound", href: "/dashboard/outbound" },
-  { key: "dashboardShell.nav.dialer", href: "/dashboard/dialer" },
-] as const;
-
-const TRAILING_NAV_ITEMS = [
-  { key: "dashboardShell.nav.knowledgeBase", href: "/dashboard/knowledge-base" },
-  { key: "dashboardShell.nav.analytics", href: "/dashboard/analytics" },
-  { key: "dashboardShell.nav.integrations", href: "/dashboard/integrations" },
-  { key: "dashboardShell.nav.billing", href: "/dashboard/billing" },
-  { key: "dashboardShell.nav.agency", href: "/dashboard/agency" },
-] as const;
+import { AGENT_NAV_ITEMS, LEADING_NAV_ITEMS, TRAILING_NAV_ITEMS, isActiveNavItem } from "./nav-items";
 
 interface HeaderProps {
   customerName: string;
@@ -40,7 +18,6 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [agentsMenuOpen, setAgentsMenuOpen] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const initials = userLabel
     .split(/[\s@.]+/)
@@ -50,7 +27,7 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
     .join("");
 
   function isActiveItem(href: string): boolean {
-    return href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+    return isActiveNavItem(pathname, href);
   }
 
   const isAgentsGroupActive = AGENT_NAV_ITEMS.some((item) => isActiveItem(item.href));
@@ -59,17 +36,6 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
       <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-2 sm:gap-6">
-          <button
-            type="button"
-            aria-label={t("dashboardShell.openMenu")}
-            onClick={() => setMobileNavOpen((open) => !open)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 sm:hidden"
-          >
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor" className="h-5 w-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
-            </svg>
-          </button>
-
           <Link href="/dashboard" className="shrink-0 truncate text-sm font-semibold text-brand-700">
             {customerName}
           </Link>
@@ -181,53 +147,6 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
         </div>
       </div>
 
-      {mobileNavOpen ? (
-        <nav className="flex flex-col gap-1 border-t border-slate-200 px-4 py-2 sm:hidden">
-          {LEADING_NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileNavOpen(false)}
-              className={`rounded-md px-3 py-2 text-sm font-medium transition ${
-                isActiveItem(item.href) ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              {t(item.key)}
-            </Link>
-          ))}
-
-          <span className="mt-2 px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            {t("dashboardShell.nav.agentsGroup")}
-          </span>
-          {AGENT_NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileNavOpen(false)}
-              className={`ml-2 rounded-md px-3 py-2 text-sm font-medium transition ${
-                isActiveItem(item.href) ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              {t(item.key)}
-            </Link>
-          ))}
-
-          <div className="mt-2 border-t border-slate-100 pt-2">
-            {TRAILING_NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileNavOpen(false)}
-                className={`block rounded-md px-3 py-2 text-sm font-medium transition ${
-                  isActiveItem(item.href) ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                {t(item.key)}
-              </Link>
-            ))}
-          </div>
-        </nav>
-      ) : null}
     </header>
   );
 }

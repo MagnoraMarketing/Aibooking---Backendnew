@@ -25,6 +25,9 @@ export interface CampaignContact {
   lastCalledAt: string | null;
   nextAttemptAt: string | null;
   failureReason: string | null;
+  // What the call came to (lib/outbound/outcome.ts) and the AI's summary.
+  outcome: string | null;
+  summary: string | null;
   hasCall: boolean;
   call: { durationSeconds: number; endedReason: string | null; at: string } | null;
 }
@@ -145,6 +148,55 @@ export function OutboundCampaignDetail({
         ))}
       </div>
 
+      {/* What the calls came to, live while the campaign runs. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+        {(
+          [
+            ["calling", campaign.stats.calling ?? 0],
+            ["answered", campaign.stats.outcomes?.answered ?? 0],
+            ["no_answer", campaign.stats.outcomes?.no_answer ?? 0],
+            ["voicemail", campaign.stats.outcomes?.voicemail ?? 0],
+            ["interested", campaign.stats.outcomes?.interested ?? 0],
+            ["meeting_booked", campaign.stats.outcomes?.meeting_booked ?? 0],
+            ["callback", campaign.stats.outcomes?.callback ?? 0],
+            ["not_interested", campaign.stats.outcomes?.not_interested ?? 0],
+          ] as const
+        ).map(([key, value]) => (
+          <div key={key} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <p className="text-[11px] font-medium text-slate-500">{t(`dashboardPages.outbound.outcome.${key}`)}</p>
+            <p className="text-lg font-semibold text-slate-900">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {contacts && contacts.some((c) => c.lastCalledAt) ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-slate-900">{t("dashboardPages.outbound.liveActivity")}</h2>
+          <ul className="divide-y divide-slate-100 text-sm">
+            {[...contacts]
+              .filter((c) => c.lastCalledAt)
+              .sort((a, b) => (b.lastCalledAt! > a.lastCalledAt! ? 1 : -1))
+              .slice(0, 8)
+              .map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+                  <span className="text-slate-500">
+                    {new Date(c.lastCalledAt!).toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <span className="flex-1 px-3 font-medium text-slate-800">{c.name || c.phoneNumber}</span>
+                  <span className="text-slate-600">
+                    {c.status === "calling"
+                      ? t("dashboardPages.outbound.outcome.calling")
+                      : c.outcome
+                        ? t(`dashboardPages.outbound.outcome.${c.outcome}`)
+                        : t(`dashboardPages.outbound.contactStatus.${c.status}`)}
+                    {c.call?.durationSeconds ? ` · ${Math.floor(c.call.durationSeconds / 60)}:${String(Math.round(c.call.durationSeconds % 60)).padStart(2, "0")}` : ""}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </div>
+      ) : null}
+
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -197,6 +249,12 @@ export function OutboundCampaignDetail({
                     {contact.lastCalledAt ? formatDateTime(contact.lastCalledAt) : t("dashboardPages.outbound.notCalledYet")}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
+                    {contact.outcome ? (
+                      <span className="block font-medium text-slate-800">
+                        {t(`dashboardPages.outbound.outcome.${contact.outcome}`)}
+                      </span>
+                    ) : null}
+                    {contact.summary ? <span className="block max-w-xs text-xs text-slate-500">{contact.summary}</span> : null}
                     {contact.call ? (
                       <>
                         <span>{Math.round(contact.call.durationSeconds)} sek</span>

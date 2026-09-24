@@ -3,6 +3,12 @@ import type { Namespace } from "./types";
 // components/dashboard/header.tsx + app/dashboard/layout.tsx — the chrome
 // wrapping every Dashboard page.
 export const dashboardShell: Namespace = {
+  // components/dashboard/mobile-bottom-nav.tsx — short, so five fit on a phone.
+  "bottomNav.label": { da: "Hovedmenu", en: "Main menu", es: "Menú principal", fr: "Menu principal", pt: "Menu principal", de: "Hauptmenü" },
+  "bottomNav.chat": { da: "Chat", en: "Chat", es: "Chat", fr: "Chat", pt: "Chat", de: "Chat" },
+  "bottomNav.inbound": { da: "Indgående", en: "Inbound", es: "Entrantes", fr: "Entrant", pt: "Recebidas", de: "Eingehend" },
+  "bottomNav.outbound": { da: "Udgående", en: "Outbound", es: "Salientes", fr: "Sortant", pt: "Efetuadas", de: "Ausgehend" },
+  "bottomNav.menu": { da: "Menu", en: "Menu", es: "Menú", fr: "Menu", pt: "Menu", de: "Menü" },
   "nav.gettingStarted": {
     da: "Getting Started",
     en: "Getting Started",

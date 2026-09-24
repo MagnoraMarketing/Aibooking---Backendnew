@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/database/browser";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { MARKETING_SITE_URL } from "@/lib/seo/marketing-site";
 import { LOCALES, LOCALE_LABELS, type Locale } from "@/lib/i18n/locales";
 
 export function SignupForm({ initialLanguage }: { initialLanguage: Locale }) {
@@ -88,7 +89,11 @@ export function SignupForm({ initialLanguage }: { initialLanguage: Locale }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-xl font-semibold text-slate-900">AIbooking.dk</h1>
+        <h1 className="text-xl font-semibold text-slate-900">
+          <a href={MARKETING_SITE_URL} className="hover:text-brand-700">
+            AIbooking.dk
+          </a>
+        </h1>
         <p className="mt-1 text-sm text-slate-500">{t("auth.signup.tagline")}</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">

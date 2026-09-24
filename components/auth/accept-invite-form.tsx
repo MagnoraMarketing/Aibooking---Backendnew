@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { getBrowserClient } from "@/lib/database/browser";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { MARKETING_SITE_URL } from "@/lib/seo/marketing-site";
 
 // The invite link's #access_token/#refresh_token hash is picked up
 // automatically by createBrowserClient (detectSessionInUrl) the moment
@@ -50,7 +51,11 @@ export function AcceptInviteForm() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-xl font-semibold text-slate-900">AIbooking.dk</h1>
+        <h1 className="text-xl font-semibold text-slate-900">
+          <a href={MARKETING_SITE_URL} className="hover:text-brand-700">
+            AIbooking.dk
+          </a>
+        </h1>
         <p className="mt-1 text-sm text-slate-500">{t("auth.acceptInvite.tagline")}</p>
 
         {sessionReady === false ? (

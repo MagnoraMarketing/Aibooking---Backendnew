@@ -230,6 +230,8 @@ describe("what a campaign amounts to", () => {
       failed: 1,
       durationSeconds: 95,
       lastCallAt: "2026-09-17T11:00:00Z",
+      calling: 1,
+      outcomes: {},
     });
   });
 
@@ -245,6 +247,8 @@ describe("what a campaign amounts to", () => {
       failed: 0,
       durationSeconds: 0,
       lastCallAt: null,
+      calling: 0,
+      outcomes: {},
     });
   });
 });

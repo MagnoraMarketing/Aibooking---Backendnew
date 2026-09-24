@@ -369,6 +369,20 @@ export const outboundCampaignSettingsSchema = z.object({
   maxConcurrentCalls: z.number().int().min(1).max(10).optional(),
   maxAttempts: z.number().int().min(1).max(5).optional(),
   retryAfterMinutes: z.number().int().min(5).max(1440).optional(),
+  // Left on a voicemail instead of a conversation. Empty = the agent's own
+  // behaviour.
+  voicemailMessage: z.string().trim().max(1000).nullable().optional(),
+  // Minutes before another attempt, per outcome. Same bounds as
+  // retryAfterMinutes, except voicemail may wait up to two days.
+  retryRules: z
+    .object({
+      no_answer: z.number().int().min(5).max(2880),
+      busy: z.number().int().min(5).max(2880),
+      voicemail: z.number().int().min(5).max(2880),
+      failed: z.number().int().min(5).max(2880),
+    })
+    .partial()
+    .optional(),
 });
 
 const campaignContactsSchema = z
@@ -385,16 +399,24 @@ const campaignContactsSchema = z
   .min(1)
   .max(100);
 
-export const outboundCampaignInputSchema = outboundCampaignSettingsSchema.extend({
-  widgetId: z.string().uuid(),
-  phoneNumberId: z.string().uuid(),
-  name: z.string().trim().min(1).max(200),
-  contacts: campaignContactsSchema,
-});
+export const outboundCampaignInputSchema = outboundCampaignSettingsSchema
+  .extend({
+    widgetId: z.string().uuid(),
+    phoneNumberId: z.string().uuid(),
+    name: z.string().trim().min(1).max(200),
+    contacts: campaignContactsSchema.optional(),
+    // Or: take the contacts from one of the customer's lead lists (the
+    // dialer's CSV imports), with every extra column kept so the agent can
+    // use it as {{variable}}.
+    leadListId: z.string().uuid().optional(),
+  })
+  .refine((body) => Boolean(body.contacts?.length) !== Boolean(body.leadListId), {
+    message: "Indsæt kontakter eller vælg en ringeliste.",
+  });
 
 // Pausing or resuming a running campaign (see the campaign's status route).
 export const campaignStatusActionSchema = z.object({
-  action: z.enum(["pause", "resume"]),
+  action: z.enum(["pause", "resume", "stop"]),
 });
 
 // Editing a campaign that has not been launched yet. Everything is optional
@@ -525,14 +547,76 @@ export const leadListInputSchema = z.object({
     .max(500),
 });
 
+const LEAD_DISPOSITIONS = [
+  "booked",
+  "interested",
+  "not_interested",
+  "no_answer",
+  "busy",
+  "voicemail",
+  "wrong_number",
+  "call_back",
+  "do_not_call",
+  "other",
+] as const;
+
+// The call's result, a callback, a do-not-call, or an edit to the lead
+// itself. Status is normally derived from the disposition on the server
+// (see the lead route) — sent explicitly only by older clients.
 export const leadUpdateSchema = z.object({
-  status: z.enum(["pending", "calling", "called"]).optional(),
-  disposition: z
-    .enum(["booked", "interested", "not_interested", "no_answer", "voicemail", "wrong_number", "call_back"])
-    .nullable()
-    .optional(),
+  status: z.enum(["pending", "calling", "called", "callback", "do_not_call"]).optional(),
+  disposition: z.enum(LEAD_DISPOSITIONS).nullable().optional(),
   notes: z.string().trim().max(2000).nullable().optional(),
   callSid: z.string().trim().max(100).nullable().optional(),
+  // When to ring again. Required with a "call_back" disposition.
+  callbackAt: z.string().datetime({ offset: true }).nullable().optional(),
+  contactName: z.string().trim().max(200).nullable().optional(),
+  company: z.string().trim().max(200).nullable().optional(),
+  email: z.string().trim().email().max(320).nullable().optional().or(z.literal("")),
+  phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678").optional(),
+  customData: z.record(z.string().max(100), z.string().max(500)).optional(),
+  // Move the lead to another of the customer's lists.
+  listId: z.string().uuid().optional(),
+});
+
+const importedLeadSchema = z.object({
+  // Raw, as typed or exported — normalized on the server with the chosen
+  // default country, exactly as the preview did (lib/outbound/phone.ts).
+  phone: z.string().trim().min(1).max(40),
+  name: z.string().trim().max(200).nullable().optional(),
+  company: z.string().trim().max(200).nullable().optional(),
+  email: z.string().trim().max(320).nullable().optional(),
+  notes: z.string().trim().max(2000).nullable().optional(),
+  customData: z.record(z.string().max(100), z.string().max(500)).optional(),
+});
+
+const phoneCountrySchema = z.enum(["DK", "NO", "SE", "DE", "GB", "US"]).default("DK");
+
+// One chunk of a lead import (CSV or "add lead manually"). The browser sends
+// big files in chunks of a few hundred rows so each request stays under
+// MAX_REQUEST_BODY_BYTES; the first chunk may create the list.
+export const leadImportSchema = z
+  .object({
+    listId: z.string().uuid().optional(),
+    newListName: z.string().trim().min(1).max(200).optional(),
+    defaultCountry: phoneCountrySchema,
+    duplicateMode: z.enum(["skip", "import", "update"]).default("skip"),
+    leads: z.array(importedLeadSchema).min(1).max(300),
+  })
+  .refine((body) => Boolean(body.listId) !== Boolean(body.newListName), {
+    message: "Vælg en eksisterende liste eller giv den nye liste et navn.",
+  });
+
+// The preview's duplicate check against what is already stored.
+export const leadDuplicateCheckSchema = z.object({
+  listId: z.string().uuid().optional(),
+  phones: z.array(z.string().trim().regex(E164_REGEX)).min(1).max(2000),
+});
+
+export const doNotCallInputSchema = z.object({
+  phone: z.string().trim().min(1).max(40),
+  defaultCountry: phoneCountrySchema,
+  reason: z.string().trim().max(500).nullable().optional(),
 });
 
 // ---------------------------------------------------------------------------

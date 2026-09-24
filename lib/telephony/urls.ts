@@ -60,6 +60,9 @@ export function twilioWebhookUrls() {
     // validate the request signature against.
     dialerStart: `${base}/api/telephony/twilio/voice/dialer-start`,
     dialerStatus: `${base}/api/telephony/twilio/voice/dialer-status`,
+    // Where a manual dialer call's recording reports in once Twilio has
+    // finished it (see buildDialResponse's recordingStatusCallbackUrl).
+    dialerRecording: `${base}/api/telephony/twilio/voice/dialer-recording`,
   };
 }
 

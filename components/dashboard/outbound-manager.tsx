@@ -9,6 +9,7 @@ import type { CampaignStats } from "@/lib/outbound/stats";
 // the server-only service module (Twilio, admin DB client).
 import { canPlaceOutboundFrom } from "@/lib/phone-numbers/outbound";
 import { canChangeAgentOrNumber, canReplaceAllContacts } from "@/lib/outbound/status";
+import { DEFAULT_RETRY_RULES, RETRYABLE_OUTCOMES, type RetryableOutcome } from "@/lib/outbound/retry";
 import { CampaignActions, CampaignStatusBadge } from "./outbound-campaign-actions";
 import { OutboundCampaignDetail } from "./outbound-campaign-detail";
 import { useTranslation } from "@/components/i18n/language-provider";
@@ -21,6 +22,9 @@ interface OutboundManagerProps {
   // through Vapi — they can only call from a Twilio number. Resolved on the
   // server, where the llm_models row is (see lib/widgets/provider.ts).
   twilioDirectWidgetIds: string[];
+  // The dialer's lead lists, so a campaign can take its contacts (with every
+  // extra CSV column as an agent variable) from one of them.
+  leadLists: { id: string; name: string; count: number }[];
 }
 
 // How often the overview re-reads itself while a campaign is being dialled.
@@ -70,6 +74,8 @@ interface CampaignSettings {
   maxConcurrentCalls: number;
   maxAttempts: number;
   retryAfterMinutes: number;
+  voicemailMessage: string;
+  retryRules: Record<RetryableOutcome, number>;
 }
 
 const DEFAULT_SETTINGS: CampaignSettings = {
@@ -80,6 +86,8 @@ const DEFAULT_SETTINGS: CampaignSettings = {
   maxConcurrentCalls: 3,
   maxAttempts: 1,
   retryAfterMinutes: 60,
+  voicemailMessage: "",
+  retryRules: { ...DEFAULT_RETRY_RULES },
 };
 
 // Postgres hands a `time` column back as "09:00:00".
@@ -92,6 +100,12 @@ function settingsOf(campaign: CampaignRow): CampaignSettings {
     maxConcurrentCalls: campaign.max_concurrent_calls,
     maxAttempts: campaign.max_attempts,
     retryAfterMinutes: campaign.retry_after_minutes,
+    voicemailMessage: campaign.voicemail_message ?? "",
+    // A campaign from before per-outcome rules waited retry_after_minutes
+    // for everything; showing that is showing what it actually does.
+    retryRules: Object.fromEntries(
+      RETRYABLE_OUTCOMES.map((outcome) => [outcome, campaign.retry_rules?.[outcome] ?? campaign.retry_after_minutes])
+    ) as Record<RetryableOutcome, number>,
   };
 }
 
@@ -104,6 +118,8 @@ function settingsBody(settings: CampaignSettings) {
     maxConcurrentCalls: settings.maxConcurrentCalls,
     maxAttempts: settings.maxAttempts,
     retryAfterMinutes: settings.retryAfterMinutes,
+    voicemailMessage: settings.voicemailMessage.trim() || null,
+    retryRules: settings.retryRules,
   };
 }
 
@@ -116,6 +132,14 @@ function formatDateTime(iso: string): string {
   });
 }
 
+// Every outcome where someone picked up — the agent's own verdicts
+// included — i.e. all but the ones that get retried.
+function answeredCount(outcomes: Record<string, number> | undefined): number {
+  return Object.entries(outcomes ?? {})
+    .filter(([outcome]) => !(RETRYABLE_OUTCOMES as readonly string[]).includes(outcome))
+    .reduce((sum, [, count]) => sum + count, 0);
+}
+
 const WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 export function OutboundManager({
@@ -123,6 +147,7 @@ export function OutboundManager({
   phoneNumbers,
   initialCampaigns,
   twilioDirectWidgetIds,
+  leadLists,
 }: OutboundManagerProps) {
   const { t } = useTranslation();
   const [campaigns, setCampaigns] = useState(initialCampaigns);
@@ -131,6 +156,9 @@ export function OutboundManager({
   const [phoneNumberId, setPhoneNumberId] = useState("");
   const [name, setName] = useState("");
   const [contactsRaw, setContactsRaw] = useState("");
+  // Where a new campaign's contacts come from: pasted lines, or a lead list.
+  const [contactSource, setContactSource] = useState<"paste" | "list">("paste");
+  const [leadListId, setLeadListId] = useState(leadLists[0]?.id ?? "");
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +225,7 @@ export function OutboundManager({
   }
 
   async function handleCreate() {
+    const fromList = !editingId && contactSource === "list";
     const contacts = parseContacts(contactsRaw);
     if (!name.trim()) {
       setError(t("dashboardPages.outbound.errorCampaignName"));
@@ -206,11 +235,15 @@ export function OutboundManager({
       setError(t("dashboardPages.outbound.errorChooseNumber"));
       return;
     }
-    if (contacts.length === 0) {
+    if (fromList && !leadListId) {
+      setError(t("dashboardPages.outbound.errorChooseLeadList"));
+      return;
+    }
+    if (!fromList && contacts.length === 0) {
       setError(t("dashboardPages.outbound.errorAtLeastOneContact"));
       return;
     }
-    if (contacts.length > 100) {
+    if (!fromList && contacts.length > 100) {
       setError(t("dashboardPages.outbound.errorMaxContacts"));
       return;
     }
@@ -232,7 +265,7 @@ export function OutboundManager({
     const body = {
       ...(agentAndNumberEditable ? { widgetId, phoneNumberId } : {}),
       name: name.trim(),
-      contacts,
+      ...(fromList ? { leadListId } : { contacts }),
       ...settingsBody(settings),
     };
     const res = await fetch(
@@ -352,7 +385,8 @@ export function OutboundManager({
 
   // Pausing stops new calls from starting. A call already on the line is
   // left alone — see the campaign's status route.
-  async function handleStatus(campaignId: string, action: "pause" | "resume") {
+  async function handleStatus(campaignId: string, action: "pause" | "resume" | "stop") {
+    if (action === "stop" && !window.confirm(t("dashboardPages.outbound.stopConfirm"))) return;
     setBusyId(campaignId);
     setError(null);
 
@@ -373,8 +407,45 @@ export function OutboundManager({
     setNotice(
       action === "pause"
         ? t("dashboardPages.outbound.pausedNotice")
-        : t("dashboardPages.outbound.resumedNotice")
+        : action === "stop"
+          ? t("dashboardPages.outbound.stoppedNotice")
+          : t("dashboardPages.outbound.resumedNotice")
     );
+    await refresh();
+  }
+
+  // Exactly one real call, before the campaign goes out to everyone.
+  async function handleTest(campaignId: string) {
+    setBusyId(campaignId);
+    setError(null);
+    const res = await fetch(`/api/customer/outbound-campaigns/${campaignId}/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    setBusyId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setError(data?.error?.message ?? t("dashboardPages.outbound.errorStatusChange"));
+      return;
+    }
+    const data = (await res.json()) as { phoneNumber: string };
+    setNotice(t("dashboardPages.outbound.testCallStarted", { number: data.phoneNumber }));
+    await refresh();
+  }
+
+  async function handleDuplicate(campaignId: string) {
+    setBusyId(campaignId);
+    setError(null);
+    const res = await fetch(`/api/customer/outbound-campaigns/${campaignId}/duplicate`, { method: "POST" });
+    setBusyId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setError(data?.error?.message ?? t("dashboardPages.outbound.errorCreate"));
+      return;
+    }
+    setNotice(t("dashboardPages.outbound.duplicatedNotice"));
+    setOpenCampaignId(null);
     await refresh();
   }
 
@@ -388,6 +459,9 @@ export function OutboundManager({
         onResume={() => void handleStatus(campaign.id, "resume")}
         onEdit={() => void startEditing(campaign)}
         onDelete={() => void handleDelete(campaign.id)}
+        onStop={() => void handleStatus(campaign.id, "stop")}
+        onTest={() => void handleTest(campaign.id)}
+        onDuplicate={() => void handleDuplicate(campaign.id)}
       />
     );
   }
@@ -508,6 +582,43 @@ export function OutboundManager({
             </div>
           </div>
 
+          {!editingId && leadLists.length > 0 ? (
+            <div className="flex gap-2">
+              {(["paste", "list"] as const).map((source) => (
+                <button
+                  key={source}
+                  type="button"
+                  onClick={() => setContactSource(source)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    contactSource === source ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {t(source === "paste" ? "dashboardPages.outbound.sourcePaste" : "dashboardPages.outbound.sourceLeadList")}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {!editingId && contactSource === "list" && leadLists.length > 0 ? (
+            <div>
+              <label htmlFor="campaign-lead-list" className="mb-1 block text-sm font-medium text-slate-700">
+                {t("dashboardPages.outbound.leadListLabel")}
+              </label>
+              <select
+                id="campaign-lead-list"
+                value={leadListId}
+                onChange={(e) => setLeadListId(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              >
+                {leadLists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.name} ({list.count})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.leadListHelp")}</p>
+            </div>
+          ) : (
           <div>
             <label htmlFor="campaign-contacts" className="mb-1 block text-sm font-medium text-slate-700">
               {t("dashboardPages.outbound.contactsLabel")}
@@ -522,6 +633,7 @@ export function OutboundManager({
             />
             <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.contactsHelp")}</p>
           </div>
+          )}
 
           {/* The settings. Defaults are deliberately conservative — weekdays
               09–17, three at a time, one attempt — because every one of them
@@ -542,6 +654,22 @@ export function OutboundManager({
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               />
               <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.agentInstructionHelp")}</p>
+              <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.variablesHelp")}</p>
+            </div>
+
+            <div>
+              <label htmlFor="campaign-voicemail" className="mb-1 block text-sm font-medium text-slate-700">
+                {t("dashboardPages.outbound.voicemailLabel")}
+              </label>
+              <textarea
+                id="campaign-voicemail"
+                rows={2}
+                value={settings.voicemailMessage}
+                onChange={(e) => setSettings((prev) => ({ ...prev, voicemailMessage: e.target.value }))}
+                placeholder={t("dashboardPages.outbound.voicemailPlaceholder")}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              />
+              <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.voicemailHelp")}</p>
             </div>
 
             <div>
@@ -654,6 +782,39 @@ export function OutboundManager({
                 />
               </div>
             </div>
+
+            {/* When to try again, by what the last attempt came to. Only
+                used when the campaign allows more than one attempt; answered
+                calls, wrong numbers and do-not-call are never retried. */}
+            {settings.maxAttempts > 1 ? (
+              <div>
+                <span className="mb-1 block text-sm font-medium text-slate-700">
+                  {t("dashboardPages.outbound.retryRulesLabel")}
+                </span>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {RETRYABLE_OUTCOMES.map((outcome) => (
+                    <label key={outcome} className="block text-xs text-slate-600">
+                      {t(`dashboardPages.outbound.outcome.${outcome}`)}
+                      <input
+                        type="number"
+                        min={5}
+                        max={2880}
+                        step={5}
+                        value={settings.retryRules[outcome]}
+                        onChange={(e) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            retryRules: { ...prev.retryRules, [outcome]: Math.max(5, Number(e.target.value) || 5) },
+                          }))
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.retryRulesHelp")}</p>
+              </div>
+            ) : null}
           </div>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -708,6 +869,8 @@ export function OutboundManager({
                   <th className="px-4 py-3 text-right">{t("dashboardPages.outbound.colPending")}</th>
                   <th className="px-4 py-3 text-right">{t("dashboardPages.outbound.colSuccessful")}</th>
                   <th className="px-4 py-3 text-right">{t("dashboardPages.outbound.colFailed")}</th>
+                  <th className="px-4 py-3 text-right">{t("dashboardPages.outbound.colAnswered")}</th>
+                  <th className="px-4 py-3 text-right">{t("dashboardPages.outbound.colMeetings")}</th>
                   <th className="px-4 py-3 text-right">{t("dashboardPages.outbound.colMinutes")}</th>
                   <th className="px-4 py-3">{t("dashboardPages.outbound.colLastCall")}</th>
                   <th className="px-4 py-3" />
@@ -736,6 +899,10 @@ export function OutboundManager({
                     <td className="px-4 py-3 text-right text-slate-700">{campaign.stats.pending}</td>
                     <td className="px-4 py-3 text-right text-emerald-700">{campaign.stats.successful}</td>
                     <td className="px-4 py-3 text-right text-red-700">{campaign.stats.failed}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">
+                      {answeredCount(campaign.stats.outcomes)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-emerald-700">{campaign.stats.outcomes?.meeting_booked ?? 0}</td>
                     <td className="px-4 py-3 text-right text-slate-700">
                       {Math.round(campaign.stats.durationSeconds / 60)}
                     </td>

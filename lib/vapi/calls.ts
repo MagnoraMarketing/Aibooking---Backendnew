@@ -9,38 +9,81 @@ export interface CreateOutboundCallParams {
   // for these calls only — the assistant itself is never touched, so the
   // agent that answers the phone is unaffected by a campaign's wording.
   campaignInstruction?: string | null;
+  // The lead's own fields — name, company and every extra CSV column — so
+  // the agent's prompt can say "{{name}}" and "{{company}}" (Vapi fills
+  // {{…}} placeholders from variableValues). See lib/outbound/csv.ts.
+  variables?: Record<string, string>;
+  // Spoken instead of a conversation when the call reaches a voicemail box.
+  // Unset leaves the assistant's own voicemail behaviour as it is.
+  voicemailMessage?: string | null;
 }
 
 export async function createOutboundCall(params: CreateOutboundCallParams): Promise<{ id: string }> {
   const instruction = params.campaignInstruction?.trim();
+  const voicemailMessage = params.voicemailMessage?.trim();
+  const variables = params.variables && Object.keys(params.variables).length > 0 ? params.variables : null;
 
-  const response = await vapiFetch("/call", {
-    method: "POST",
-    body: JSON.stringify({
+  const assistantOverrides: Record<string, unknown> = {};
+  if (instruction) {
+    // Appended, not replaced: the agent keeps its own prompt, knowledge and
+    // manner, and this says what it is ringing about.
+    assistantOverrides.model = {
+      messages: [{ role: "system", content: `### Formålet med dette opkald\n${instruction}` }],
+    };
+  }
+  if (variables) assistantOverrides.variableValues = variables;
+  if (voicemailMessage) assistantOverrides.voicemailMessage = voicemailMessage;
+
+  const body = (withAnalysis: boolean) =>
+    JSON.stringify({
       assistantId: params.assistantId,
       phoneNumberId: params.phoneNumberId,
-      customer: { number: params.customerNumber },
-      ...(instruction
-        ? {
-            assistantOverrides: {
-              // Appended, not replaced: the agent keeps its own prompt,
-              // knowledge and manner, and this says what it is ringing about.
-              model: {
-                messages: [
-                  {
-                    role: "system",
-                    content: `### Formålet med dette opkald\n${instruction}`,
-                  },
-                ],
-              },
-            },
-          }
+      customer: {
+        number: params.customerNumber,
+        ...(variables?.name ? { name: variables.name.slice(0, 40) } : {}),
+      },
+      ...(withAnalysis || Object.keys(assistantOverrides).length > 0
+        ? { assistantOverrides: { ...assistantOverrides, ...(withAnalysis ? { analysisPlan: OUTCOME_ANALYSIS_PLAN } : {}) } }
         : {}),
-    }),
-  });
+    });
+
+  // The outcome classification is a nicety: if Vapi ever refuses it (a
+  // renamed field, a stricter schema check), the call goes out without it
+  // rather than not at all. Any other refusal is the caller's to handle.
+  let response: Response;
+  try {
+    response = await vapiFetch("/call", { method: "POST", body: body(true) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!/\(400\)/.test(message) || !/analysis|structured/i.test(message)) throw err;
+    console.error("[vapi] analysisPlan override refused, placing the call without it:", message);
+    response = await vapiFetch("/call", { method: "POST", body: body(false) });
+  }
   const data = (await response.json()) as { id: string };
   return { id: data.id };
 }
+
+// Asks Vapi's end-of-call analysis to classify every campaign call into one
+// of the outcomes the dashboard counts (lib/outbound/outcome.ts reads it
+// back from analysis.structuredData.outcome). Without it a picked-up call
+// can only ever be "answered".
+export const OUTCOME_ANALYSIS_PLAN = {
+  structuredDataPlan: {
+    enabled: true,
+    schema: {
+      type: "object",
+      properties: {
+        outcome: {
+          type: "string",
+          enum: ["interested", "meeting_booked", "callback", "not_interested", "wrong_number", "do_not_call", "other"],
+          description:
+            "The result of the call: interested (wants to know more), meeting_booked (a meeting or appointment was booked), callback (asked to be called at another time), not_interested, wrong_number (not the intended person or business), do_not_call (explicitly asked never to be called again), other.",
+        },
+      },
+      required: ["outcome"],
+    },
+  },
+} as const;
 
 // What to tell the customer when a campaign call never got placed.
 //

@@ -5,6 +5,7 @@ import { getAdminClient } from "@/lib/database/admin";
 import { Header } from "@/components/dashboard/header";
 import { TrialEndedBanner } from "@/components/dashboard/trial-ended-banner";
 import { SupportWidget } from "@/components/dashboard/support-widget";
+import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { LanguageProvider } from "@/components/i18n/language-provider";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 import { translate } from "@/lib/i18n/dictionaries";
@@ -70,8 +71,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           minutesRemaining={minutesRemaining}
         />
         {trialEnded ? <TrialEndedBanner /> : null}
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+        {/* pb-28 on phones keeps the last of the page clear of the bottom bar. */}
+        <main className="mx-auto max-w-7xl px-4 pb-28 pt-8 sm:px-6 sm:pb-8">{children}</main>
         <SupportWidget />
+        <MobileBottomNav />
       </div>
     </LanguageProvider>
   );

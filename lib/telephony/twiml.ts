@@ -59,8 +59,22 @@ export function twimlResponseHeaders(): Record<string, string> {
 // the Twilio Voice SDK IS the conversation, this just connects it to the
 // lead. `statusCallbackUrl` gets the dialed leg's own initiated/ringing/
 // answered/completed events (app/api/telephony/twilio/voice/dialer-status).
-export function buildDialResponse(params: { to: string; callerId: string; statusCallbackUrl: string }): string {
-  return `${XML_HEADER}<Response><Dial callerId="${escapeXml(params.callerId)}"><Number statusCallback="${escapeXml(
+// `recordingStatusCallbackUrl`, when given, records both sides from the
+// moment the lead answers and has Twilio report the finished recording
+// there — the manual dialer's optional "optag samtalen" (see dialer-start).
+// Without it the TwiML is exactly what it always was.
+export function buildDialResponse(params: {
+  to: string;
+  callerId: string;
+  statusCallbackUrl: string;
+  recordingStatusCallbackUrl?: string;
+}): string {
+  const record = params.recordingStatusCallbackUrl
+    ? ` record="record-from-answer-dual" recordingStatusCallback="${escapeXml(
+        params.recordingStatusCallbackUrl
+      )}" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed absent"`
+    : "";
+  return `${XML_HEADER}<Response><Dial callerId="${escapeXml(params.callerId)}"${record}><Number statusCallback="${escapeXml(
     params.statusCallbackUrl
   )}" statusCallbackEvent="initiated ringing answered completed" statusCallbackMethod="POST">${escapeXml(
     params.to

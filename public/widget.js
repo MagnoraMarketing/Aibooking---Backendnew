@@ -200,6 +200,37 @@
     return node;
   }
 
+  // The "Powered by AIbooking.dk" line under every widget UI (hidden when the
+  // widget's show_branding is off). The brand name links to the marketing
+  // site: every customer site that embeds the widget then carries a real
+  // link to www.aibooking.dk, which is the most useful thing this backend
+  // can do for the site's search ranking. Kept to the plain brand name as
+  // anchor text — keyword-stuffed widget links are what search engines
+  // penalise. rel omits noreferrer on purpose so the marketing site's
+  // analytics can see which customer site a visitor came from.
+  var MARKETING_SITE_URL = "https://www.aibooking.dk/";
+
+  function buildBranding(config, padding) {
+    if (!config.showBranding) return el("div", {}, []);
+    return el(
+      "div",
+      { style: "text-align:center;font-size:11px;color:#999;padding:" + padding + ";" },
+      [
+        "Powered by ",
+        el(
+          "a",
+          {
+            href: MARKETING_SITE_URL,
+            target: "_blank",
+            rel: "noopener",
+            style: "color:inherit;text-decoration:underline;",
+          },
+          ["AIbooking.dk"]
+        ),
+      ]
+    );
+  }
+
 
   // Renders an agent message into a bubble, turning product links into
   // something the customer can actually click.
@@ -453,13 +484,7 @@
           { style: "display:flex;gap:8px;padding:10px;border-top:1px solid #eee;" },
           micBtn ? [micBtn, input, sendBtn] : [input, sendBtn]
         ),
-        config.showBranding
-          ? el(
-              "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:4px 0 8px;" },
-              ["Powered by AIbooking.dk"]
-            )
-          : el("div", {}, []),
+        buildBranding(config, "4px 0 8px"),
       ]
     );
 
@@ -632,13 +657,7 @@
         buildHeader(config),
         transcriptEl,
         el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
-        config.showBranding
-          ? el(
-              "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
-              ["Powered by AIbooking.dk"]
-            )
-          : el("div", {}, []),
+        buildBranding(config, "0 0 8px"),
       ]
     );
 
@@ -935,13 +954,7 @@
         buildHeader(config),
         transcriptEl,
         el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
-        config.showBranding
-          ? el(
-              "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
-              ["Powered by AIbooking.dk"]
-            )
-          : el("div", {}, []),
+        buildBranding(config, "0 0 8px"),
       ]
     );
 
@@ -1179,13 +1192,7 @@
         buildHeader(config),
         statusEl,
         el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn]),
-        config.showBranding
-          ? el(
-              "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
-              ["Powered by AIbooking.dk"]
-            )
-          : el("div", {}, []),
+        buildBranding(config, "0 0 8px"),
       ]
     );
 
