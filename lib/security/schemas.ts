@@ -372,6 +372,17 @@ export const outboundCampaignSettingsSchema = z.object({
   // Left on a voicemail instead of a conversation. Empty = the agent's own
   // behaviour.
   voicemailMessage: z.string().trim().max(1000).nullable().optional(),
+  // Minutes before another attempt, per outcome. Same bounds as
+  // retryAfterMinutes, except voicemail may wait up to two days.
+  retryRules: z
+    .object({
+      no_answer: z.number().int().min(5).max(2880),
+      busy: z.number().int().min(5).max(2880),
+      voicemail: z.number().int().min(5).max(2880),
+      failed: z.number().int().min(5).max(2880),
+    })
+    .partial()
+    .optional(),
 });
 
 const campaignContactsSchema = z

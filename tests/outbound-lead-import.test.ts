@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { normalizePhone } from "@/lib/outbound/phone";
 import { dialerQueue } from "@/lib/outbound/lead-queue";
 import { campaignCallOutcome } from "@/lib/outbound/outcome";
+import { retryDelayMinutes } from "@/lib/outbound/retry";
 import { analyzeLeadCsv, parseCsv, leadVariables, toCsv, LEAD_CSV_TEMPLATE } from "@/lib/outbound/csv";
 
 describe("normalizePhone", () => {
@@ -131,5 +132,14 @@ describe("campaignCallOutcome", () => {
     expect(campaignCallOutcome("customer-ended-call", { structuredData: { outcome: "meeting_booked" } })).toBe("meeting_booked");
     expect(campaignCallOutcome("assistant-ended-call", { structuredData: { outcome: "whatever" } })).toBe("answered");
     expect(campaignCallOutcome("customer-ended-call", null)).toBe("answered");
+  });
+});
+
+describe("retryDelayMinutes", () => {
+  it("uses the campaign's rule for the outcome, else its single retry delay", () => {
+    expect(retryDelayMinutes({ busy: 30, voicemail: 1440 }, "busy", 60)).toBe(30);
+    expect(retryDelayMinutes({ busy: 30 }, "no_answer", 60)).toBe(60);
+    expect(retryDelayMinutes({}, "voicemail", 90)).toBe(90);
+    expect(retryDelayMinutes(null, "failed", 45)).toBe(45);
   });
 });

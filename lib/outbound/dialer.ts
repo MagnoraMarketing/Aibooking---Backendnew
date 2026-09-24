@@ -8,6 +8,7 @@ import { twilioWebhookUrls } from "@/lib/telephony/urls";
 import { isWithinCallWindow, nextWindowOpening, parseWallClock, type CallWindow } from "./call-window";
 import { isDialable, type CampaignStatus } from "./status";
 import { leadVariables } from "./csv";
+import { retryDelayMinutes } from "./retry";
 import { suppressedNumbers } from "./suppression";
 import { getBalanceSeconds } from "@/lib/credits";
 
@@ -48,6 +49,7 @@ interface CampaignRow {
   max_concurrent_calls: number;
   max_attempts: number;
   retry_after_minutes: number;
+  retry_rules: Record<string, number> | null;
 }
 
 export interface DialerTickResult {
@@ -100,7 +102,7 @@ export async function runDialerTick(now: Date = new Date()): Promise<DialerTickR
   const { data: campaigns } = await supabase
     .from("outbound_campaigns")
     .select(
-      "id, status, customer_id, widget_id, phone_number_id, agent_instruction, voicemail_message, call_window_start, call_window_end, call_days, call_timezone, max_concurrent_calls, max_attempts, retry_after_minutes"
+      "id, status, customer_id, widget_id, phone_number_id, agent_instruction, voicemail_message, call_window_start, call_window_end, call_days, call_timezone, max_concurrent_calls, max_attempts, retry_after_minutes, retry_rules"
     )
     .in("id", campaignIds)
     // Paused campaigns keep their queue untouched and are simply not dialled
@@ -305,7 +307,7 @@ export async function dialSingleContact(campaignId: string, contactId: string, n
   const { data: campaign } = await supabase
     .from("outbound_campaigns")
     .select(
-      "id, status, customer_id, widget_id, phone_number_id, agent_instruction, voicemail_message, call_window_start, call_window_end, call_days, call_timezone, max_concurrent_calls, max_attempts, retry_after_minutes"
+      "id, status, customer_id, widget_id, phone_number_id, agent_instruction, voicemail_message, call_window_start, call_window_end, call_days, call_timezone, max_concurrent_calls, max_attempts, retry_after_minutes, retry_rules"
     )
     .eq("id", campaignId)
     .maybeSingle<CampaignRow>();
@@ -349,7 +351,11 @@ async function settleFailedAttempt(
     return;
   }
 
-  const retryAt = new Date(now.getTime() + campaign.retry_after_minutes * 60_000);
+  // A call the provider refused outright counts as "failed" for the
+  // campaign's retry rules.
+  const retryAt = new Date(
+    now.getTime() + retryDelayMinutes(campaign.retry_rules, "failed", campaign.retry_after_minutes) * 60_000
+  );
   await supabase
     .from("outbound_campaign_contacts")
     .update({

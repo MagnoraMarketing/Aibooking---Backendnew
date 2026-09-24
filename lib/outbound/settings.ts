@@ -17,6 +17,7 @@ export function settingsToDbRow(settings: CampaignSettingsInput): Record<string,
   if (settings.maxAttempts !== undefined) row.max_attempts = settings.maxAttempts;
   if (settings.retryAfterMinutes !== undefined) row.retry_after_minutes = settings.retryAfterMinutes;
   if (settings.voicemailMessage !== undefined) row.voicemail_message = settings.voicemailMessage || null;
+  if (settings.retryRules !== undefined) row.retry_rules = settings.retryRules;
   return row;
 }
 

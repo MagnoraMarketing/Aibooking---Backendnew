@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { campaignCallOutcome } from "@/lib/outbound/outcome";
+import { retryDelayMinutes } from "@/lib/outbound/retry";
 import { getAdminClient } from "@/lib/database/admin";
 import { deductPhoneCallCost } from "@/lib/credits";
 import { executeBookingTool, resolveToolContext } from "@/lib/vapi/booking-tools";
@@ -122,7 +123,7 @@ async function settleCampaignContact(
   const { data: campaign } = contact
     ? await supabase
         .from("outbound_campaigns")
-        .select("max_attempts, retry_after_minutes")
+        .select("max_attempts, retry_after_minutes, retry_rules")
         .eq("id", contact.campaign_id)
         .maybeSingle()
     : { data: null };
@@ -151,7 +152,9 @@ async function settleCampaignContact(
     .update({
       status: "pending",
       failure_reason: reason || "Opkaldet blev ikke besvaret",
-      next_attempt_at: new Date(Date.now() + campaign.retry_after_minutes * 60_000).toISOString(),
+      next_attempt_at: new Date(
+        Date.now() + retryDelayMinutes(campaign.retry_rules, outcome, campaign.retry_after_minutes) * 60_000
+      ).toISOString(),
       calling_since: null,
       outcome,
     })

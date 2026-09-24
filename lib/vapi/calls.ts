@@ -34,21 +34,56 @@ export async function createOutboundCall(params: CreateOutboundCallParams): Prom
   if (variables) assistantOverrides.variableValues = variables;
   if (voicemailMessage) assistantOverrides.voicemailMessage = voicemailMessage;
 
-  const response = await vapiFetch("/call", {
-    method: "POST",
-    body: JSON.stringify({
+  const body = (withAnalysis: boolean) =>
+    JSON.stringify({
       assistantId: params.assistantId,
       phoneNumberId: params.phoneNumberId,
       customer: {
         number: params.customerNumber,
         ...(variables?.name ? { name: variables.name.slice(0, 40) } : {}),
       },
-      ...(Object.keys(assistantOverrides).length > 0 ? { assistantOverrides } : {}),
-    }),
-  });
+      ...(withAnalysis || Object.keys(assistantOverrides).length > 0
+        ? { assistantOverrides: { ...assistantOverrides, ...(withAnalysis ? { analysisPlan: OUTCOME_ANALYSIS_PLAN } : {}) } }
+        : {}),
+    });
+
+  // The outcome classification is a nicety: if Vapi ever refuses it (a
+  // renamed field, a stricter schema check), the call goes out without it
+  // rather than not at all. Any other refusal is the caller's to handle.
+  let response: Response;
+  try {
+    response = await vapiFetch("/call", { method: "POST", body: body(true) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!/\(400\)/.test(message) || !/analysis|structured/i.test(message)) throw err;
+    console.error("[vapi] analysisPlan override refused, placing the call without it:", message);
+    response = await vapiFetch("/call", { method: "POST", body: body(false) });
+  }
   const data = (await response.json()) as { id: string };
   return { id: data.id };
 }
+
+// Asks Vapi's end-of-call analysis to classify every campaign call into one
+// of the outcomes the dashboard counts (lib/outbound/outcome.ts reads it
+// back from analysis.structuredData.outcome). Without it a picked-up call
+// can only ever be "answered".
+export const OUTCOME_ANALYSIS_PLAN = {
+  structuredDataPlan: {
+    enabled: true,
+    schema: {
+      type: "object",
+      properties: {
+        outcome: {
+          type: "string",
+          enum: ["interested", "meeting_booked", "callback", "not_interested", "wrong_number", "do_not_call", "other"],
+          description:
+            "The result of the call: interested (wants to know more), meeting_booked (a meeting or appointment was booked), callback (asked to be called at another time), not_interested, wrong_number (not the intended person or business), do_not_call (explicitly asked never to be called again), other.",
+        },
+      },
+      required: ["outcome"],
+    },
+  },
+} as const;
 
 // What to tell the customer when a campaign call never got placed.
 //

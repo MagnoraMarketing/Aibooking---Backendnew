@@ -43,6 +43,7 @@ interface CampaignActionsProps {
   onDelete: () => void;
   onStop: () => void;
   onTest: () => void;
+  onDuplicate: () => void;
 }
 
 export function CampaignActions({
@@ -55,6 +56,7 @@ export function CampaignActions({
   onDelete,
   onStop,
   onTest,
+  onDuplicate,
 }: CampaignActionsProps) {
   const { t } = useTranslation();
   const secondary =
@@ -67,6 +69,10 @@ export function CampaignActions({
           {t("common.edit")}
         </button>
       ) : null}
+
+      <button type="button" onClick={onDuplicate} disabled={busy} className={secondary}>
+        {t("dashboardPages.outbound.duplicateCampaign")}
+      </button>
 
       {/* Only a draft can be deleted. Once calls have gone out the campaign
           is the record of them, recordings included. */}

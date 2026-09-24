@@ -1,3 +1,7 @@
+-- Safe to run more than once: every object is created "if not exists" or
+-- dropped first, so running it again after a partial or complete run is a
+-- no-op rather than an "already exists" error.
+--
 -- Outbound dialer, second pass: what the manual dialer and AI campaigns were
 -- still missing to be used for real calling lists.
 --
@@ -89,11 +93,13 @@ create index if not exists idx_dialer_calls_lead on public.dialer_calls (lead_id
 
 alter table public.dialer_calls enable row level security;
 
+drop policy if exists "master admin full access on dialer_calls" on public.dialer_calls;
 create policy "master admin full access on dialer_calls"
   on public.dialer_calls for all
   using (public.is_master_admin())
   with check (public.is_master_admin());
 
+drop policy if exists "customer admin can view own dialer_calls" on public.dialer_calls;
 create policy "customer admin can view own dialer_calls"
   on public.dialer_calls for select
   using (customer_id = public.current_customer_id());
@@ -112,11 +118,13 @@ create table if not exists public.do_not_call_numbers (
 
 alter table public.do_not_call_numbers enable row level security;
 
+drop policy if exists "master admin full access on do_not_call_numbers" on public.do_not_call_numbers;
 create policy "master admin full access on do_not_call_numbers"
   on public.do_not_call_numbers for all
   using (public.is_master_admin())
   with check (public.is_master_admin());
 
+drop policy if exists "customer admin can view own do_not_call_numbers" on public.do_not_call_numbers;
 create policy "customer admin can view own do_not_call_numbers"
   on public.do_not_call_numbers for select
   using (customer_id = public.current_customer_id());
@@ -136,7 +144,13 @@ alter table public.outbound_campaign_contacts
 alter table public.outbound_campaigns
   -- Spoken instead of a conversation when the AI reaches a voicemail box.
   -- Null leaves the agent's own voicemail behaviour alone.
-  add column if not exists voicemail_message text;
+  add column if not exists voicemail_message text,
+  -- How long to wait before trying again, per outcome, in minutes:
+  -- {"no_answer": 240, "busy": 30, "voicemail": 1440, "failed": 60}.
+  -- An outcome missing here falls back to retry_after_minutes, so every
+  -- campaign created before this keeps exactly the behaviour it had.
+  -- Answered calls, wrong numbers and do-not-call are never retried.
+  add column if not exists retry_rules jsonb not null default '{}'::jsonb;
 
 create index if not exists idx_campaign_contacts_phone on public.outbound_campaign_contacts (campaign_id, phone_number);
 

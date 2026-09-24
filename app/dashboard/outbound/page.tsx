@@ -36,6 +36,7 @@ export interface CampaignRow {
   max_attempts: number;
   retry_after_minutes: number;
   voicemail_message: string | null;
+  retry_rules: Record<string, number> | null;
 }
 
 export default async function OutboundPage() {
