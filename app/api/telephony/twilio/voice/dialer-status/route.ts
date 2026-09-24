@@ -36,9 +36,37 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!signatureValid) return new NextResponse("Invalid signature", { status: 403 });
 
   const callStatus = formParams.CallStatus;
+  const supabaseAdmin = getAdminClient();
+
+  // The call's own row (see dialer-start). The dialled <Number> leg reports
+  // with the browser leg's sid as ParentCallSid. Twilio can deliver these
+  // out of order, so a finished call is never moved back to "ringing".
+  const parentSid = formParams.ParentCallSid || formParams.CallSid;
+  if (parentSid && callStatus) {
+    const now = new Date().toISOString();
+    if (TERMINAL_STATUSES.includes(callStatus)) {
+      await supabaseAdmin
+        .from("dialer_calls")
+        .update({
+          status: callStatus,
+          ended_at: now,
+          duration_seconds: formParams.CallDuration ? parseInt(formParams.CallDuration, 10) : 0,
+        })
+        .eq("twilio_call_sid", parentSid)
+        .eq("customer_id", customerId);
+    } else {
+      const answered = callStatus === "in-progress" || callStatus === "answered";
+      await supabaseAdmin
+        .from("dialer_calls")
+        .update(answered ? { status: "in-progress", answered_at: now } : { status: callStatus })
+        .eq("twilio_call_sid", parentSid)
+        .eq("customer_id", customerId)
+        .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`);
+    }
+  }
+
   if (leadId && callStatus && TERMINAL_STATUSES.includes(callStatus)) {
-    const supabase = getAdminClient();
-    await supabase
+    await supabaseAdmin
       .from("leads")
       .update({
         status: "called",

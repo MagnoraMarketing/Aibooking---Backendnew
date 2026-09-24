@@ -37,7 +37,7 @@ export const GET = withErrorHandling(async (_request, { params }) => {
   const { data: contacts } = await supabase
     .from("outbound_campaign_contacts")
     .select(
-      "id, phone_number, contact_name, company, status, attempts, last_called_at, next_attempt_at, failure_reason, vapi_call_id, created_at"
+      "id, phone_number, contact_name, company, status, attempts, last_called_at, next_attempt_at, failure_reason, vapi_call_id, created_at, outcome, summary"
     )
     .eq("campaign_id", campaignId)
     .order("created_at", { ascending: true });
@@ -76,6 +76,8 @@ export const GET = withErrorHandling(async (_request, { params }) => {
       lastCalledAt: contact.last_called_at,
       nextAttemptAt: contact.next_attempt_at,
       failureReason: contact.failure_reason,
+      outcome: contact.outcome,
+      summary: contact.summary,
       // Whether there is a call to open details for. The call id itself is
       // Vapi's, not a credential, but nothing about it is needed out here.
       hasCall: Boolean(contact.vapi_call_id),

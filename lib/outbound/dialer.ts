@@ -7,6 +7,9 @@ import { createTwilioOutboundCall, getOrCreateSubaccount } from "@/lib/twilio";
 import { twilioWebhookUrls } from "@/lib/telephony/urls";
 import { isWithinCallWindow, nextWindowOpening, parseWallClock, type CallWindow } from "./call-window";
 import { isDialable, type CampaignStatus } from "./status";
+import { leadVariables } from "./csv";
+import { suppressedNumbers } from "./suppression";
+import { getBalanceSeconds } from "@/lib/credits";
 
 // Works a launched campaign's queue, a few contacts at a time.
 //
@@ -37,6 +40,7 @@ interface CampaignRow {
   widget_id: string;
   phone_number_id: string;
   agent_instruction: string | null;
+  voicemail_message: string | null;
   call_window_start: string;
   call_window_end: string;
   call_days: number[];
@@ -51,7 +55,21 @@ export interface DialerTickResult {
   dialed: number;
   deferred: number;
   failed: number;
+  suppressed: number;
+  pausedForCredits: number;
 }
+
+export interface DialContact {
+  id: string;
+  phone_number: string;
+  contact_name: string | null;
+  company: string | null;
+  email: string | null;
+  custom_data: Record<string, string> | null;
+  attempts: number;
+}
+
+const CONTACT_COLUMNS = "id, phone_number, contact_name, company, email, custom_data, attempts";
 
 function windowOf(campaign: CampaignRow): CallWindow {
   return {
@@ -64,7 +82,7 @@ function windowOf(campaign: CampaignRow): CallWindow {
 
 export async function runDialerTick(now: Date = new Date()): Promise<DialerTickResult> {
   const supabase = getAdminClient();
-  const result: DialerTickResult = { campaigns: 0, dialed: 0, deferred: 0, failed: 0 };
+  const result: DialerTickResult = { campaigns: 0, dialed: 0, deferred: 0, failed: 0, suppressed: 0, pausedForCredits: 0 };
 
   // Campaigns with at least one contact due. Fetched as ids first so the
   // "which campaigns have work" question stays one indexed read.
@@ -82,7 +100,7 @@ export async function runDialerTick(now: Date = new Date()): Promise<DialerTickR
   const { data: campaigns } = await supabase
     .from("outbound_campaigns")
     .select(
-      "id, status, customer_id, widget_id, phone_number_id, agent_instruction, call_window_start, call_window_end, call_days, call_timezone, max_concurrent_calls, max_attempts, retry_after_minutes"
+      "id, status, customer_id, widget_id, phone_number_id, agent_instruction, voicemail_message, call_window_start, call_window_end, call_days, call_timezone, max_concurrent_calls, max_attempts, retry_after_minutes"
     )
     .in("id", campaignIds)
     // Paused campaigns keep their queue untouched and are simply not dialled
@@ -173,6 +191,19 @@ async function runCampaign(
     return result;
   }
 
+  // AI minutes come out of the same balance as everything else. With none
+  // left the campaign is paused rather than left to fail every contact —
+  // resuming it (after topping up) carries on where it stopped.
+  if ((await getBalanceSeconds(campaign.customer_id)) <= 0) {
+    await supabase
+      .from("outbound_campaigns")
+      .update({ status: "paused", paused_at: now.toISOString() })
+      .eq("id", campaign.id)
+      .eq("status", "running");
+    result.pausedForCredits += 1;
+    return result;
+  }
+
   const staleBefore = new Date(now.getTime() - STALE_ATTEMPT_MINUTES * 60_000).toISOString();
   const { count: inFlight } = await supabase
     .from("outbound_campaign_contacts")
@@ -186,48 +217,118 @@ async function runCampaign(
 
   const { data: contacts } = await supabase
     .from("outbound_campaign_contacts")
-    .select("id, phone_number, contact_name, attempts")
+    .select(CONTACT_COLUMNS)
     .eq("campaign_id", campaign.id)
     .eq("status", "pending")
     .not("next_attempt_at", "is", null)
     .lte("next_attempt_at", now.toISOString())
     .order("next_attempt_at", { ascending: true })
-    .limit(slots);
+    .limit(slots)
+    .returns<DialContact[]>();
 
   if (!contacts || contacts.length === 0) return result;
+
+  const blocked = await suppressedNumbers(
+    campaign.customer_id,
+    contacts.map((contact) => contact.phone_number)
+  );
 
   const placeCall = await resolveDialer(supabase, campaign);
 
   for (const contact of contacts) {
-    // Claimed before dialling, and only if still pending — two ticks
-    // overlapping must not ring the same person twice.
-    const { data: claimed } = await supabase
-      .from("outbound_campaign_contacts")
-      .update({
-        status: "calling",
-        calling_since: now.toISOString(),
-        last_called_at: now.toISOString(),
-        attempts: contact.attempts + 1,
-      })
-      .eq("id", contact.id)
-      .eq("status", "pending")
-      .select("id")
-      .maybeSingle();
-    if (!claimed) continue;
-
-    try {
-      const callId = await placeCall(contact.phone_number);
-      await supabase.from("outbound_campaign_contacts").update({ vapi_call_id: callId }).eq("id", contact.id);
-      result.dialed += 1;
-    } catch (err) {
-      const reason = String(err);
-      console.error("Outbound call refused:", reason);
-      await settleFailedAttempt(supabase, campaign, contact.id, contact.attempts + 1, reason, now);
-      result.failed += 1;
+    // On the do-not-call list: never dialled, and never retried.
+    if (blocked.has(contact.phone_number)) {
+      await supabase
+        .from("outbound_campaign_contacts")
+        .update({
+          status: "failed",
+          outcome: "do_not_call",
+          failure_reason: "Nummeret står på spærrelisten",
+          next_attempt_at: null,
+        })
+        .eq("id", contact.id)
+        .eq("status", "pending");
+      result.suppressed += 1;
+      continue;
     }
+
+    if (await dialContact(supabase, campaign, contact, placeCall, now)) result.dialed += 1;
+    else result.failed += 1;
   }
 
   return result;
+}
+
+// Claims one contact and rings it. Claimed before dialling, and only if
+// still pending — two ticks (or a tick and a "test with one lead") must
+// never ring the same person twice. Returns false when the call was
+// refused or the contact was already taken.
+async function dialContact(
+  supabase: ReturnType<typeof getAdminClient>,
+  campaign: CampaignRow,
+  contact: DialContact,
+  placeCall: (contact: DialContact) => Promise<string>,
+  now: Date
+): Promise<boolean> {
+  const { data: claimed } = await supabase
+    .from("outbound_campaign_contacts")
+    .update({
+      status: "calling",
+      calling_since: now.toISOString(),
+      last_called_at: now.toISOString(),
+      attempts: contact.attempts + 1,
+    })
+    .eq("id", contact.id)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+  if (!claimed) return false;
+
+  try {
+    const callId = await placeCall(contact);
+    await supabase.from("outbound_campaign_contacts").update({ vapi_call_id: callId }).eq("id", contact.id);
+    return true;
+  } catch (err) {
+    const reason = String(err);
+    console.error("Outbound call refused:", reason);
+    await settleFailedAttempt(supabase, campaign, contact.id, contact.attempts + 1, reason, now);
+    return false;
+  }
+}
+
+// "Test med ét lead": rings exactly one contact now, before the campaign is
+// launched — so the customer hears the agent on a real call first. Same
+// claim, same provider and same billing as the queue; the calling window,
+// the do-not-call list and the balance are checked by the caller.
+export async function dialSingleContact(campaignId: string, contactId: string, now: Date = new Date()): Promise<void> {
+  const supabase = getAdminClient();
+  const { data: campaign } = await supabase
+    .from("outbound_campaigns")
+    .select(
+      "id, status, customer_id, widget_id, phone_number_id, agent_instruction, voicemail_message, call_window_start, call_window_end, call_days, call_timezone, max_concurrent_calls, max_attempts, retry_after_minutes"
+    )
+    .eq("id", campaignId)
+    .maybeSingle<CampaignRow>();
+  if (!campaign) throw new Error("Campaign not found");
+
+  const { data: contact } = await supabase
+    .from("outbound_campaign_contacts")
+    .select(CONTACT_COLUMNS)
+    .eq("id", contactId)
+    .eq("campaign_id", campaignId)
+    .maybeSingle<DialContact>();
+  if (!contact) throw new Error("Contact not found");
+
+  const placeCall = await resolveDialer(supabase, campaign);
+  const ok = await dialContact(supabase, campaign, contact, placeCall, now);
+  if (!ok) {
+    const { data: after } = await supabase
+      .from("outbound_campaign_contacts")
+      .select("failure_reason")
+      .eq("id", contactId)
+      .maybeSingle();
+    throw new Error(after?.failure_reason ?? "Opkaldet kunne ikke startes");
+  }
 }
 
 // A refusal is only final once the campaign has no attempts left. Anything
@@ -265,7 +366,7 @@ async function settleFailedAttempt(
 async function resolveDialer(
   supabase: ReturnType<typeof getAdminClient>,
   campaign: CampaignRow
-): Promise<(to: string) => Promise<string>> {
+): Promise<(contact: DialContact) => Promise<string>> {
   const { data: phoneNumber } = await supabase
     .from("phone_numbers")
     .select("phone_number, vapi_phone_number_id")
@@ -275,10 +376,10 @@ async function resolveDialer(
 
   if (await widgetDialsThroughTwilio(campaign.widget_id)) {
     const credentials = await getOrCreateSubaccount(campaign.customer_id);
-    return async (to: string) =>
+    return async (contact: DialContact) =>
       (
         await createTwilioOutboundCall(credentials, {
-          to,
+          to: contact.phone_number,
           from: phoneNumber.phone_number,
           voiceUrl: twilioWebhookUrls().outboundStart,
           statusCallbackUrl: twilioWebhookUrls().status,
@@ -294,12 +395,20 @@ async function resolveDialer(
   const assistantId = outboundAssistantId((settings?.extra as Record<string, unknown> | null) ?? {});
   if (!assistantId) throw new Error("Denne agent har ikke en Vapi-assistent");
 
-  return async (to: string) =>
+  return async (contact: DialContact) =>
     (
       await createOutboundCall({
         assistantId,
         phoneNumberId: phoneNumber.vapi_phone_number_id!,
-        customerNumber: to,
+        customerNumber: contact.phone_number,
+        variables: leadVariables({
+          phone: contact.phone_number,
+          name: contact.contact_name,
+          company: contact.company,
+          email: contact.email,
+          customData: contact.custom_data,
+        }),
+        voicemailMessage: campaign.voicemail_message,
         // What this campaign is for, on top of the agent's own prompt. Only
         // for these calls — the assistant itself is never changed.
         campaignInstruction: campaign.agent_instruction,

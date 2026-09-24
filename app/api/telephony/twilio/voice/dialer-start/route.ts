@@ -3,6 +3,7 @@ import { getAdminClient } from "@/lib/database/admin";
 import { validateTwilioSignature, formDataToParams, getOrCreateSubaccount } from "@/lib/twilio";
 import { twilioWebhookUrls } from "@/lib/telephony/urls";
 import { buildDialResponse, buildSayAndHangupResponse, twimlResponseHeaders } from "@/lib/telephony/twiml";
+import { isSuppressed } from "@/lib/outbound/suppression";
 
 export const dynamic = "force-dynamic";
 
@@ -63,16 +64,70 @@ export async function POST(request: Request): Promise<NextResponse> {
     return xml(buildSayAndHangupResponse({ sayText: "Dette nummer kan ikke bruges til udgående opkald. Farvel." }));
   }
 
+  // Never ring a number on the customer's do-not-call list, or a lead marked
+  // as such — whatever the browser asked for.
+  if (await isSuppressed(customerId, to)) {
+    return xml(buildSayAndHangupResponse({ sayText: "Nummeret står på spærrelisten og kan ikke ringes op. Farvel." }));
+  }
+
+  let listId: string | null = null;
   if (leadId) {
-    await supabase
+    const { data: lead } = await supabase
       .from("leads")
-      .update({ status: "calling", called_at: new Date().toISOString() })
+      .select("id, list_id, status, attempt_count")
       .eq("id", leadId)
-      .eq("customer_id", customerId);
+      .eq("customer_id", customerId)
+      .maybeSingle();
+    if (lead?.status === "do_not_call") {
+      return xml(buildSayAndHangupResponse({ sayText: "Denne kontakt må ikke ringes op. Farvel." }));
+    }
+    if (lead) {
+      listId = lead.list_id;
+      await supabase
+        .from("leads")
+        .update({
+          status: "calling",
+          called_at: new Date().toISOString(),
+          call_sid: formParams.CallSid ?? null,
+          attempt_count: (lead.attempt_count ?? 0) + 1,
+        })
+        .eq("id", leadId)
+        .eq("customer_id", customerId);
+    }
+  }
+
+  // The call's own record — its history, outcome and recording hang off
+  // this row. Keyed on the browser leg's CallSid, which the dialled leg
+  // reports back as ParentCallSid; a redelivered request is a no-op.
+  const callSid = formParams.CallSid;
+  if (callSid) {
+    const identity = (formParams.From ?? "").replace(/^client:/, "");
+    const userId = identity.startsWith("dialer-") ? identity.slice("dialer-".length) : null;
+    const { error: callError } = await supabase.from("dialer_calls").upsert(
+      {
+        customer_id: customerId,
+        lead_id: leadId,
+        list_id: listId,
+        user_id: userId && /^[0-9a-f-]{36}$/i.test(userId) ? userId : null,
+        twilio_call_sid: callSid,
+        from_number: callerId,
+        to_number: to,
+        status: "initiated",
+      },
+      { onConflict: "twilio_call_sid", ignoreDuplicates: true }
+    );
+    if (callError) console.error("[dialer-start] could not record call:", callError.message);
   }
 
   const statusQs = `customerId=${encodeURIComponent(customerId)}${leadId ? `&leadId=${encodeURIComponent(leadId)}` : ""}`;
   const statusCallbackUrl = `${twilioWebhookUrls().dialerStatus}?${statusQs}`;
 
-  return xml(buildDialResponse({ to, callerId, statusCallbackUrl }));
+  // Recording is opt-in per call (the "Optag samtalen" switch in the
+  // dialer), never the default.
+  const recordingStatusCallbackUrl =
+    formParams.Record === "true" && callSid
+      ? `${twilioWebhookUrls().dialerRecording}?customerId=${encodeURIComponent(customerId)}&callSid=${encodeURIComponent(callSid)}`
+      : undefined;
+
+  return xml(buildDialResponse({ to, callerId, statusCallbackUrl, recordingStatusCallbackUrl }));
 }

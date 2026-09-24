@@ -6,6 +6,7 @@ import { settingsToDbRow, windowIssue } from "@/lib/outbound/settings";
 import { campaignStatsFor, EMPTY_STATS } from "@/lib/outbound/stats";
 import { outboundNumberIssue } from "@/lib/phone-numbers";
 import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
+import { suppressedNumbers } from "@/lib/outbound/suppression";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -85,14 +86,52 @@ export const POST = withErrorHandling(async (request) => {
 
   if (error) throw error;
 
-  const { error: contactsError } = await supabase.from("outbound_campaign_contacts").insert(
-    body.contacts.map((contact) => ({
+  let contactRows: Record<string, unknown>[];
+  if (body.leadListId) {
+    const { data: list } = await supabase
+      .from("lead_lists")
+      .select("id, customer_id")
+      .eq("id", body.leadListId)
+      .maybeSingle();
+    if (!list || list.customer_id !== customerId) {
+      await supabase.from("outbound_campaigns").delete().eq("id", campaign.id);
+      throw ApiError.notFound("Lead list not found");
+    }
+    const { data: leads, error: leadsError } = await supabase
+      .from("leads")
+      .select("phone_number, contact_name, company, email, custom_data, status")
+      .eq("list_id", list.id)
+      .eq("customer_id", customerId)
+      .neq("status", "do_not_call")
+      .order("created_at", { ascending: true })
+      .limit(5000);
+    if (leadsError) throw leadsError;
+    const blocked = await suppressedNumbers(customerId, (leads ?? []).map((lead) => lead.phone_number));
+    const seen = new Set<string>();
+    contactRows = (leads ?? [])
+      .filter((lead) => !blocked.has(lead.phone_number) && !seen.has(lead.phone_number) && seen.add(lead.phone_number))
+      .map((lead) => ({
+        campaign_id: campaign.id,
+        phone_number: lead.phone_number,
+        contact_name: lead.contact_name,
+        company: lead.company,
+        email: lead.email,
+        custom_data: lead.custom_data ?? {},
+      }));
+    if (contactRows.length === 0) {
+      await supabase.from("outbound_campaigns").delete().eq("id", campaign.id);
+      throw ApiError.badRequest("Listen har ingen leads, der må ringes op.");
+    }
+  } else {
+    contactRows = body.contacts!.map((contact) => ({
       campaign_id: campaign.id,
       phone_number: contact.phoneNumber,
       contact_name: contact.name ?? null,
       company: contact.company ?? null,
-    }))
-  );
+    }));
+  }
+
+  const { error: contactsError } = await supabase.from("outbound_campaign_contacts").insert(contactRows);
 
   if (contactsError) {
     // Don't leave an empty campaign behind if the contact list failed to save.
@@ -107,7 +146,7 @@ export const POST = withErrorHandling(async (request) => {
     action: "outbound_campaign.created",
     entityType: "outbound_campaign",
     entityId: campaign.id,
-    metadata: { contactCount: body.contacts.length },
+    metadata: { contactCount: contactRows.length, leadListId: body.leadListId ?? null },
   });
 
   return NextResponse.json({ campaign }, { status: 201 });

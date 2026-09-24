@@ -6,7 +6,7 @@
 // having failed to reach anyone. Four files need to agree on what each state
 // permits, and they drift the moment each decides for itself.
 
-export const CAMPAIGN_STATUSES = ["draft", "running", "paused", "completed", "failed"] as const;
+export const CAMPAIGN_STATUSES = ["draft", "running", "paused", "completed", "failed", "cancelled"] as const;
 
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 
@@ -28,6 +28,12 @@ export function canPause(status: CampaignStatus): boolean {
 
 export function canResume(status: CampaignStatus): boolean {
   return status === "paused";
+}
+
+// Stopping ends a campaign for good: nothing further is dialled, and it
+// cannot be resumed. A call already in progress finishes as usual.
+export function canStop(status: CampaignStatus): boolean {
+  return status === "running" || status === "paused";
 }
 
 // What a campaign may still be changed to say.

@@ -9,33 +9,41 @@ export interface CreateOutboundCallParams {
   // for these calls only — the assistant itself is never touched, so the
   // agent that answers the phone is unaffected by a campaign's wording.
   campaignInstruction?: string | null;
+  // The lead's own fields — name, company and every extra CSV column — so
+  // the agent's prompt can say "{{name}}" and "{{company}}" (Vapi fills
+  // {{…}} placeholders from variableValues). See lib/outbound/csv.ts.
+  variables?: Record<string, string>;
+  // Spoken instead of a conversation when the call reaches a voicemail box.
+  // Unset leaves the assistant's own voicemail behaviour as it is.
+  voicemailMessage?: string | null;
 }
 
 export async function createOutboundCall(params: CreateOutboundCallParams): Promise<{ id: string }> {
   const instruction = params.campaignInstruction?.trim();
+  const voicemailMessage = params.voicemailMessage?.trim();
+  const variables = params.variables && Object.keys(params.variables).length > 0 ? params.variables : null;
+
+  const assistantOverrides: Record<string, unknown> = {};
+  if (instruction) {
+    // Appended, not replaced: the agent keeps its own prompt, knowledge and
+    // manner, and this says what it is ringing about.
+    assistantOverrides.model = {
+      messages: [{ role: "system", content: `### Formålet med dette opkald\n${instruction}` }],
+    };
+  }
+  if (variables) assistantOverrides.variableValues = variables;
+  if (voicemailMessage) assistantOverrides.voicemailMessage = voicemailMessage;
 
   const response = await vapiFetch("/call", {
     method: "POST",
     body: JSON.stringify({
       assistantId: params.assistantId,
       phoneNumberId: params.phoneNumberId,
-      customer: { number: params.customerNumber },
-      ...(instruction
-        ? {
-            assistantOverrides: {
-              // Appended, not replaced: the agent keeps its own prompt,
-              // knowledge and manner, and this says what it is ringing about.
-              model: {
-                messages: [
-                  {
-                    role: "system",
-                    content: `### Formålet med dette opkald\n${instruction}`,
-                  },
-                ],
-              },
-            },
-          }
-        : {}),
+      customer: {
+        number: params.customerNumber,
+        ...(variables?.name ? { name: variables.name.slice(0, 40) } : {}),
+      },
+      ...(Object.keys(assistantOverrides).length > 0 ? { assistantOverrides } : {}),
     }),
   });
   const data = (await response.json()) as { id: string };

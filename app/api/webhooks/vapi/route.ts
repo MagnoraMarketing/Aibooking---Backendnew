@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { campaignCallOutcome } from "@/lib/outbound/outcome";
 import { getAdminClient } from "@/lib/database/admin";
 import { deductPhoneCallCost } from "@/lib/credits";
 import { executeBookingTool, resolveToolContext } from "@/lib/vapi/booking-tools";
@@ -76,16 +77,40 @@ const NO_ANSWER_REASONS = /no-answer|busy|voicemail|customer-did-not-answer|fail
 async function settleCampaignContact(
   supabase: SupabaseAdmin,
   contactId: string,
-  endedReason: unknown
+  endedReason: unknown,
+  analysis: unknown
 ): Promise<void> {
   const reason = typeof endedReason === "string" ? endedReason : "";
   const answered = !NO_ANSWER_REASONS.test(reason);
+  const outcome = campaignCallOutcome(endedReason, analysis);
+  const summaryValue = (analysis as { summary?: unknown } | null)?.summary;
+  const summary = typeof summaryValue === "string" ? summaryValue.slice(0, 4000) : null;
 
   if (answered) {
-    await supabase
+    const { data: settled } = await supabase
       .from("outbound_campaign_contacts")
-      .update({ status: "completed", next_attempt_at: null, calling_since: null })
-      .eq("id", contactId);
+      .update({ status: "completed", next_attempt_at: null, calling_since: null, outcome, summary })
+      .eq("id", contactId)
+      .select("phone_number, campaign_id")
+      .maybeSingle();
+
+    // The person asked not to be called again: honour it customer-wide, not
+    // just in this campaign.
+    if (outcome === "do_not_call" && settled) {
+      const { data: campaign } = await supabase
+        .from("outbound_campaigns")
+        .select("customer_id")
+        .eq("id", settled.campaign_id)
+        .maybeSingle();
+      if (campaign) {
+        await supabase
+          .from("do_not_call_numbers")
+          .upsert(
+            { customer_id: campaign.customer_id, phone_number: settled.phone_number, reason: "Bad AI-agenten om ikke at blive ringet op" },
+            { onConflict: "customer_id,phone_number", ignoreDuplicates: true }
+          );
+      }
+    }
     return;
   }
 
@@ -113,6 +138,7 @@ async function settleCampaignContact(
         failure_reason: reason || "Opkaldet blev ikke besvaret",
         next_attempt_at: null,
         calling_since: null,
+        outcome,
       })
       .eq("id", contactId);
     return;
@@ -127,6 +153,7 @@ async function settleCampaignContact(
       failure_reason: reason || "Opkaldet blev ikke besvaret",
       next_attempt_at: new Date(Date.now() + campaign.retry_after_minutes * 60_000).toISOString(),
       calling_since: null,
+      outcome,
     })
     .eq("id", contactId);
 }
@@ -242,7 +269,7 @@ async function recordAndBillCall(supabase: SupabaseAdmin, message: Record<string
   }
 
   if (contact) {
-    await settleCampaignContact(supabase, contact.id, message.endedReason);
+    await settleCampaignContact(supabase, contact.id, message.endedReason, message.analysis);
   }
 
   // What makes the Samtaledetaljer tabs show anything: the transcript,

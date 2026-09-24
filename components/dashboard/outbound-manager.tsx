@@ -21,6 +21,9 @@ interface OutboundManagerProps {
   // through Vapi — they can only call from a Twilio number. Resolved on the
   // server, where the llm_models row is (see lib/widgets/provider.ts).
   twilioDirectWidgetIds: string[];
+  // The dialer's lead lists, so a campaign can take its contacts (with every
+  // extra CSV column as an agent variable) from one of them.
+  leadLists: { id: string; name: string; count: number }[];
 }
 
 // How often the overview re-reads itself while a campaign is being dialled.
@@ -70,6 +73,7 @@ interface CampaignSettings {
   maxConcurrentCalls: number;
   maxAttempts: number;
   retryAfterMinutes: number;
+  voicemailMessage: string;
 }
 
 const DEFAULT_SETTINGS: CampaignSettings = {
@@ -80,6 +84,7 @@ const DEFAULT_SETTINGS: CampaignSettings = {
   maxConcurrentCalls: 3,
   maxAttempts: 1,
   retryAfterMinutes: 60,
+  voicemailMessage: "",
 };
 
 // Postgres hands a `time` column back as "09:00:00".
@@ -92,6 +97,7 @@ function settingsOf(campaign: CampaignRow): CampaignSettings {
     maxConcurrentCalls: campaign.max_concurrent_calls,
     maxAttempts: campaign.max_attempts,
     retryAfterMinutes: campaign.retry_after_minutes,
+    voicemailMessage: campaign.voicemail_message ?? "",
   };
 }
 
@@ -104,6 +110,7 @@ function settingsBody(settings: CampaignSettings) {
     maxConcurrentCalls: settings.maxConcurrentCalls,
     maxAttempts: settings.maxAttempts,
     retryAfterMinutes: settings.retryAfterMinutes,
+    voicemailMessage: settings.voicemailMessage.trim() || null,
   };
 }
 
@@ -123,6 +130,7 @@ export function OutboundManager({
   phoneNumbers,
   initialCampaigns,
   twilioDirectWidgetIds,
+  leadLists,
 }: OutboundManagerProps) {
   const { t } = useTranslation();
   const [campaigns, setCampaigns] = useState(initialCampaigns);
@@ -131,6 +139,9 @@ export function OutboundManager({
   const [phoneNumberId, setPhoneNumberId] = useState("");
   const [name, setName] = useState("");
   const [contactsRaw, setContactsRaw] = useState("");
+  // Where a new campaign's contacts come from: pasted lines, or a lead list.
+  const [contactSource, setContactSource] = useState<"paste" | "list">("paste");
+  const [leadListId, setLeadListId] = useState(leadLists[0]?.id ?? "");
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +208,7 @@ export function OutboundManager({
   }
 
   async function handleCreate() {
+    const fromList = !editingId && contactSource === "list";
     const contacts = parseContacts(contactsRaw);
     if (!name.trim()) {
       setError(t("dashboardPages.outbound.errorCampaignName"));
@@ -206,11 +218,15 @@ export function OutboundManager({
       setError(t("dashboardPages.outbound.errorChooseNumber"));
       return;
     }
-    if (contacts.length === 0) {
+    if (fromList && !leadListId) {
+      setError(t("dashboardPages.outbound.errorChooseLeadList"));
+      return;
+    }
+    if (!fromList && contacts.length === 0) {
       setError(t("dashboardPages.outbound.errorAtLeastOneContact"));
       return;
     }
-    if (contacts.length > 100) {
+    if (!fromList && contacts.length > 100) {
       setError(t("dashboardPages.outbound.errorMaxContacts"));
       return;
     }
@@ -232,7 +248,7 @@ export function OutboundManager({
     const body = {
       ...(agentAndNumberEditable ? { widgetId, phoneNumberId } : {}),
       name: name.trim(),
-      contacts,
+      ...(fromList ? { leadListId } : { contacts }),
       ...settingsBody(settings),
     };
     const res = await fetch(
@@ -352,7 +368,8 @@ export function OutboundManager({
 
   // Pausing stops new calls from starting. A call already on the line is
   // left alone — see the campaign's status route.
-  async function handleStatus(campaignId: string, action: "pause" | "resume") {
+  async function handleStatus(campaignId: string, action: "pause" | "resume" | "stop") {
+    if (action === "stop" && !window.confirm(t("dashboardPages.outbound.stopConfirm"))) return;
     setBusyId(campaignId);
     setError(null);
 
@@ -373,8 +390,30 @@ export function OutboundManager({
     setNotice(
       action === "pause"
         ? t("dashboardPages.outbound.pausedNotice")
-        : t("dashboardPages.outbound.resumedNotice")
+        : action === "stop"
+          ? t("dashboardPages.outbound.stoppedNotice")
+          : t("dashboardPages.outbound.resumedNotice")
     );
+    await refresh();
+  }
+
+  // Exactly one real call, before the campaign goes out to everyone.
+  async function handleTest(campaignId: string) {
+    setBusyId(campaignId);
+    setError(null);
+    const res = await fetch(`/api/customer/outbound-campaigns/${campaignId}/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    setBusyId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setError(data?.error?.message ?? t("dashboardPages.outbound.errorStatusChange"));
+      return;
+    }
+    const data = (await res.json()) as { phoneNumber: string };
+    setNotice(t("dashboardPages.outbound.testCallStarted", { number: data.phoneNumber }));
     await refresh();
   }
 
@@ -388,6 +427,8 @@ export function OutboundManager({
         onResume={() => void handleStatus(campaign.id, "resume")}
         onEdit={() => void startEditing(campaign)}
         onDelete={() => void handleDelete(campaign.id)}
+        onStop={() => void handleStatus(campaign.id, "stop")}
+        onTest={() => void handleTest(campaign.id)}
       />
     );
   }
@@ -508,6 +549,43 @@ export function OutboundManager({
             </div>
           </div>
 
+          {!editingId && leadLists.length > 0 ? (
+            <div className="flex gap-2">
+              {(["paste", "list"] as const).map((source) => (
+                <button
+                  key={source}
+                  type="button"
+                  onClick={() => setContactSource(source)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    contactSource === source ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {t(source === "paste" ? "dashboardPages.outbound.sourcePaste" : "dashboardPages.outbound.sourceLeadList")}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {!editingId && contactSource === "list" && leadLists.length > 0 ? (
+            <div>
+              <label htmlFor="campaign-lead-list" className="mb-1 block text-sm font-medium text-slate-700">
+                {t("dashboardPages.outbound.leadListLabel")}
+              </label>
+              <select
+                id="campaign-lead-list"
+                value={leadListId}
+                onChange={(e) => setLeadListId(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              >
+                {leadLists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.name} ({list.count})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.leadListHelp")}</p>
+            </div>
+          ) : (
           <div>
             <label htmlFor="campaign-contacts" className="mb-1 block text-sm font-medium text-slate-700">
               {t("dashboardPages.outbound.contactsLabel")}
@@ -522,6 +600,7 @@ export function OutboundManager({
             />
             <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.contactsHelp")}</p>
           </div>
+          )}
 
           {/* The settings. Defaults are deliberately conservative — weekdays
               09–17, three at a time, one attempt — because every one of them
@@ -542,6 +621,22 @@ export function OutboundManager({
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               />
               <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.agentInstructionHelp")}</p>
+              <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.variablesHelp")}</p>
+            </div>
+
+            <div>
+              <label htmlFor="campaign-voicemail" className="mb-1 block text-sm font-medium text-slate-700">
+                {t("dashboardPages.outbound.voicemailLabel")}
+              </label>
+              <textarea
+                id="campaign-voicemail"
+                rows={2}
+                value={settings.voicemailMessage}
+                onChange={(e) => setSettings((prev) => ({ ...prev, voicemailMessage: e.target.value }))}
+                placeholder={t("dashboardPages.outbound.voicemailPlaceholder")}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              />
+              <p className="mt-1 text-xs text-slate-500">{t("dashboardPages.outbound.voicemailHelp")}</p>
             </div>
 
             <div>

@@ -20,6 +20,12 @@ export interface CampaignStats {
   failed: number;
   durationSeconds: number;
   lastCallAt: string | null;
+  // Ringing right now.
+  calling: number;
+  // What the calls came to (outbound_campaign_contacts.outcome, set by the
+  // Vapi webhook — see lib/outbound/outcome.ts). A contact that is retried
+  // counts under its latest outcome.
+  outcomes: Record<string, number>;
 }
 
 export const EMPTY_STATS: CampaignStats = {
@@ -30,6 +36,8 @@ export const EMPTY_STATS: CampaignStats = {
   failed: 0,
   durationSeconds: 0,
   lastCallAt: null,
+  calling: 0,
+  outcomes: {},
 };
 
 export async function campaignStatsFor(
@@ -38,11 +46,11 @@ export async function campaignStatsFor(
 ): Promise<Record<string, CampaignStats>> {
   const stats: Record<string, CampaignStats> = {};
   if (campaignIds.length === 0) return stats;
-  for (const id of campaignIds) stats[id] = { ...EMPTY_STATS };
+  for (const id of campaignIds) stats[id] = { ...EMPTY_STATS, outcomes: {} };
 
   const { data: contacts } = await supabase
     .from("outbound_campaign_contacts")
-    .select("id, campaign_id, status, last_called_at")
+    .select("id, campaign_id, status, last_called_at, outcome")
     .in("campaign_id", campaignIds);
 
   // Maps a contact back to its campaign, so the call rows — which know the
@@ -65,7 +73,10 @@ export async function campaignStatsFor(
       row.failed += 1;
     } else if (contact.status === "pending") {
       row.pending += 1;
+    } else if (contact.status === "calling") {
+      row.calling += 1;
     }
+    if (contact.outcome) row.outcomes[contact.outcome] = (row.outcomes[contact.outcome] ?? 0) + 1;
 
     if (contact.last_called_at && (!row.lastCallAt || contact.last_called_at > row.lastCallAt)) {
       row.lastCallAt = contact.last_called_at;

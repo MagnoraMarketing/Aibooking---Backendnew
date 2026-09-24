@@ -395,15 +395,18 @@ export interface LeadList {
   created_at: string;
 }
 
-export type LeadStatus = "pending" | "calling" | "called";
+export type LeadStatus = "pending" | "calling" | "called" | "callback" | "do_not_call";
 export type LeadDisposition =
   | "booked"
   | "interested"
   | "not_interested"
   | "no_answer"
+  | "busy"
   | "voicemail"
   | "wrong_number"
-  | "call_back";
+  | "call_back"
+  | "do_not_call"
+  | "other";
 
 export interface Lead {
   id: string;
@@ -412,12 +415,42 @@ export interface Lead {
   phone_number: string;
   contact_name: string | null;
   company: string | null;
+  email: string | null;
+  // Every CSV column that isn't one of the fields above, under its header —
+  // see lib/outbound/csv.ts.
+  custom_data: Record<string, string>;
   notes: string | null;
   status: LeadStatus;
   disposition: LeadDisposition | null;
   call_sid: string | null;
   duration_seconds: number | null;
   called_at: string | null;
+  attempt_count: number;
+  next_call_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// One manual browser call (0047_outbound_dialer_v2.sql).
+export interface DialerCall {
+  id: string;
+  customer_id: string;
+  lead_id: string | null;
+  list_id: string | null;
+  user_id: string | null;
+  twilio_call_sid: string;
+  from_number: string;
+  to_number: string;
+  status: string;
+  duration_seconds: number | null;
+  recording_sid: string | null;
+  recording_status: string | null;
+  recording_duration_seconds: number | null;
+  outcome: string | null;
+  notes: string | null;
+  started_at: string;
+  answered_at: string | null;
+  ended_at: string | null;
   created_at: string;
 }
 
