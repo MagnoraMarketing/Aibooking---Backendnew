@@ -5,6 +5,7 @@ import { deductPhoneCallCost } from "@/lib/credits";
 import { executeBookingTool, resolveToolContext } from "@/lib/vapi/booking-tools";
 import { findWidgetIdForAssistant } from "@/lib/vapi/assistant-owner";
 import { executeShopifyTool, isShopifyToolName } from "@/lib/shopify/agent-tools";
+import { settleCampaignContact, vapiCallWasAnswered } from "@/lib/outbound/settle";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -63,74 +64,6 @@ async function resolveCallOwner(
   return { id: phoneNumberRow.widget_id, customer_id: phoneNumberRow.customer_id };
 }
 
-// Vapi's reasons for a call that never became a conversation. A campaign
-// that asked for retries wants these tried again; a call the person actually
-// took is done regardless of how it ended.
-const NO_ANSWER_REASONS = /no-answer|busy|voicemail|customer-did-not-answer|failed|rejected|declined|unreachable/i;
-
-// Closes out a campaign contact once its call has ended.
-//
-// Every ended call used to mark the contact "completed", which made "we rang
-// and nobody picked up" indistinguishable from "we spoke to them" — and made
-// the retry setting a lie, because there was never anything left to retry.
-async function settleCampaignContact(
-  supabase: SupabaseAdmin,
-  contactId: string,
-  endedReason: unknown
-): Promise<void> {
-  const reason = typeof endedReason === "string" ? endedReason : "";
-  const answered = !NO_ANSWER_REASONS.test(reason);
-
-  if (answered) {
-    await supabase
-      .from("outbound_campaign_contacts")
-      .update({ status: "completed", next_attempt_at: null, calling_since: null })
-      .eq("id", contactId);
-    return;
-  }
-
-  const { data: contact } = await supabase
-    .from("outbound_campaign_contacts")
-    .select("attempts, campaign_id")
-    .eq("id", contactId)
-    .maybeSingle();
-  const { data: campaign } = contact
-    ? await supabase
-        .from("outbound_campaigns")
-        .select("max_attempts, retry_after_minutes")
-        .eq("id", contact.campaign_id)
-        .maybeSingle()
-    : { data: null };
-
-  const attempts = contact?.attempts ?? 1;
-  const maxAttempts = campaign?.max_attempts ?? 1;
-
-  if (!campaign || attempts >= maxAttempts) {
-    await supabase
-      .from("outbound_campaign_contacts")
-      .update({
-        status: "failed",
-        failure_reason: reason || "Opkaldet blev ikke besvaret",
-        next_attempt_at: null,
-        calling_since: null,
-      })
-      .eq("id", contactId);
-    return;
-  }
-
-  // Back in the queue. The dialer moves it again if the retry lands outside
-  // the campaign's hours, so nothing here has to know about the window.
-  await supabase
-    .from("outbound_campaign_contacts")
-    .update({
-      status: "pending",
-      failure_reason: reason || "Opkaldet blev ikke besvaret",
-      next_attempt_at: new Date(Date.now() + campaign.retry_after_minutes * 60_000).toISOString(),
-      calling_since: null,
-    })
-    .eq("id", contactId);
-}
-
 // Ties the call to the conversation the dashboard lists it as.
 //
 // Vapi's script-tag SDK does not hand the call id to its call-start
@@ -184,7 +117,25 @@ async function recordAndBillCall(supabase: SupabaseAdmin, message: Record<string
   const assistantId = call?.assistantId;
   const durationSeconds = Math.round(Number(message.durationSeconds) || 0);
 
-  if (!callId || !assistantId || durationSeconds <= 0) return;
+  if (!callId || !assistantId) return;
+
+  // A campaign call nobody picked up reports zero seconds — nothing to bill
+  // or record, but its contact still has to leave "calling", or the retry
+  // never happens and the campaign never finishes.
+  if (durationSeconds <= 0) {
+    const { data: unansweredContact } = await supabase
+      .from("outbound_campaign_contacts")
+      .select("id")
+      .eq("vapi_call_id", callId)
+      .maybeSingle();
+    if (unansweredContact) {
+      await settleCampaignContact(supabase, unansweredContact.id, {
+        answered: false,
+        reason: typeof message.endedReason === "string" ? message.endedReason : "",
+      });
+    }
+    return;
+  }
 
   // Idempotency: Vapi can redeliver webhooks, and phone_calls.vapi_call_id
   // is unique — never double-bill the same call.
@@ -242,7 +193,10 @@ async function recordAndBillCall(supabase: SupabaseAdmin, message: Record<string
   }
 
   if (contact) {
-    await settleCampaignContact(supabase, contact.id, message.endedReason);
+    await settleCampaignContact(supabase, contact.id, {
+      answered: vapiCallWasAnswered(message.endedReason),
+      reason: typeof message.endedReason === "string" ? message.endedReason : "",
+    });
   }
 
   // What makes the Samtaledetaljer tabs show anything: the transcript,
