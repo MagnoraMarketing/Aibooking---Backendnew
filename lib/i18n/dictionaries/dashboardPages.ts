@@ -3081,6 +3081,14 @@ export const dashboardPages: Namespace = {
     pt: "Entrar no painel →",
     de: "Zum Dashboard anmelden →",
   },
+  "home.marketingSiteLink": {
+    da: "Læs mere om AI-receptionister og AI-booking på aibooking.dk →",
+    en: "Learn more about AI receptionists and AI booking at aibooking.dk →",
+    es: "Más información sobre recepcionistas con IA y reservas con IA en aibooking.dk →",
+    fr: "En savoir plus sur les réceptionnistes IA et la réservation IA sur aibooking.dk →",
+    pt: "Saiba mais sobre rececionistas com IA e reservas com IA em aibooking.dk →",
+    de: "Mehr über KI-Rezeptionisten und KI-Buchung auf aibooking.dk →",
+  },
   "home.signupLink": {
     da: "Opret konto →",
     en: "Create account →",
