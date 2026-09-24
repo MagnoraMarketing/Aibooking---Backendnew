@@ -11,8 +11,42 @@ export interface CreateOutboundCallParams {
   campaignInstruction?: string | null;
 }
 
+// The campaign's purpose as an addition to the assistant's own model.
+//
+// Vapi replaces `assistantOverrides.model` wholesale rather than merging it
+// into the assistant's, so an override carrying only `messages` was refused
+// outright ("model.provider must be one of…") — every campaign with an
+// instruction failed every call. And had it been accepted, those messages
+// would have replaced the agent's own prompt, not added to it. So the
+// assistant's current model is read and sent back whole, with the
+// campaign's message appended after its own.
+//
+// Null when the assistant's model can't be read: the call then goes out on
+// the agent's own prompt alone, which is better than not going out at all.
+async function modelWithCampaignInstruction(
+  assistantId: string,
+  instruction: string
+): Promise<Record<string, unknown> | null> {
+  try {
+    const response = await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, { method: "GET" });
+    const assistant = (await response.json()) as { model?: Record<string, unknown> };
+    const model = assistant.model;
+    if (!model || typeof model.provider !== "string" || typeof model.model !== "string") return null;
+
+    const messages = Array.isArray(model.messages) ? model.messages : [];
+    return {
+      ...model,
+      messages: [...messages, { role: "system", content: `### Formålet med dette opkald\n${instruction}` }],
+    };
+  } catch (err) {
+    console.error(`Could not read Vapi assistant ${assistantId} for a campaign instruction:`, String(err));
+    return null;
+  }
+}
+
 export async function createOutboundCall(params: CreateOutboundCallParams): Promise<{ id: string }> {
   const instruction = params.campaignInstruction?.trim();
+  const model = instruction ? await modelWithCampaignInstruction(params.assistantId, instruction) : null;
 
   const response = await vapiFetch("/call", {
     method: "POST",
@@ -20,22 +54,7 @@ export async function createOutboundCall(params: CreateOutboundCallParams): Prom
       assistantId: params.assistantId,
       phoneNumberId: params.phoneNumberId,
       customer: { number: params.customerNumber },
-      ...(instruction
-        ? {
-            assistantOverrides: {
-              // Appended, not replaced: the agent keeps its own prompt,
-              // knowledge and manner, and this says what it is ringing about.
-              model: {
-                messages: [
-                  {
-                    role: "system",
-                    content: `### Formålet med dette opkald\n${instruction}`,
-                  },
-                ],
-              },
-            },
-          }
-        : {}),
+      ...(model ? { assistantOverrides: { model } } : {}),
     }),
   });
   const data = (await response.json()) as { id: string };
