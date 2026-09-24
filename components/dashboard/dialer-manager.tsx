@@ -5,6 +5,7 @@ import type { Call, Device } from "@twilio/voice-sdk";
 import type { Lead, LeadDisposition } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import type { LeadListRow } from "@/app/dashboard/dialer/page";
+import { normalizeLeadPhoneNumber } from "@/lib/phone-numbers/normalize";
 
 interface DialerManagerProps {
   phoneNumbers: PhoneNumberRow[];
@@ -12,16 +13,28 @@ interface DialerManagerProps {
 }
 
 // One line per lead: "+4512345678" or "+4512345678, Navn" or
-// "+4512345678, Navn, Firma".
+// "+4512345678, Navn, Firma". Semicolons are accepted as the separator too
+// (Danish Excel exports CSV with ";"), and a header row without any digits
+// in its first column ("telefon;navn;firma") is skipped.
 function parseLeads(raw: string): { phoneNumber: string; name?: string; company?: string }[] {
   return raw
-    .split("\n")
+    .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [phoneNumber, name, company] = line.split(",").map((part) => part.trim());
-      return { phoneNumber: phoneNumber ?? "", name: name || undefined, company: company || undefined };
-    });
+      const [phoneNumber, name, company] = line.split(/[,;\t]/).map((part) => part.trim().replace(/^"|"$/g, ""));
+      return {
+        phoneNumber: normalizeLeadPhoneNumber(phoneNumber ?? ""),
+        name: name || undefined,
+        company: company || undefined,
+      };
+    })
+    .filter((lead) => /\d/.test(lead.phoneNumber));
+}
+
+async function readApiError(res: Response, fallback: string): Promise<string> {
+  const data = await res.json().catch(() => null);
+  return data?.error?.message ?? fallback;
 }
 
 const DISPOSITIONS: { value: LeadDisposition; label: string }[] = [
@@ -143,8 +156,7 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
     setUploading(false);
 
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setUploadError(data?.error?.message ?? "Kunne ikke oprette listen.");
+      setUploadError(await readApiError(res, "Kunne ikke oprette listen."));
       return;
     }
 
@@ -185,7 +197,7 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
     if (deviceRef.current) return deviceRef.current;
 
     const res = await fetch("/api/customer/dialer/token", { method: "POST" });
-    if (!res.ok) throw new Error("Kunne ikke hente adgangstoken til opkald.");
+    if (!res.ok) throw new Error(await readApiError(res, "Kunne ikke hente adgangstoken til opkald."));
     const { token } = (await res.json()) as { token: string };
 
     const Twilio = await loadTwilioSdk();
@@ -200,6 +212,13 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
     device.on("error", (err: { message?: string }) => {
       setCallError(err?.message ?? "Der opstod en fejl med telefonforbindelsen.");
       setCallState("idle");
+      // A device that errored (expired/rejected token, lost signalling) is
+      // not reused — the next "Ring op" fetches a fresh token and a fresh
+      // device instead of failing the same way again until a page reload.
+      if (deviceRef.current === device) {
+        deviceRef.current = null;
+        device.destroy?.();
+      }
     });
 
     deviceRef.current = device;

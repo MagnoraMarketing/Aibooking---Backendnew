@@ -1,9 +1,10 @@
 import "server-only";
 import { jwt } from "twilio";
 import { getAdminClient } from "@/lib/database/admin";
-import { twilioWebhookUrls } from "@/lib/telephony/urls";
+import { assertTwilioWebhookBaseUrlConfigured, twilioWebhookUrls } from "@/lib/telephony/urls";
 import { twilioFetch, type TwilioCredentials } from "./client";
 import { getOrCreateSubaccount } from "./subaccounts";
+import { ApiError } from "@/types/errors";
 
 const { AccessToken } = jwt;
 const { VoiceGrant } = AccessToken;
@@ -23,13 +24,33 @@ export interface DialerAppCredentials extends TwilioCredentials {
 // account (contrast lib/twilio/voice-token.ts, which mints tokens against
 // one platform-wide TwiML App for the widget's ConversationRelay flow) — so
 // a browser call placed here bills and shows caller ID under the
-// customer's own subaccount/number. Idempotent and cached on
-// twilio_subaccounts, mirroring getOrCreateSubaccount's own shape; a rare
-// double-provision race just leaves an extra unused Key/Application behind
-// on Twilio's side, harmless and not worth guarding against.
+// customer's own subaccount/number. Cached on twilio_subaccounts, mirroring
+// getOrCreateSubaccount's own shape; a rare double-provision race just
+// leaves an extra unused Key/Application behind on Twilio's side, harmless
+// and not worth guarding against.
+//
+// The cached pair is re-checked on every token mint rather than trusted
+// blindly. The Application's Voice Request URL is baked in at creation, so
+// a first dialer use while NEXT_PUBLIC_APP_URL still pointed somewhere else
+// (a preview deploy, localhost, a trailing slash) left every later call
+// dialing a URL that answers nothing or fails the signature check — the
+// browser just rang out with no error on our side. Re-asserting the URL
+// fixes that on the next token, and a Key or Application deleted in the
+// Twilio console (404) is provisioned again instead of producing tokens
+// Twilio rejects.
 export async function getOrCreateDialerApp(customerId: string): Promise<DialerAppCredentials> {
+  // Surfaced as-is in the dialer: without a public https base URL Twilio
+  // has nowhere to fetch dialer-start from, and "Something went wrong"
+  // would hide the one thing the admin needs to change.
+  try {
+    assertTwilioWebhookBaseUrlConfigured();
+  } catch (err) {
+    throw ApiError.internal(err instanceof Error ? err.message : String(err));
+  }
+
   const subaccount = await getOrCreateSubaccount(customerId);
   const supabase = getAdminClient();
+  const voiceUrl = `${twilioWebhookUrls().dialerStart}?customerId=${encodeURIComponent(customerId)}`;
 
   const { data: existing, error } = await supabase
     .from("twilio_subaccounts")
@@ -39,15 +60,29 @@ export async function getOrCreateDialerApp(customerId: string): Promise<DialerAp
   if (error) throw error;
 
   if (existing.dialer_api_key_sid && existing.dialer_api_key_secret && existing.dialer_twiml_app_sid) {
-    return {
-      ...subaccount,
-      apiKeySid: existing.dialer_api_key_sid,
-      apiKeySecret: existing.dialer_api_key_secret,
-      twimlAppSid: existing.dialer_twiml_app_sid,
-    };
-  }
+    const [keyResponse, appResponse] = await Promise.all([
+      twilioFetch(`/Keys/${existing.dialer_api_key_sid}.json`, subaccount, {}, { acceptStatuses: [404] }),
+      twilioFetch(
+        `/Applications/${existing.dialer_twiml_app_sid}.json`,
+        subaccount,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ VoiceUrl: voiceUrl, VoiceMethod: "POST" }),
+        },
+        { acceptStatuses: [404] }
+      ),
+    ]);
 
-  const voiceUrl = `${twilioWebhookUrls().dialerStart}?customerId=${encodeURIComponent(customerId)}`;
+    if (keyResponse.ok && appResponse.ok) {
+      return {
+        ...subaccount,
+        apiKeySid: existing.dialer_api_key_sid,
+        apiKeySecret: existing.dialer_api_key_secret,
+        twimlAppSid: existing.dialer_twiml_app_sid,
+      };
+    }
+  }
 
   const [keyResponse, appResponse] = await Promise.all([
     twilioFetch("/Keys.json", subaccount, {

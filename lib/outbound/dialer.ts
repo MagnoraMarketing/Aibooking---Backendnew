@@ -4,7 +4,7 @@ import { createOutboundCall } from "@/lib/vapi";
 import { outboundAssistantId } from "@/lib/vapi/assistant-owner";
 import { widgetDialsThroughTwilio } from "@/lib/widgets/provider";
 import { createTwilioOutboundCall, getOrCreateSubaccount } from "@/lib/twilio";
-import { twilioWebhookUrls } from "@/lib/telephony/urls";
+import { assertTwilioWebhookBaseUrlConfigured, twilioWebhookUrls } from "@/lib/telephony/urls";
 import { isWithinCallWindow, nextWindowOpening, parseWallClock, type CallWindow } from "./call-window";
 import { isDialable, type CampaignStatus } from "./status";
 
@@ -174,6 +174,30 @@ async function runCampaign(
   }
 
   const staleBefore = new Date(now.getTime() - STALE_ATTEMPT_MINUTES * 60_000).toISOString();
+
+  // An attempt that never reported back is settled here as an unanswered
+  // one — the backstop for a status webhook that was lost or never came.
+  // Without it the contact sat in "calling" for good: never retried, and
+  // its campaign could never finish, because finishCompletedCampaigns waits
+  // for every "calling" row.
+  const { data: staleContacts } = await supabase
+    .from("outbound_campaign_contacts")
+    .select("id, attempts")
+    .eq("campaign_id", campaign.id)
+    .eq("status", "calling")
+    .lt("calling_since", staleBefore);
+  for (const stale of staleContacts ?? []) {
+    await settleFailedAttempt(
+      supabase,
+      campaign,
+      stale.id,
+      stale.attempts,
+      "Intet svar fra telefoniudbyderen",
+      now,
+      { onlyIfCalling: true }
+    );
+  }
+
   const { count: inFlight } = await supabase
     .from("outbound_campaign_contacts")
     .select("id", { count: "exact", head: true })
@@ -196,7 +220,17 @@ async function runCampaign(
 
   if (!contacts || contacts.length === 0) return result;
 
-  const placeCall = await resolveDialer(supabase, campaign);
+  // One campaign whose number or agent is broken must not stop every other
+  // campaign in this tick — this used to throw straight out of the route.
+  // Its contacts stay pending (nothing was claimed yet) and it is retried
+  // next tick, logged each time so the reason is visible.
+  let placeCall: (to: string) => Promise<string>;
+  try {
+    placeCall = await resolveDialer(supabase, campaign);
+  } catch (err) {
+    console.error(`Outbound dialer: campaign ${campaign.id} cannot dial:`, String(err));
+    return result;
+  }
 
   for (const contact of contacts) {
     // Claimed before dialling, and only if still pending — two ticks
@@ -238,26 +272,36 @@ async function settleFailedAttempt(
   contactId: string,
   attempts: number,
   reason: string,
-  now: Date
+  now: Date,
+  options: { onlyIfCalling?: boolean } = {}
 ): Promise<void> {
+  // The stale sweep races the webhooks: a late status callback may have
+  // settled the contact between the read and this write.
+  const scoped = <T extends { eq: (column: string, value: string) => T }>(query: T): T =>
+    options.onlyIfCalling ? query.eq("status", "calling") : query;
+
   if (attempts >= campaign.max_attempts) {
-    await supabase
-      .from("outbound_campaign_contacts")
-      .update({ status: "failed", failure_reason: reason.slice(0, 500), next_attempt_at: null, calling_since: null })
-      .eq("id", contactId);
+    await scoped(
+      supabase
+        .from("outbound_campaign_contacts")
+        .update({ status: "failed", failure_reason: reason.slice(0, 500), next_attempt_at: null, calling_since: null })
+        .eq("id", contactId)
+    );
     return;
   }
 
   const retryAt = new Date(now.getTime() + campaign.retry_after_minutes * 60_000);
-  await supabase
-    .from("outbound_campaign_contacts")
-    .update({
-      status: "pending",
-      failure_reason: reason.slice(0, 500),
-      next_attempt_at: (nextWindowOpening(windowOf(campaign), retryAt) ?? retryAt).toISOString(),
-      calling_since: null,
-    })
-    .eq("id", contactId);
+  await scoped(
+    supabase
+      .from("outbound_campaign_contacts")
+      .update({
+        status: "pending",
+        failure_reason: reason.slice(0, 500),
+        next_attempt_at: (nextWindowOpening(windowOf(campaign), retryAt) ?? retryAt).toISOString(),
+        calling_since: null,
+      })
+      .eq("id", contactId)
+  );
 }
 
 // Which provider places this campaign's calls, resolved once per campaign
@@ -274,6 +318,9 @@ async function resolveDialer(
   if (!phoneNumber) throw new Error("Phone number no longer exists");
 
   if (await widgetDialsThroughTwilio(campaign.widget_id)) {
+    // Twilio fetches the answer URL from the outside; a localhost one
+    // rings the contact and then drops the call on pickup.
+    assertTwilioWebhookBaseUrlConfigured();
     const credentials = await getOrCreateSubaccount(campaign.customer_id);
     return async (to: string) =>
       (
