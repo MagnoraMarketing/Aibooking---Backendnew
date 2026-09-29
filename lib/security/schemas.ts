@@ -251,6 +251,19 @@ export const widgetExtraSettingsSchema = z
   })
   .partial();
 
+// What a customer may change in widget_settings.extra. The Vapi assistant
+// ids are left out: they are the isolation boundary between customers (see
+// lib/vapi/assistant-owner.ts), so a customer pointing their agent at
+// someone else's assistant would overwrite that assistant on the next sync
+// and take over its calls. Each customer agent gets its own assistant
+// created for it (POST /api/customer/widgets); linking any other one is an
+// admin's job. Unknown keys are stripped, so a stale client that still
+// sends them just has them ignored.
+export const customerWidgetExtraSettingsSchema = widgetExtraSettingsSchema.omit({
+  vapiAssistantId: true,
+  vapiOutboundAssistantId: true,
+});
+
 // .extend({...x.shape}) rather than .merge(x): with the zod version this
 // project resolves to, .merge()'s inferred output type widened an
 // already-`.default()`-backed required field (name) back to optional —

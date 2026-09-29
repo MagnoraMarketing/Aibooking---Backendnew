@@ -1,5 +1,6 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
+import { ApiError } from "@/types/errors";
 
 // Which widget a Vapi assistant belongs to.
 //
@@ -46,4 +47,30 @@ export function outboundAssistantId(extra: Record<string, unknown>): string | nu
   if (typeof outbound === "string" && outbound.trim()) return outbound;
   const inbound = extra.vapiAssistantId;
   return typeof inbound === "string" && inbound.trim() ? inbound : null;
+}
+
+// Refuses to link an assistant that another agent already uses — as the one
+// that answers its phone or the one that places its campaign calls.
+//
+// One assistant on two agents is two customers sharing a receptionist: each
+// agent's sync (lib/vapi/sync.ts) overwrites the other's prompt, knowledge
+// base and booking tools, and findWidgetIdForAssistant above can no longer
+// tell whose call it is. Pass the agent being edited as widgetId (null while
+// it is still being created) so re-saving its own id is not a clash.
+export async function assertAssistantNotLinkedElsewhere(
+  assistantId: string,
+  widgetId: string | null,
+  supabase: ReturnType<typeof getAdminClient> = getAdminClient()
+): Promise<void> {
+  for (const key of ["vapiAssistantId", "vapiOutboundAssistantId"]) {
+    const { data, error } = await supabase
+      .from("widget_settings")
+      .select("widget_id")
+      .eq(`extra->>${key}`, assistantId);
+    if (error) throw error;
+    const rows = (data ?? []) as { widget_id: string }[];
+    if (rows.some((row) => row.widget_id !== widgetId)) {
+      throw ApiError.conflict("Denne Vapi-assistent er allerede knyttet til en anden agent.");
+    }
+  }
 }
