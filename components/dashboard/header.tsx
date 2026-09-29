@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { LogoutButton } from "./logout-button";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { DIALER_ENABLED, OUTBOUND_ENABLED } from "@/lib/features";
 
 const LEADING_NAV_ITEMS = [
   { key: "dashboardShell.nav.gettingStarted", href: "/dashboard/getting-started" },
@@ -14,12 +15,13 @@ const LEADING_NAV_ITEMS = [
 // The four agent types (chat widget, inbound/outbound calls, dialer) grouped
 // under one "Agenter" menu instead of sitting flat in the nav bar, so they
 // read as one family rather than four unrelated items.
+// Outbound and Dialer stay hidden until they're finished (see lib/features).
 const AGENT_NAV_ITEMS = [
-  { key: "dashboardShell.nav.widgetAgents", href: "/dashboard/agent" },
-  { key: "dashboardShell.nav.inbound", href: "/dashboard/inbound" },
-  { key: "dashboardShell.nav.outbound", href: "/dashboard/outbound" },
-  { key: "dashboardShell.nav.dialer", href: "/dashboard/dialer" },
-] as const;
+  { key: "dashboardShell.nav.widgetAgents", href: "/dashboard/agent", enabled: true },
+  { key: "dashboardShell.nav.inbound", href: "/dashboard/inbound", enabled: true },
+  { key: "dashboardShell.nav.outbound", href: "/dashboard/outbound", enabled: OUTBOUND_ENABLED },
+  { key: "dashboardShell.nav.dialer", href: "/dashboard/dialer", enabled: DIALER_ENABLED },
+].filter((item) => item.enabled);
 
 const TRAILING_NAV_ITEMS = [
   { key: "dashboardShell.nav.knowledgeBase", href: "/dashboard/knowledge-base" },

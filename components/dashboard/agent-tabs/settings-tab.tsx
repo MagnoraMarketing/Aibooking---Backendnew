@@ -7,6 +7,7 @@ import { ComingSoonField } from "../coming-soon-field";
 import { ToggleSwitch } from "../toggle-switch";
 import { useTranslation } from "@/components/i18n/language-provider";
 import { DEFAULT_VOICE_GENDER } from "@/lib/vapi/voice-gender";
+import { OUTBOUND_ENABLED } from "@/lib/features";
 
 interface SettingsTabProps {
   widget: WidgetWithExtras;
@@ -279,7 +280,7 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
           </div>
         )}
 
-        {isPhoneAgent && isVapiModel ? (
+        {OUTBOUND_ENABLED && isPhoneAgent && isVapiModel ? (
           <div>
             <label htmlFor="outbound-assistant" className="mb-1 block text-sm font-medium text-slate-700">
               {t("agent.settings.outboundAssistantLabel")}

@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { requireCustomerAdminForPage } from "@/lib/auth";
+import { OUTBOUND_ENABLED } from "@/lib/features";
 import { getAdminClient } from "@/lib/database/admin";
 import { OutboundManager } from "@/components/dashboard/outbound-manager";
 import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
@@ -38,6 +40,9 @@ export interface CampaignRow {
 }
 
 export default async function OutboundPage() {
+  // Not finished yet — hidden from customers (see lib/features).
+  if (!OUTBOUND_ENABLED) redirect("/dashboard/inbound");
+
   const ctx = await requireCustomerAdminForPage();
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
