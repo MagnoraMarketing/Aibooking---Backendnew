@@ -174,12 +174,12 @@ export const dashboardPages: Namespace = {
   },
   "dashboard.minutes": { da: "Minutter", en: "Minutes", es: "Minutos", fr: "Minutes", pt: "Minutos", de: "Minuten" },
   "dashboard.phoneHeading": {
-    da: "Telefon (Inbound/Outbound)",
-    en: "Phone (Inbound/Outbound)",
-    es: "Teléfono (entrante/saliente)",
-    fr: "Téléphone (entrant/sortant)",
-    pt: "Telefone (recebidas/efetuadas)",
-    de: "Telefon (eingehend/ausgehend)",
+    da: "Telefon (Inbound)",
+    en: "Phone (Inbound)",
+    es: "Teléfono (entrante)",
+    fr: "Téléphone (entrant)",
+    pt: "Telefone (recebidas)",
+    de: "Telefon (eingehend)",
   },
   "dashboard.calls": { da: "Opkald", en: "Calls", es: "Llamadas", fr: "Appels", pt: "Chamadas", de: "Anrufe" },
   "dashboard.recentConversationsHeading": {
