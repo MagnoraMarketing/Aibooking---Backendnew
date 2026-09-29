@@ -1,6 +1,7 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { ApiError } from "@/types/errors";
+import { getVapiVoiceTemplateAssistantId } from "@/lib/settings/platform";
 
 // Which widget a Vapi assistant belongs to.
 //
@@ -62,6 +63,19 @@ export async function assertAssistantNotLinkedElsewhere(
   widgetId: string | null,
   supabase: ReturnType<typeof getAdminClient> = getAdminClient()
 ): Promise<void> {
+  // The platform's own assistants are not any agent's to have: the "Mand"/
+  // "Dame" voice templates every agent copies its voice and model from, and
+  // the dashboard's support assistant. Linking one would have the agent's
+  // sync overwrite it with that customer's prompt.
+  const platformAssistantIds = [
+    await getVapiVoiceTemplateAssistantId("female"),
+    await getVapiVoiceTemplateAssistantId("male"),
+    process.env.VAPI_SUPPORT_ASSISTANT_ID,
+  ];
+  if (platformAssistantIds.includes(assistantId)) {
+    throw ApiError.conflict("Denne Vapi-assistent tilhører platformen og kan ikke knyttes til en agent.");
+  }
+
   for (const key of ["vapiAssistantId", "vapiOutboundAssistantId"]) {
     const { data, error } = await supabase
       .from("widget_settings")

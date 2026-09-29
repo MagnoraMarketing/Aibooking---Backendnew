@@ -459,6 +459,15 @@ export async function createVapiAssistant(
   return { id: data.id };
 }
 
+// DELETE /assistant/{id}. Only ever called on an assistant this request just
+// created for an agent that then failed to save — cleaning up so a failed
+// "Create agent" never leaves an orphaned assistant behind in Vapi. Never
+// used on an agent that exists: agents are paused, not deleted, and keep
+// their assistant.
+export async function deleteVapiAssistant(assistantId: string): Promise<void> {
+  await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, { method: "DELETE" });
+}
+
 // Vapi retires voices, and it refuses the whole PATCH when one is named:
 //
 //   "The Lily voice is part of a legacy voice set that is being phased out,
