@@ -2951,12 +2951,12 @@ export const dashboardPages: Namespace = {
     de: "Von diesem Gespräch gibt es keine Aufnahme.",
   },
   "session-details-modal.downloadRecording": {
-    da: "Åbn optagelsen i ny fane",
-    en: "Open the recording in a new tab",
-    es: "Abrir la grabación en una pestaña nueva",
-    fr: "Ouvrir l'enregistrement dans un nouvel onglet",
-    pt: "Abrir a gravação num novo separador",
-    de: "Aufnahme in neuem Tab öffnen",
+    da: "Download optagelsen",
+    en: "Download the recording",
+    es: "Descargar la grabación",
+    fr: "Télécharger l'enregistrement",
+    pt: "Transferir a gravação",
+    de: "Aufnahme herunterladen",
   },
   "session-details-modal.analysisUnavailable": {
     da: "Automatisk samtaleanalyse er ikke tilgængelig endnu.",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   computeStats,
   type DashboardAgent,
@@ -9,12 +9,43 @@ import {
   type DashboardCallDetail,
   type DashboardChannel,
 } from "@/lib/aibooking-dashboard/calls";
+import type { CustomerPricing } from "@/lib/aibooking-dashboard/customer";
 
 // ---------------------------------------------------------------------------
 // Aibooking.dk Dashboard — AIbooking's own agents (website widget, inbound
 // line, later outbound) in one place: activity, history with transcripts and
 // recordings, bookings and statistics, per agent or in total.
+//
+// The same dashboard is every customer's own (variant "customer", on
+// /dashboard): their agents, and what the calls cost them at their
+// package's minute price instead of what Vapi charged us. Agent settings and
+// anything about Vapi stay admin-only.
 // ---------------------------------------------------------------------------
+
+type Variant = "admin" | "customer";
+
+interface VariantConfig {
+  variant: Variant;
+  callUrl: (id: string) => string;
+  costLabel: string;
+  fmtCost: (value: number) => string;
+  pricing: CustomerPricing | null;
+}
+
+const adminCallUrl = (id: string) => `/api/admin/aibooking-dashboard/calls/${encodeURIComponent(id)}`;
+const customerCallUrl = (id: string) => `/api/customer/call-dashboard/calls/${encodeURIComponent(id)}`;
+
+const VariantContext = createContext<VariantConfig | null>(null);
+
+function useVariant(): VariantConfig {
+  const config = useContext(VariantContext);
+  if (!config) throw new Error("VariantContext missing");
+  return config;
+}
+
+function fmtMoney(value: number, currency: string): string {
+  return new Intl.NumberFormat("da-DK", { style: "currency", currency, minimumFractionDigits: 2 }).format(value);
+}
 
 // Categorical series colours, assigned by the agent's position in the full
 // agent list (never by rank in the current selection), so an agent keeps its
@@ -96,6 +127,7 @@ interface ActivityResponse {
   calls: DashboardCall[];
   errors: Record<string, string>;
   vapiHistoryFrom: string | null;
+  pricing?: CustomerPricing;
   days: number;
   fetchedAt: string;
 }
@@ -105,7 +137,38 @@ async function readError(res: Response, fallback: string): Promise<string> {
   return (body?.error?.message as string | undefined) ?? fallback;
 }
 
-export function AibookingDashboard({ initialAgents }: { initialAgents: DashboardAgent[] }) {
+export function AibookingDashboard({
+  initialAgents,
+  variant = "admin",
+  initialPricing = null,
+  customerName = null,
+}: {
+  initialAgents: DashboardAgent[];
+  variant?: Variant;
+  initialPricing?: CustomerPricing | null;
+  customerName?: string | null;
+}) {
+  const isCustomer = variant === "customer";
+  const [pricing, setPricing] = useState<CustomerPricing | null>(initialPricing);
+  const config = useMemo<VariantConfig>(() => {
+    if (!isCustomer) {
+      return {
+        variant,
+        callUrl: adminCallUrl,
+        costLabel: "Omkostning (Vapi)",
+        fmtCost: fmtUsd,
+        pricing: null,
+      };
+    }
+    const currency = pricing?.currency ?? "DKK";
+    return {
+      variant,
+      callUrl: customerCallUrl,
+      costLabel: "Forbrug",
+      fmtCost: (value) => fmtMoney(value, currency),
+      pricing,
+    };
+  }, [isCustomer, variant, pricing]);
   const [agents, setAgents] = useState(initialAgents);
   const [calls, setCalls] = useState<DashboardCall[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -121,7 +184,13 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
   const load = useCallback(async (period: number) => {
     setLoading(true);
     setLoadError(null);
-    const res = await fetch(`/api/admin/aibooking-dashboard/activity?days=${period}`, { cache: "no-store" });
+    // Built from the variant alone, not from `config`: config changes with
+    // the pricing this very request sets, and would re-trigger the load.
+    const url =
+      variant === "customer"
+        ? `/api/customer/call-dashboard/activity?days=${period}`
+        : `/api/admin/aibooking-dashboard/activity?days=${period}`;
+    const res = await fetch(url, { cache: "no-store" });
     setLoading(false);
     if (!res.ok) {
       setLoadError(await readError(res, "Aktiviteten kunne ikke hentes."));
@@ -133,7 +202,8 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
     setErrors(data.errors);
     setVapiHistoryFrom(data.vapiHistoryFrom);
     setFetchedAt(data.fetchedAt);
-  }, []);
+    if (data.pricing) setPricing(data.pricing);
+  }, [variant]);
 
   useEffect(() => {
     void load(days);
@@ -162,15 +232,22 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
   }, [activeAgents, selected]);
 
   return (
+    <VariantContext.Provider value={config}>
     <div className="space-y-6">
       {/* Header */}
       <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 p-6 text-white shadow-lg sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-brand-100">Platformens egne agenter</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">Aibooking.dk Dashboard</h1>
+            <p className="text-xs font-semibold uppercase tracking-widest text-brand-100">
+              {isCustomer ? "Dit dashboard" : "Platformens egne agenter"}
+            </p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+              {isCustomer ? customerName || "Dashboard" : "Aibooking.dk Dashboard"}
+            </h1>
             <p className="mt-2 max-w-xl text-sm text-brand-100">
-              Al aktivitet på aibooking.dk&apos;s agenter — historik, transskriptioner, optagelser, bookinger og statistik.
+              {isCustomer
+                ? "Al aktivitet på dine agenter — historik, transskriptioner, optagelser, bookinger og forbrug."
+                : "Al aktivitet på aibooking.dk's agenter — historik, transskriptioner, optagelser, bookinger og statistik."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -199,7 +276,23 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
           </div>
         </div>
         {fetchedAt ? (
-          <p className="mt-4 text-[11px] text-brand-100/80">Opdateret {fmtDateTime(fetchedAt)} · data hentes direkte fra Vapi</p>
+          <p className="mt-4 text-[11px] text-brand-100/80">
+            Opdateret {fmtDateTime(fetchedAt)}
+            {isCustomer ? "" : " · data hentes direkte fra Vapi"}
+          </p>
+        ) : null}
+        {isCustomer && pricing ? (
+          <div className="mt-5 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-white/15 px-3 py-1.5 font-semibold">
+              Pakke: {pricing.packageName ?? "Prøveperiode"}
+            </span>
+            <span className="rounded-full bg-white/15 px-3 py-1.5 font-semibold">
+              Minutpris: {fmtMoney(pricing.pricePerMinute, pricing.currency)}
+            </span>
+            <span className="rounded-full bg-white/15 px-3 py-1.5 font-semibold">
+              {pricing.minutesRemaining.toLocaleString("da-DK")} min tilbage
+            </span>
+          </div>
         ) : null}
       </div>
 
@@ -216,7 +309,7 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
             color={colorOf(agent.id)}
           />
         ))}
-        {!hasOutbound ? (
+        {!hasOutbound && !isCustomer ? (
           <button
             type="button"
             onClick={() => setView("agents")}
@@ -237,7 +330,9 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
             ["bookings", `Bookinger (${scopedCalls.reduce((n, c) => n + c.bookings.length, 0)})`],
             ["agents", "Agenter & indstillinger"],
           ] as const
-        ).map(([key, label]) => (
+        )
+          .filter(([key]) => !isCustomer || key !== "agents")
+          .map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -252,7 +347,12 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
       </div>
 
       {loadError ? <Alert tone="error">{loadError}</Alert> : null}
-      {vapiHistoryFrom && !loading ? (
+      {isCustomer && !loading && agents.length === 0 ? (
+        <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Du har ingen agenter endnu. Når du opretter en agent, vises dens samtaler, optagelser og bookinger her.
+        </p>
+      ) : null}
+      {vapiHistoryFrom && !loading && !isCustomer ? (
         <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
           ⓘ Vapi udleverer kun samtaler fra {new Date(vapiHistoryFrom).toLocaleDateString("da-DK")} og frem på jeres abonnement.
           Ældre samtaler i perioden vises fra platformens egen log, hvis Vapi har sendt dem til vores webhook.
@@ -280,7 +380,7 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
       ) : null}
       {view === "history" ? <History calls={scopedCalls} agents={agents} colorOf={colorOf} loading={loading} /> : null}
       {view === "bookings" ? <Bookings calls={scopedCalls} agents={agents} colorOf={colorOf} /> : null}
-      {view === "agents" ? (
+      {view === "agents" && !isCustomer ? (
         <AgentSettings
           agents={agents}
           colorOf={colorOf}
@@ -291,6 +391,7 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
         />
       ) : null}
     </div>
+    </VariantContext.Provider>
   );
 }
 
@@ -397,6 +498,7 @@ function Overview({
   showComparison: boolean;
   onOpenHistory: () => void;
 }) {
+  const { costLabel, fmtCost, pricing } = useVariant();
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -410,7 +512,18 @@ function Overview({
         />
         <Kpi loading={loading} label="Konvertering" value={fmtPercent(stats.conversionRate)} hint="Bookinger pr. gennemført samtale" />
         <Kpi loading={loading} label="Unikke kontakter" value={String(stats.uniqueCallers)} hint="Forskellige telefonnumre" />
-        <Kpi loading={loading} label="Omkostning (Vapi)" value={fmtUsd(stats.totalCost)} hint={stats.totalCalls ? `${fmtUsd(stats.totalCost / stats.totalCalls)} pr. samtale` : undefined} />
+        <Kpi
+          loading={loading}
+          label={costLabel}
+          value={fmtCost(stats.totalCost)}
+          hint={
+            pricing
+              ? `${fmtCost(pricing.pricePerMinute)} pr. minut · ${(stats.totalSeconds / 60).toFixed(1).replace(".", ",")} min`
+              : stats.totalCalls
+                ? `${fmtCost(stats.totalCost / stats.totalCalls)} pr. samtale`
+                : undefined
+          }
+        />
         <Kpi
           loading={loading}
           label="Gennemførelsesrate"
@@ -448,7 +561,7 @@ function Overview({
                   <th className="py-2 text-right font-medium">Gns. varighed</th>
                   <th className="py-2 text-right font-medium">Bookinger</th>
                   <th className="py-2 text-right font-medium">Konvertering</th>
-                  <th className="py-2 text-right font-medium">Omkostning</th>
+                  <th className="py-2 text-right font-medium">{pricing ? "Forbrug" : "Omkostning"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -473,7 +586,7 @@ function Overview({
                       <td className="py-2.5 text-right tabular-nums">{fmtDuration(s.avgSeconds)}</td>
                       <td className="py-2.5 text-right tabular-nums">{s.bookings}</td>
                       <td className="py-2.5 text-right tabular-nums">{fmtPercent(s.conversionRate)}</td>
-                      <td className="py-2.5 text-right tabular-nums">{fmtUsd(s.totalCost)}</td>
+                      <td className="py-2.5 text-right tabular-nums">{fmtCost(s.totalCost)}</td>
                     </tr>
                   );
                 })}
@@ -804,13 +917,14 @@ function History({
 }
 
 function CallDetail({ callId }: { callId: string }) {
+  const { callUrl, fmtCost, pricing } = useVariant();
   const [detail, setDetail] = useState<DashboardCallDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const res = await fetch(`/api/admin/aibooking-dashboard/calls/${encodeURIComponent(callId)}`, { cache: "no-store" });
+      const res = await fetch(callUrl(callId), { cache: "no-store" });
       if (cancelled) return;
       if (!res.ok) {
         setError(await readError(res, "Samtalen kunne ikke hentes."));
@@ -821,7 +935,7 @@ function CallDetail({ callId }: { callId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [callId]);
+  }, [callId, callUrl]);
 
   if (error) return <p className="p-5 text-sm text-red-600">{error}</p>;
   if (!detail) return <p className="p-5 text-sm text-slate-500">Henter transskription og optagelse…</p>;
@@ -832,9 +946,17 @@ function CallDetail({ callId }: { callId: string }) {
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Optagelse</h3>
           {detail.recordingUrl ? (
-            <audio controls preload="none" src={detail.recordingUrl} className="mt-2 w-full">
-              <a href={detail.recordingUrl}>Hent optagelsen</a>
-            </audio>
+            <>
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <audio controls preload="metadata" src={detail.recordingUrl} className="mt-2 w-full" />
+              <a
+                href={`${detail.recordingUrl}?download=1`}
+                download
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                ⬇ Download optagelsen
+              </a>
+            </>
           ) : (
             <p className="mt-1 text-sm text-slate-500">Ingen optagelse for denne samtale.</p>
           )}
@@ -862,8 +984,8 @@ function CallDetail({ callId }: { callId: string }) {
         <dl className="grid grid-cols-2 gap-2 text-xs">
           <dt className="text-slate-500">Afslutning</dt>
           <dd className="text-slate-800">{detail.endedReason ? reasonLabel(detail.endedReason) : "—"}</dd>
-          <dt className="text-slate-500">Omkostning</dt>
-          <dd className="text-slate-800">{fmtUsd(detail.cost)}</dd>
+          <dt className="text-slate-500">{pricing ? "Pris" : "Omkostning"}</dt>
+          <dd className="text-slate-800">{fmtCost(detail.cost)}</dd>
           {detail.successEvaluation ? (
             <>
               <dt className="text-slate-500">Vapi-evaluering</dt>

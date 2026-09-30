@@ -7,6 +7,7 @@ import {
   toolFailedText,
   withNoBookingDirective,
   withBookingFlowDirective,
+  withEndCallDirective,
 } from "@/lib/i18n/agent-content";
 import { vapiFetch } from "./client";
 
@@ -255,6 +256,25 @@ function buildBookingTools() {
   ];
 }
 
+// Vapi's built-in hang-up tool, on every assistant: when the customer says
+// goodbye, the agent says goodbye back and calls it (see END_CALL_DIRECTIVE
+// in lib/i18n/agent-content.ts). The function is named explicitly so the
+// prompt and the tool always agree on what to call. An empty `messages`
+// keeps withSpokenToolMessages from putting "Lige et øjeblik." in front of
+// the hang-up.
+export function buildEndCallTool() {
+  return {
+    type: "endCall",
+    messages: [],
+    function: {
+      name: "endCall",
+      description:
+        "Afslut opkaldet. Brug det, når kunden har sagt farvel eller beder om at afslutte samtalen — efter du har sagt en kort afskedshilsen.",
+      parameters: { type: "object", properties: {} },
+    },
+  };
+}
+
 // Vapi speaks a filler the instant a tool fires, before the model has said
 // anything — and a tool that carries no `messages` of its own gets Vapi's
 // built-in ones, which are English whatever language the agent is speaking.
@@ -324,9 +344,15 @@ async function buildAssistantBody(
   // An agent that can book gets the platform's booking flow instead (fast
   // offer, email read back and confirmed, explicit yes before booking) — see
   // BOOKING_FLOW_DIRECTIVE.
-  const systemPrompt = includeBookingTools
-    ? withBookingFlowDirective(params.systemPrompt, params.language)
-    : withNoBookingDirective(params.systemPrompt, params.language);
+  //
+  // Every agent is also told to hang up once the customer says goodbye — see
+  // buildEndCallTool.
+  const systemPrompt = withEndCallDirective(
+    includeBookingTools
+      ? withBookingFlowDirective(params.systemPrompt, params.language)
+      : withNoBookingDirective(params.systemPrompt, params.language),
+    params.language
+  );
 
   const model: Record<string, unknown> = {
     ...resolveModelConfig(template, gender),
@@ -341,7 +367,7 @@ async function buildAssistantBody(
   // this module having to know anything about webshops; lib/vapi/sync.ts
   // decides which ones a given widget gets.
   model.tools = withSpokenToolMessages(
-    [...(includeBookingTools ? buildBookingTools() : []), ...extraTools],
+    [...(includeBookingTools ? buildBookingTools() : []), ...extraTools, buildEndCallTool()],
     params.language
   );
 

@@ -16,7 +16,7 @@ vi.mock("@/lib/settings/platform", () => ({
   getVapiVoiceTemplateAssistantId: (gender: string) => templateIdMock(gender),
 }));
 
-import { createVapiAssistant, updateVapiAssistant } from "@/lib/vapi/assistants";
+import { buildEndCallTool, createVapiAssistant, updateVapiAssistant } from "@/lib/vapi/assistants";
 
 const PARAMS = { name: "Agent", systemPrompt: "prompt", firstMessage: "hej", voiceGender: "female" as const };
 
@@ -136,11 +136,11 @@ describe("an agent that has no calendar", () => {
     expect(systemMessage(1)).toContain("You cannot book");
   });
 
-  it("carries no booking tools either way", async () => {
+  it("carries no booking tools either way — only the hang-up tool", async () => {
     await createVapiAssistant(PARAMS);
 
     const model = bodyOf(1).model as { tools: unknown[] };
-    expect(model.tools).toEqual([]);
+    expect(model.tools).toEqual([buildEndCallTool()]);
   });
 
   // The directive is about a missing capability, not a missing calendar

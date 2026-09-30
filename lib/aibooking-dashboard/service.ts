@@ -159,10 +159,11 @@ export async function loadActivity(agents: DashboardAgent[], days: number): Prom
 }
 
 // One call in full — transcript and recording — for the history's detail
-// view. Only a call made by one of the dashboard's own agents is returned,
-// so this can never be used to read a customer's call by guessing its id.
-export async function loadCallDetail(callId: string): Promise<DashboardCallDetail> {
-  const agents = await listDashboardAgents();
+// view. Only a call made by one of `agents` is returned (the dashboard's own
+// agents by default, or a customer's agents for the customer dashboard), so
+// this can never be used to read someone else's call by guessing its id.
+export async function loadCallDetail(callId: string, scope?: DashboardAgent[]): Promise<DashboardCallDetail> {
+  const agents = scope ?? (await listDashboardAgents());
 
   let raw: Record<string, unknown> | null = null;
   try {
@@ -183,6 +184,6 @@ export async function loadCallDetail(callId: string): Promise<DashboardCallDetai
   if (!raw) throw ApiError.notFound("Samtalen blev ikke fundet.");
 
   const agent = agents.find((a) => a.vapi_assistant_id === raw.assistantId);
-  if (!agent) throw ApiError.notFound("Samtalen tilhører ikke en af Aibooking.dk's agenter.");
+  if (!agent) throw ApiError.notFound("Samtalen blev ikke fundet.");
   return normalizeCallDetail(raw, agent.id);
 }

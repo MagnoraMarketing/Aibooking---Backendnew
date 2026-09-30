@@ -53,7 +53,8 @@ export const GET = withErrorHandling(async (_request, { params }) => {
     // our side is on the line to write them. Its turns come from the
     // end-of-call-report instead.
     transcript: call?.transcript ?? [],
-    recordingUrl: call?.recordingUrl ?? null,
+    // Played through our own route: Vapi's link needs the private key.
+    recordingUrl: call?.recordingUrl ? `/api/customer/conversations/${params.id}/recording` : null,
     summary: summaries?.[0]?.summary ?? call?.summary ?? null,
   });
 });
