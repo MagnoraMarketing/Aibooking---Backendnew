@@ -19,10 +19,10 @@ export const GET = withErrorHandling(async (request) => {
   const days = ALLOWED_DAYS.includes(requested) ? requested : 30;
 
   const agents = await listDashboardAgents();
-  const { calls, errors } = await loadActivity(
+  const { calls, errors, vapiHistoryFrom } = await loadActivity(
     agents.filter((agent) => agent.is_active),
     days
   );
 
-  return NextResponse.json({ agents, calls, errors, days, fetchedAt: new Date().toISOString() });
+  return NextResponse.json({ agents, calls, errors, vapiHistoryFrom, days, fetchedAt: new Date().toISOString() });
 });

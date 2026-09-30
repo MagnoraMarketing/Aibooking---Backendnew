@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   bookingSucceeded,
+  callFromStoredReport,
   classifyBookingTool,
+  retentionStartFromError,
   computeStats,
   normalizeCall,
   normalizeCallDetail,
@@ -162,5 +164,66 @@ describe("statistics", () => {
     expect(stats.daily).toHaveLength(7);
     expect(stats.daily.at(-1)).toMatchObject({ day: "2026-09-30", total: 1, byAgent: { inbound: 1 } });
     expect(stats.daily[0]!.total).toBe(0);
+  });
+});
+
+// Vapi's call list only reaches back 14 days on the platform's plan, and
+// refuses the whole request when asked for 30 — which left the dashboard
+// empty with "Samtalerne kunne ikke hentes fra Vapi" on both agents.
+describe("Vapi's retention window", () => {
+  const REFUSAL =
+    'Vapi afviste anmodningen (400): {"message":"Your subscription plan only covers the last 14 days of call history. The requested start date Mon Aug 31 2026 exceeds your retention window. Please adjust your date filter to Wed Sep 16 2026 or later.","error":"Bad Request","statusCode":400}';
+
+  it("reads the oldest date Vapi will serve out of its refusal", () => {
+    const date = retentionStartFromError(REFUSAL)!;
+    expect(date.getFullYear()).toBe(2026);
+    expect(date.getMonth()).toBe(8);
+    expect(date.getDate()).toBe(16);
+  });
+
+  it("ignores other refusals", () => {
+    expect(retentionStartFromError('Vapi afviste anmodningen (401): {"message":"Invalid key"}')).toBeNull();
+  });
+});
+
+describe("a call from our own stored end-of-call-report", () => {
+  const PAYLOAD = {
+    type: "end-of-call-report",
+    call: {
+      id: "old-call",
+      assistantId: "4c1d3883-9669-4821-ba09-60241951d3ac",
+      type: "inboundPhoneCall",
+      createdAt: "2026-09-01T08:00:00.000Z",
+      customer: { number: "+4587654321" },
+    },
+    startedAt: "2026-09-01T08:00:02.000Z",
+    endedAt: "2026-09-01T08:01:02.000Z",
+    endedReason: "customer-ended-call",
+    cost: 0.1,
+    analysis: { summary: "Spurgte til åbningstider." },
+    artifact: {
+      recordingUrl: "https://storage.vapi.ai/old.wav",
+      messages: [{ role: "user", message: "Hvornår har I åbent?", secondsFromStart: 1 }],
+    },
+  };
+
+  it("reads like an entry from Vapi's call list", () => {
+    const raw = callFromStoredReport(PAYLOAD)!;
+    expect(raw.assistantId).toBe("4c1d3883-9669-4821-ba09-60241951d3ac");
+
+    const call = normalizeCallDetail(raw, "inbound");
+    expect(call).toMatchObject({
+      id: "old-call",
+      type: "inboundPhoneCall",
+      durationSeconds: 60,
+      customerNumber: "+4587654321",
+      summary: "Spurgte til åbningstider.",
+      recordingUrl: "https://storage.vapi.ai/old.wav",
+    });
+    expect(call.transcript).toHaveLength(1);
+  });
+
+  it("skips a report without a call id", () => {
+    expect(callFromStoredReport({ type: "end-of-call-report" })).toBeNull();
   });
 });
