@@ -4,6 +4,15 @@ import type { Namespace } from "./types";
 export const adminShell: Namespace = {
   badge: { da: "Master Admin", en: "Master Admin", es: "Administrador principal", fr: "Administrateur principal", pt: "Administrador principal", de: "Hauptadministrator" },
   "nav.dashboard": { da: "Dashboard", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel", de: "Dashboard" },
+  // AIbooking's own agents (website widget, inbound line) — app/admin/aibooking.
+  "nav.aibookingDashboard": {
+    da: "Aibooking.dk Dashboard",
+    en: "Aibooking.dk Dashboard",
+    es: "Aibooking.dk Dashboard",
+    fr: "Aibooking.dk Dashboard",
+    pt: "Aibooking.dk Dashboard",
+    de: "Aibooking.dk Dashboard",
+  },
 
   // Section header shown above Widgets + Inbound — these are the two agent
   // types customers actually talk to (chat vs. phone).

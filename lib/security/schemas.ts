@@ -599,3 +599,25 @@ export const shopifyConnectQuerySchema = z.object({
   // to keep an absurd value out of the parser.
   shop: z.string().trim().min(1).max(255),
 });
+
+// ---------------------------------------------------------------------------
+// Admin: Aibooking.dk Dashboard agents (0048_aibooking_dashboard_agents.sql).
+// Vapi assistant ids are UUIDs; anything else is a paste mistake.
+// ---------------------------------------------------------------------------
+export const dashboardAgentChannelSchema = z.enum(["widget", "inbound", "outbound"]);
+
+export const createDashboardAgentSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  channel: dashboardAgentChannelSchema,
+  vapiAssistantId: z.string().trim().uuid(),
+});
+
+export const updateDashboardAgentSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    channel: dashboardAgentChannelSchema,
+    vapiAssistantId: z.string().trim().uuid(),
+    isActive: z.boolean(),
+    sortOrder: z.number().int().min(0).max(1000),
+  })
+  .partial();
