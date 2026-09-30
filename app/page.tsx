@@ -22,6 +22,11 @@ export default function HomePage() {
           {translate(locale, "dashboardPages.home.signupLink")}
         </Link>
       </p>
+      <p>
+        <Link href="/app" style={{ color: "#3866f5", fontWeight: 600 }}>
+          {translate(locale, "install.homeLink")}
+        </Link>
+      </p>
     </main>
   );
 }

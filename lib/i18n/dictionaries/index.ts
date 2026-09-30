@@ -9,6 +9,7 @@ import { profile } from "./profile";
 import { agent } from "./agent";
 import { adminPages } from "./adminPages";
 import { dashboardPages } from "./dashboardPages";
+import { install } from "./install";
 
 // Add a namespace file's export here to make its keys reachable as
 // "namespaceName.key" from useTranslation()'s t(). Each namespace is a
@@ -23,6 +24,7 @@ const NAMESPACES: Record<string, Namespace> = {
   agent,
   adminPages,
   dashboardPages,
+  install,
 };
 
 // Works identically on the server and the client — dictionaries are plain
