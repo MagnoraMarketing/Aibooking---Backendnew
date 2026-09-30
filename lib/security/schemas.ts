@@ -621,3 +621,16 @@ export const updateDashboardAgentSchema = z
     sortOrder: z.number().int().min(0).max(1000),
   })
   .partial();
+
+// The settings of one of the platform's own Vapi assistants the admin edits
+// from the Aibooking.dk Dashboard (lib/aibooking-dashboard/assistant-config.ts).
+export const updateDashboardAssistantSchema = z
+  .object({
+    firstMessage: z.string().max(1000),
+    systemPrompt: z.string().max(60_000),
+    endCallOnGoodbye: z.boolean(),
+    endCallMessage: z.string().max(500),
+    silenceTimeoutSeconds: z.number().int().min(10).max(3600).nullable(),
+    maxDurationSeconds: z.number().int().min(10).max(43_200).nullable(),
+  })
+  .partial();
