@@ -24,7 +24,10 @@ interface NavSection {
 const NAV_SECTIONS: NavSection[] = [
   {
     labelKey: null,
-    items: [{ href: "/admin", labelKey: "adminShell.nav.dashboard" }],
+    items: [
+      { href: "/admin", labelKey: "adminShell.nav.dashboard" },
+      { href: "/admin/aibooking", labelKey: "adminShell.nav.aibookingDashboard" },
+    ],
   },
   {
     labelKey: "adminShell.nav.groupAgents",
