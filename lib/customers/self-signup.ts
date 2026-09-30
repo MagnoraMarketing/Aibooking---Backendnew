@@ -2,8 +2,7 @@ import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { grantCredits } from "@/lib/credits/ledger";
 import { generatePublicWidgetId } from "@/lib/widgets/public-id";
-import { getDefaultSystemPrompt } from "@/lib/settings/platform";
-import { TRIAL_MINUTES, TRIAL_SECONDS } from "@/lib/billing/trial";
+import { getDefaultSystemPrompt, getTrialMinutes, trialGrantDescription } from "@/lib/settings/platform";
 import { createVapiAssistant } from "@/lib/vapi";
 import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content";
 import { getDefaultOrSpecified } from "./onboarding";
@@ -89,11 +88,16 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
   // Self-signup starts with the free trial allowance, not the paid
   // package's full minutes — those only apply once a subscription is
   // actually active (see lib/billing/trial.ts's hasEmbedCodeAccess).
-  await grantCredits({
-    customerId: customer.id,
-    seconds: TRIAL_SECONDS,
-    description: `Gratis prøveperiode: ${TRIAL_MINUTES} minutter (7 dage)`,
-  });
+  // How many minutes is set by the master admin (Indstillinger → Gratis
+  // prøveperiode); zero means new customers start without free minutes.
+  const trialMinutes = await getTrialMinutes();
+  if (trialMinutes > 0) {
+    await grantCredits({
+      customerId: customer.id,
+      seconds: trialMinutes * 60,
+      description: trialGrantDescription(trialMinutes),
+    });
+  }
 
   const defaultSystemPrompt = await getDefaultSystemPrompt();
 
