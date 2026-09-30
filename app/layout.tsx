@@ -6,8 +6,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "AIbooking.dk",
   description: "AI voice widgets for businesses — multi-tenant SaaS platform.",
-  applicationName: "Magnora",
-  appleWebApp: { capable: true, title: "Magnora", statusBarStyle: "default" },
+  applicationName: "AIbooking.dk",
+  appleWebApp: { capable: true, title: "AIbooking", statusBarStyle: "default" },
   icons: {
     icon: [
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#2563eb",
+  themeColor: "#264ed1",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
