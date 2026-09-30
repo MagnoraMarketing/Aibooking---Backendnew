@@ -292,9 +292,8 @@ export function SessionDetailsModal({ conversationId, source, onClose }: Session
                     {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                     <audio controls preload="none" src={data.recordingUrl} className="w-full" />
                     <a
-                      href={data.recordingUrl}
-                      target="_blank"
-                      rel="noreferrer"
+                      href={`${data.recordingUrl}?download=1`}
+                      download
                       className="inline-block text-sm font-medium text-brand-600 hover:underline"
                     >
                       {t("dashboardPages.session-details-modal.downloadRecording")}

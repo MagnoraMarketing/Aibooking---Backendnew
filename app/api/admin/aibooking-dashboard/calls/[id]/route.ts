@@ -8,8 +8,16 @@ import { loadCallDetail } from "@/lib/aibooking-dashboard/service";
 export const dynamic = "force-dynamic";
 
 // One call with its transcript and recording, for the history's detail view.
+// The recording is handed out as our own ./recording route: Vapi's link needs
+// the private key since July 2026 and does not play in a browser.
 export const GET = withErrorHandling(async (_request, { params }) => {
   await requireMasterAdmin();
-  const call = await loadCallDetail(requireParam(params, "id"));
-  return NextResponse.json({ call });
+  const id = requireParam(params, "id");
+  const call = await loadCallDetail(id);
+  return NextResponse.json({
+    call: {
+      ...call,
+      recordingUrl: call.recordingUrl || call.hasRecording ? `/api/admin/aibooking-dashboard/calls/${encodeURIComponent(id)}/recording` : null,
+    },
+  });
 });

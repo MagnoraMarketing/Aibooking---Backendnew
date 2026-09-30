@@ -59,7 +59,8 @@ export const GET = withErrorHandling(async (_request, { params }) => {
     widgetName: widget?.name ?? null,
     messages: [],
     transcript: report?.transcript ?? [],
-    recordingUrl: report?.recordingUrl ?? null,
+    // Played through our own route: Vapi's link needs the private key.
+    recordingUrl: report?.recordingUrl ? `/api/customer/outbound-campaigns/${campaignId}/contacts/${contactId}/recording` : null,
     summary: report?.summary ?? null,
     call: {
       contactName: contact.contact_name,
