@@ -170,6 +170,17 @@ export function endCallDirective(widgetLanguage: string | null | undefined): str
   return END_CALL_DIRECTIVE[resolveLocale(widgetLanguage)];
 }
 
+// A prompt with any language's end-call directive taken back out — for the
+// admin editor of the platform's own assistants, which shows the prompt as
+// it was written and adds the directive on save when "læg på ved farvel" is on.
+export function stripEndCallDirective(systemPrompt: string): string {
+  let result = systemPrompt;
+  for (const directive of Object.values(END_CALL_DIRECTIVE)) {
+    result = result.split(`\n\n${directive}`).join("").split(directive).join("");
+  }
+  return result.trimEnd();
+}
+
 // Appended to the system prompt of every voice agent (lib/vapi/assistants.ts).
 export function withEndCallDirective(systemPrompt: string, widgetLanguage: string | null | undefined): string {
   return `${systemPrompt}\n\n${endCallDirective(widgetLanguage)}`;

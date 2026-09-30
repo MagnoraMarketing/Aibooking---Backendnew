@@ -10,6 +10,7 @@ import {
   type DashboardChannel,
 } from "@/lib/aibooking-dashboard/calls";
 import type { CustomerPricing } from "@/lib/aibooking-dashboard/customer";
+import type { AssistantConfig } from "@/lib/aibooking-dashboard/assistant-config";
 
 // ---------------------------------------------------------------------------
 // Aibooking.dk Dashboard — AIbooking's own agents (website widget, inbound
@@ -1124,7 +1125,8 @@ function AgentSettings({
     <div className="space-y-6">
       <Card title="Agenter på dashboardet">
         <p className="mb-4 text-xs text-slate-500">
-          Ændring af et Vapi ID ændrer kun hvilke samtaler dashboardet viser — ikke selve agenten på aibooking.dk eller telefonlinjen.
+          Ændring af et Vapi ID ændrer kun hvilke samtaler dashboardet viser. Brug &quot;Tilpas agent&quot; for at ændre selve agenten i
+          Vapi — første besked, prompt, og om den lægger på, når kunden siger farvel.
         </p>
         <div className="space-y-3">
           {agents.map((agent) => (
@@ -1204,6 +1206,7 @@ function AgentRow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
   const dirty = name !== agent.name || assistantId !== agent.vapi_assistant_id;
 
   async function patch(body: Record<string, unknown>) {
@@ -1273,6 +1276,15 @@ function AgentRow({
           </button>
           <button
             type="button"
+            onClick={() => setEditing((v) => !v)}
+            className={`rounded-lg border px-3 py-2 text-xs font-semibold ${
+              editing ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-300 text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            {editing ? "Luk" : "Tilpas agent"}
+          </button>
+          <button
+            type="button"
             disabled={busy}
             onClick={() => void patch({ isActive: !agent.is_active })}
             className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
@@ -1291,6 +1303,178 @@ function AgentRow({
       </div>
       {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
       {saved && !error ? <p className="mt-2 text-xs text-emerald-700">✓ Gemt</p> : null}
+      {editing ? <AssistantEditor agentId={agent.id} key={agent.vapi_assistant_id} /> : null}
+    </div>
+  );
+}
+
+// The assistant itself, as it is in Vapi: what it says first, its prompt,
+// whether it hangs up on goodbye, and its time limits. Saved straight to
+// Vapi — these are the platform's own hand-built assistants, which "Vapi
+// resync" never touches.
+function AssistantEditor({ agentId }: { agentId: string }) {
+  const [config, setConfig] = useState<AssistantConfig | null>(null);
+  const [draft, setDraft] = useState<AssistantConfig | null>(null);
+  const [linkedWidget, setLinkedWidget] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const url = `/api/admin/aibooking-dashboard/agents/${agentId}/assistant`;
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch(url, { cache: "no-store" });
+      if (cancelled) return;
+      if (!res.ok) {
+        setError(await readError(res, "Agenten kunne ikke hentes fra Vapi."));
+        return;
+      }
+      const data = (await res.json()) as { config: AssistantConfig; linkedWidget: string | null };
+      setConfig(data.config);
+      setDraft(data.config);
+      setLinkedWidget(data.linkedWidget);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  if (error && !draft) return <p className="mt-4 text-sm text-red-600">{error}</p>;
+  if (!draft || !config) return <p className="mt-4 text-sm text-slate-500">Henter agenten fra Vapi…</p>;
+
+  const set = <K extends keyof AssistantConfig>(key: K, value: AssistantConfig[K]) => {
+    setSaved(false);
+    setDraft((d) => (d ? { ...d, [key]: value } : d));
+  };
+  const changed = (
+    ["firstMessage", "systemPrompt", "endCallOnGoodbye", "endCallMessage", "silenceTimeoutSeconds", "maxDurationSeconds"] as const
+  ).filter((key) => draft[key] !== config[key]);
+
+  async function save() {
+    if (!draft) return;
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    const body = Object.fromEntries(changed.map((key) => [key, draft[key]]));
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      setError(await readError(res, "Ændringen kunne ikke gemmes i Vapi."));
+      return;
+    }
+    const { config: next } = (await res.json()) as { config: AssistantConfig };
+    setConfig(next);
+    setDraft(next);
+    setSaved(true);
+  }
+
+  const secondsField = (label: string, key: "silenceTimeoutSeconds" | "maxDurationSeconds", hint: string) => (
+    <label className="text-xs font-medium text-slate-600">
+      {label}
+      <input
+        type="number"
+        min={10}
+        value={draft[key] ?? ""}
+        placeholder="Vapi-standard"
+        onChange={(e) => set(key, e.target.value === "" ? null : Math.round(Number(e.target.value)))}
+        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+      />
+      <span className="mt-0.5 block text-[11px] font-normal text-slate-400">{hint}</span>
+    </label>
+  );
+
+  return (
+    <div className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
+        {draft.vapiName ? <span className="rounded-full bg-white px-2 py-0.5">Vapi: {draft.vapiName}</span> : null}
+        {draft.modelLabel ? <span className="rounded-full bg-white px-2 py-0.5">Model: {draft.modelLabel}</span> : null}
+        {draft.voiceLabel ? <span className="rounded-full bg-white px-2 py-0.5">Stemme: {draft.voiceLabel}</span> : null}
+        <span className="rounded-full bg-white px-2 py-0.5">Sprog: {draft.language}</span>
+      </div>
+      {linkedWidget ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          ! Denne assistent styres også af agenten &quot;{linkedWidget}&quot; i platformen. Dens prompt og værktøjer bliver skrevet over,
+          næste gang den agent gemmes eller &quot;Vapi resync&quot; køres — ret den hellere dér.
+        </p>
+      ) : null}
+
+      <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-3">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={draft.endCallOnGoodbye}
+          disabled={draft.endCallFromSavedTool}
+          onChange={(e) => set("endCallOnGoodbye", e.target.checked)}
+        />
+        <span>
+          <span className="block text-sm font-semibold text-slate-800">Læg på, når kunden siger farvel</span>
+          <span className="block text-xs text-slate-500">
+            Agenten siger en kort afskedshilsen og afslutter opkaldet, når kunden siger farvel eller beder om at afslutte.
+            {draft.endCallFromSavedTool ? " (Slået til via et gemt værktøj i Vapi — slås fra dér.)" : ""}
+          </span>
+        </span>
+      </label>
+
+      <label className="block text-xs font-medium text-slate-600">
+        Første besked
+        <input
+          value={draft.firstMessage}
+          onChange={(e) => set("firstMessage", e.target.value)}
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        />
+      </label>
+      <label className="block text-xs font-medium text-slate-600">
+        Prompt (systeminstruks)
+        <textarea
+          value={draft.systemPrompt}
+          onChange={(e) => set("systemPrompt", e.target.value)}
+          rows={14}
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed"
+        />
+        <span className="mt-0.5 block text-[11px] font-normal text-slate-400">
+          Instruksen om at lægge på ved farvel tilføjes automatisk, når den er slået til.
+        </span>
+      </label>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <label className="text-xs font-medium text-slate-600">
+          Besked når agenten lægger på
+          <input
+            value={draft.endCallMessage}
+            onChange={(e) => set("endCallMessage", e.target.value)}
+            placeholder="Tom = agentens egen afsked"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+        </label>
+        {secondsField("Læg på efter stilhed (sek.)", "silenceTimeoutSeconds", "Hvor længe der må være stille")}
+        {secondsField("Maks. samtalelængde (sek.)", "maxDurationSeconds", "Fx 600 = 10 minutter")}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={saving || changed.length === 0}
+          onClick={() => void save()}
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-40"
+        >
+          {saving ? "Gemmer i Vapi…" : "Gem i Vapi"}
+        </button>
+        {changed.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setDraft(config)}
+            className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+          >
+            Fortryd ændringer
+          </button>
+        ) : null}
+        {saved ? <span className="text-xs text-emerald-700">✓ Gemt i Vapi</span> : null}
+        {error ? <span className="text-xs text-red-600">{error}</span> : null}
+      </div>
     </div>
   );
 }
