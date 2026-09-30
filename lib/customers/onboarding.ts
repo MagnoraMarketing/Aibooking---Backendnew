@@ -2,9 +2,8 @@ import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { grantCredits } from "@/lib/credits/ledger";
 import { generatePublicWidgetId } from "@/lib/widgets/public-id";
-import { getDefaultSystemPrompt } from "@/lib/settings/platform";
+import { getDefaultSystemPrompt, getTrialMinutes, trialGrantDescription } from "@/lib/settings/platform";
 import { sendCustomerInviteEmail } from "@/lib/email/invite";
-import { TRIAL_MINUTES, TRIAL_SECONDS } from "@/lib/billing/trial";
 import type { Customer, LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 
 export interface OnboardCustomerParams {
@@ -83,11 +82,16 @@ export async function onboardCustomer(params: OnboardCustomerParams): Promise<On
   // Same free-trial allowance as self-signup (lib/customers/self-signup.ts)
   // — the package's full included_minutes only get granted once this
   // customer's subscription actually has a paid Stripe invoice behind it.
-  await grantCredits({
-    customerId: customer.id,
-    seconds: TRIAL_SECONDS,
-    description: `Gratis prøveperiode: ${TRIAL_MINUTES} minutter (7 dage)`,
-  });
+  // How many minutes is set by the master admin (Indstillinger → Gratis
+  // prøveperiode); zero means new customers start without free minutes.
+  const trialMinutes = await getTrialMinutes();
+  if (trialMinutes > 0) {
+    await grantCredits({
+      customerId: customer.id,
+      seconds: trialMinutes * 60,
+      description: trialGrantDescription(trialMinutes),
+    });
+  }
 
   const defaultSystemPrompt = await getDefaultSystemPrompt();
 

@@ -6,6 +6,9 @@ export const TRIAL_DAYS = 7;
 // and try it live before deciding to subscribe. Either limit running out
 // ends the trial: 7 days pass, or the 10 minutes are used, whichever comes
 // first (see hasEmbedCodeAccess below).
+//
+// TRIAL_MINUTES is the default only: the master admin sets the actual number
+// under Indstillinger (getTrialMinutes in lib/settings/platform.ts).
 export const TRIAL_MINUTES = 10;
 export const TRIAL_SECONDS = TRIAL_MINUTES * 60;
 

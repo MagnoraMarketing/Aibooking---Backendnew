@@ -295,3 +295,42 @@ export function computeStats(calls: DashboardCall[], days: number, now: Date = n
     byHour,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Stored end-of-call-reports
+// ---------------------------------------------------------------------------
+
+// A call as Vapi's end-of-call-report webhook delivered it, stored verbatim
+// in vapi_events (app/api/webhooks/vapi). Vapi's own call list only reaches
+// as far back as the subscription's retention window, so older history is
+// read from here. The report carries the call object plus the artifacts at
+// its top level; merged, it reads like an entry from the call list.
+export function callFromStoredReport(payload: Raw): Raw | null {
+  const call = obj(payload.call);
+  const id = str(call.id);
+  if (!id) return null;
+  return {
+    ...payload,
+    ...call,
+    id,
+    assistantId: str(call.assistantId) ?? str(obj(payload.assistant).id),
+    customer: call.customer ?? payload.customer,
+    startedAt: str(payload.startedAt) ?? str(call.startedAt),
+    endedAt: str(payload.endedAt) ?? str(call.endedAt),
+    endedReason: str(payload.endedReason) ?? str(call.endedReason),
+    cost: typeof payload.cost === "number" ? payload.cost : call.cost,
+    analysis: payload.analysis ?? call.analysis,
+    artifact: payload.artifact ?? call.artifact,
+  };
+}
+
+// The oldest moment Vapi will list calls from, read out of its refusal
+// ("…Please adjust your date filter to Wed Sep 16 2026 or later."). Null
+// when the refusal is about something else.
+export function retentionStartFromError(message: string): Date | null {
+  if (!/retention window|call history/i.test(message)) return null;
+  const match = /date filter to (.+?) or later/i.exec(message);
+  if (!match) return null;
+  const date = new Date(match[1]!);
+  return Number.isNaN(date.getTime()) ? null : date;
+}

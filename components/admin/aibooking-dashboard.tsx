@@ -95,6 +95,7 @@ interface ActivityResponse {
   agents: DashboardAgent[];
   calls: DashboardCall[];
   errors: Record<string, string>;
+  vapiHistoryFrom: string | null;
   days: number;
   fetchedAt: string;
 }
@@ -108,6 +109,7 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
   const [agents, setAgents] = useState(initialAgents);
   const [calls, setCalls] = useState<DashboardCall[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [vapiHistoryFrom, setVapiHistoryFrom] = useState<string | null>(null);
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -129,6 +131,7 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
     setAgents(data.agents);
     setCalls(data.calls);
     setErrors(data.errors);
+    setVapiHistoryFrom(data.vapiHistoryFrom);
     setFetchedAt(data.fetchedAt);
   }, []);
 
@@ -249,6 +252,12 @@ export function AibookingDashboard({ initialAgents }: { initialAgents: Dashboard
       </div>
 
       {loadError ? <Alert tone="error">{loadError}</Alert> : null}
+      {vapiHistoryFrom && !loading ? (
+        <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+          ⓘ Vapi udleverer kun samtaler fra {new Date(vapiHistoryFrom).toLocaleDateString("da-DK")} og frem på jeres abonnement.
+          Ældre samtaler i perioden vises fra platformens egen log, hvis Vapi har sendt dem til vores webhook.
+        </p>
+      ) : null}
       {Object.entries(errors)
         .filter(([agentId]) => selected === "all" || agentId === selected)
         .map(([agentId, message]) => (
