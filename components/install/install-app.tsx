@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "@/components/i18n/language-provider";
 
@@ -31,8 +31,18 @@ function isStandalone(): boolean {
   );
 }
 
-export function InstallApp() {
+interface InstallAppProps {
+  // The /app/download link: goes straight to installing instead of
+  // explaining. Browsers only open the install dialog from a tap, so on
+  // Android the very first tap anywhere on the page starts it; on iPhone
+  // Safari has no install API at all, so the steps are all we can show.
+  // Someone already inside the installed app is sent on to the dashboard.
+  autoInstall?: boolean;
+}
+
+export function InstallApp({ autoInstall = false }: InstallAppProps) {
   const { t } = useTranslation();
+  const prompting = useRef(false);
   const [platform, setPlatform] = useState<Platform | null>(null);
   const [installed, setInstalled] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -63,13 +73,33 @@ export function InstallApp() {
   }, []);
 
   async function handleInstall() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    // The event can only be used once, whatever the outcome.
-    setInstallPrompt(null);
-    if (outcome === "accepted") setInstalled(true);
+    if (!installPrompt || prompting.current) return;
+    prompting.current = true;
+    try {
+      await installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      // The event can only be used once, whatever the outcome.
+      setInstallPrompt(null);
+      if (outcome === "accepted") setInstalled(true);
+    } finally {
+      prompting.current = false;
+    }
   }
+
+  useEffect(() => {
+    if (!autoInstall || !installPrompt) return;
+    function onFirstTap() {
+      void handleInstall();
+    }
+    document.addEventListener("pointerdown", onFirstTap, { once: true });
+    return () => document.removeEventListener("pointerdown", onFirstTap);
+    // handleInstall only reads installPrompt, which is already a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoInstall, installPrompt]);
+
+  useEffect(() => {
+    if (autoInstall && installed && isStandalone()) window.location.replace("/dashboard");
+  }, [autoInstall, installed]);
 
   const showIos = platform === "ios" || platform === "other";
   const showAndroid = platform === "android" || platform === "other";
