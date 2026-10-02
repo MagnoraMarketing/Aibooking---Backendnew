@@ -15,6 +15,8 @@ export const createCustomerSchema = z.object({
   // Who sold this customer, e.g. a salesperson's name — shown in the client
   // portal so Master Admin can see who to attribute a customer to.
   reference: z.string().trim().max(200).optional(),
+  // "samarbejde" = partnership/demo customer, never billed.
+  customerType: z.enum(["standard", "samarbejde"]).optional().default("standard"),
 });
 
 // ---------------------------------------------------------------------------
@@ -45,6 +47,7 @@ export const updateCustomerSchema = z.object({
   email: z.string().trim().email().max(320).optional(),
   status: z.enum(["active", "inactive", "deleted"]).optional(),
   reference: z.string().trim().max(200).optional().nullable(),
+  customer_type: z.enum(["standard", "samarbejde"]).optional(),
 });
 
 // ---------------------------------------------------------------------------

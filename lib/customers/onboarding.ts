@@ -4,7 +4,8 @@ import { grantCredits } from "@/lib/credits/ledger";
 import { generatePublicWidgetId } from "@/lib/widgets/public-id";
 import { getDefaultSystemPrompt, getTrialMinutes, trialGrantDescription } from "@/lib/settings/platform";
 import { sendCustomerInviteEmail } from "@/lib/email/invite";
-import type { Customer, LLMModel, Package, VoiceModel, Widget } from "@/types/database";
+import { isNotBilled } from "./customer-type";
+import type { Customer, CustomerType, LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 
 export interface OnboardCustomerParams {
   name: string;
@@ -17,6 +18,9 @@ export interface OnboardCustomerParams {
   // Who sold this customer, e.g. a salesperson's name — see
   // supabase/migrations/0045_customer_reference.sql.
   reference?: string;
+  // "samarbejde" = partnership/demo customer, never billed (see
+  // lib/customers/customer-type.ts). Defaults to "standard".
+  customerType?: CustomerType;
 }
 
 export interface OnboardCustomerResult {
@@ -59,13 +63,21 @@ export async function getDefaultOrSpecified<T extends { id: string; active: bool
 export async function onboardCustomer(params: OnboardCustomerParams): Promise<OnboardCustomerResult> {
   const supabase = getAdminClient();
 
+  const customerType: CustomerType = params.customerType ?? "standard";
+  const notBilled = isNotBilled({ customer_type: customerType });
   const pkg = await getDefaultOrSpecified<Package>("packages", params.packageId);
   const llmModel = await getDefaultOrSpecified<LLMModel>("llm_models", params.llmModelId);
   const voiceModel = await getDefaultOrSpecified<VoiceModel>("voice_models", params.voiceModelId);
 
   const { data: customer, error: customerError } = await supabase
     .from("customers")
-    .insert({ name: params.name, email: params.email, status: "active", reference: params.reference?.trim() || null })
+    .insert({
+      name: params.name,
+      email: params.email,
+      status: "active",
+      reference: params.reference?.trim() || null,
+      customer_type: customerType,
+    })
     .select("*")
     .single();
 
@@ -73,24 +85,28 @@ export async function onboardCustomer(params: OnboardCustomerParams): Promise<On
     throw new Error(`Failed to create customer: ${customerError?.message}`);
   }
 
-  await supabase.from("subscriptions").insert({
-    customer_id: customer.id,
-    package_id: pkg.id,
-    status: "incomplete",
-  });
-
-  // Same free-trial allowance as self-signup (lib/customers/self-signup.ts)
-  // — the package's full included_minutes only get granted once this
-  // customer's subscription actually has a paid Stripe invoice behind it.
-  // How many minutes is set by the master admin (Indstillinger → Gratis
-  // prøveperiode); zero means new customers start without free minutes.
-  const trialMinutes = await getTrialMinutes();
-  if (trialMinutes > 0) {
-    await grantCredits({
-      customerId: customer.id,
-      seconds: trialMinutes * 60,
-      description: trialGrantDescription(trialMinutes),
+  // Samarbejde (partnership) customers are never billed: no subscription
+  // placeholder for Stripe to pick up and no trial minutes to run down.
+  if (!notBilled) {
+    await supabase.from("subscriptions").insert({
+      customer_id: customer.id,
+      package_id: pkg.id,
+      status: "incomplete",
     });
+
+    // Same free-trial allowance as self-signup (lib/customers/self-signup.ts)
+    // — the package's full included_minutes only get granted once this
+    // customer's subscription actually has a paid Stripe invoice behind it.
+    // How many minutes is set by the master admin (Indstillinger → Gratis
+    // prøveperiode); zero means new customers start without free minutes.
+    const trialMinutes = await getTrialMinutes();
+    if (trialMinutes > 0) {
+      await grantCredits({
+        customerId: customer.id,
+        seconds: trialMinutes * 60,
+        description: trialGrantDescription(trialMinutes),
+      });
+    }
   }
 
   const defaultSystemPrompt = await getDefaultSystemPrompt();
