@@ -55,6 +55,7 @@ export default async function GettingStartedPage() {
         customerCreatedAt: customer.created_at,
         subscriptionStatus: subscription?.status ?? null,
         balanceSeconds,
+        customerType: customer.customer_type,
       })
     : false;
   const hasPhoneNumber = (phoneNumbers?.length ?? 0) > 0;

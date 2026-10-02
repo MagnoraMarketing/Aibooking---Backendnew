@@ -41,9 +41,14 @@ export interface Customer {
   // (see 0043_admin_wapi_control_center.sql) — never a real tenant, so
   // customer-facing lists/stats exclude it the same way status='deleted' is.
   is_platform_owned: boolean;
+  // "samarbejde" = partnership/demo customer, never billed — see
+  // lib/customers/customer-type.ts and 0049_customer_type_samarbejde.sql.
+  customer_type: CustomerType;
   created_at: string;
   updated_at: string;
 }
+
+export type CustomerType = "standard" | "samarbejde";
 
 export interface Package {
   id: string;

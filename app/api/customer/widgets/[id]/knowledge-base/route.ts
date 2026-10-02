@@ -10,7 +10,9 @@ import {
 } from "@/lib/knowledge-base";
 import { getBalanceSeconds, deductKnowledgeBaseCost, refundCredits } from "@/lib/credits";
 import { syncWidgetToVapiAssistant } from "@/lib/vapi";
+import { isNotBilled } from "@/lib/customers/customer-type";
 import { ApiError } from "@/types/errors";
+import type { Customer } from "@/types/database";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -81,8 +83,15 @@ export const POST = withErrorHandling(async (request, { params }) => {
   if (!content) throw ApiError.badRequest("Der blev ikke fundet noget tekstindhold");
 
   const costSeconds = await estimateIngestionCostSeconds(content.length);
+  // Samarbejde (partnership) customers are never billed, so their balance
+  // never blocks adding content — the cost is still written to the ledger.
+  const { data: owner } = await supabase
+    .from("customers")
+    .select("customer_type")
+    .eq("id", widget.customer_id)
+    .maybeSingle<Pick<Customer, "customer_type">>();
   const balance = await getBalanceSeconds(widget.customer_id);
-  if (balance < costSeconds) {
+  if (!isNotBilled(owner) && balance < costSeconds) {
     throw ApiError.paymentRequired("Ikke nok minutter tilbage til at tilføje dette indhold");
   }
 
