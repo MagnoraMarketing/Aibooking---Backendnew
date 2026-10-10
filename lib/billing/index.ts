@@ -42,6 +42,7 @@ export {
   getNordcallAppUrl,
   getNordcallOutboundStatus,
   handleNordcallOutboundEvent,
+  hasNordcallAccess,
   startNordcallTrial,
   type NordcallOutboundStatus,
   type NordcallPlan,

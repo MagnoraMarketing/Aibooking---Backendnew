@@ -8,7 +8,8 @@ import type { CampaignStatus } from "@/lib/outbound/status";
 import type { Widget } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import { NordcallOutboundManager } from "@/components/dashboard/nordcall-outbound-manager";
-import { NORDCALL_PLANS, getNordcallAppUrl, getNordcallOutboundStatus } from "@/lib/billing";
+import { redirect } from "next/navigation";
+import { NORDCALL_PLANS, getNordcallAppUrl, getNordcallOutboundStatus, hasNordcallAccess } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export interface CampaignRow {
   retry_after_minutes: number;
 }
 
-export default async function OutboundPage({ searchParams }: { searchParams: { checkout?: string } }) {
+export default async function OutboundPage({ searchParams }: { searchParams: { checkout?: string; plans?: string } }) {
   const ctx = await requireCustomerAdminForPage();
 
   // The AI campaign dialer is not finished yet (see lib/features); until it
@@ -49,6 +50,9 @@ export default async function OutboundPage({ searchParams }: { searchParams: { c
   if (!OUTBOUND_ENABLED) {
     const status = await getNordcallOutboundStatus(ctx.userId);
     const checkout = searchParams.checkout === "success" || searchParams.checkout === "cancelled" ? searchParams.checkout : null;
+    // With a running trial or plan, Outbound opens Nordcall itself. The
+    // purchase page stays reachable with ?plans=1 (and right after checkout).
+    if (hasNordcallAccess(status) && !checkout && searchParams.plans !== "1") redirect(getNordcallAppUrl());
     return (
       <NordcallOutboundManager
         status={status}

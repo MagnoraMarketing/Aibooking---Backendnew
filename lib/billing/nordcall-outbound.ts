@@ -32,6 +32,12 @@ export function isNordcallPlan(value: unknown): value is NordcallPlan {
   return typeof value === "string" && value in NORDCALL_PLANS;
 }
 
+// Whether the Outbound menu item should open Nordcall straight away rather
+// than the purchase page: the team has a running trial or plan.
+export function hasNordcallAccess(status: NordcallOutboundStatus): boolean {
+  return status.plan === "internal" || ((status.status === "active" || status.status === "trialing" || status.status === "past_due") && status.plan !== null);
+}
+
 export function getNordcallAppUrl(): string {
   return (process.env.NORDCALL_APP_URL ?? "https://outbound-dialer12.vercel.app").replace(/\/$/, "");
 }
@@ -107,6 +113,8 @@ export async function getNordcallOutboundStatus(userId: string): Promise<Nordcal
     .select("plan, status, included_minutes, trial_ends_at, current_period_start, current_period_end")
     .eq("team_id", profile.team_id).maybeSingle();
   if (!sub) return { ...empty, teamAdmin };
+  // Nothing expires a trial in the database; past its end date it counts as over.
+  const trialOver = sub.plan === "trial" && sub.trial_ends_at !== null && new Date(sub.trial_ends_at).getTime() < Date.now();
   let usage = nordcall().from("calls").select("duration_seconds").eq("team_id", profile.team_id).gte("started_at", sub.current_period_start);
   if (sub.current_period_end) usage = usage.lt("started_at", sub.current_period_end);
   const { data: calls } = await usage.limit(20000);
@@ -114,7 +122,7 @@ export async function getNordcallOutboundStatus(userId: string): Promise<Nordcal
     (sum: number, call: { duration_seconds: number | null }) => sum + Math.ceil(Math.max(0, call.duration_seconds ?? 0) / 60), 0);
   return {
     plan: sub.plan,
-    status: sub.status,
+    status: trialOver ? "expired" : sub.status,
     includedMinutes: sub.included_minutes,
     usedMinutes,
     trialEndsAt: sub.trial_ends_at,
