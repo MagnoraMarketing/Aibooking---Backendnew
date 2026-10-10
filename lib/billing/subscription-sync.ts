@@ -57,6 +57,8 @@ export async function syncSubscriptionFromStripe(
   const stripeCustomerId =
     typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
 
+  const period = getSubscriptionPeriod(subscription);
+
   const { error } = await supabase.from("subscriptions").upsert(
     {
       customer_id: customerId,
@@ -64,8 +66,8 @@ export async function syncSubscriptionFromStripe(
       stripe_subscription_id: subscription.id,
       stripe_customer_id: stripeCustomerId,
       status: subscription.status,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      current_period_start: new Date(period.start * 1000).toISOString(),
+      current_period_end: new Date(period.end * 1000).toISOString(),
       cancel_at_period_end: subscription.cancel_at_period_end,
     },
     { onConflict: "stripe_subscription_id" }
@@ -86,6 +88,24 @@ export async function syncSubscriptionFromStripe(
   }
 
   return { customerId, status: subscription.status };
+}
+
+// customer.subscription.* webhook payloads come in the webhook endpoint's
+// API version, not our SDK's. From 2025-03-31 ("basil") on, the billing
+// period lives on each subscription item instead of the subscription itself,
+// so the top-level fields are undefined there — and new Date(NaN)
+// .toISOString() throws, failing the webhook on every retry. Fall back to the
+// first item's period.
+export function getSubscriptionPeriod(subscription: Stripe.Subscription): { start: number; end: number } {
+  const item = subscription.items?.data?.[0] as
+    | { current_period_start?: number; current_period_end?: number }
+    | undefined;
+  const start = subscription.current_period_start ?? item?.current_period_start;
+  const end = subscription.current_period_end ?? item?.current_period_end;
+  if (typeof start !== "number" || typeof end !== "number") {
+    throw new Error(`Stripe subscription ${subscription.id} has no current billing period`);
+  }
+  return { start, end };
 }
 
 export async function markSubscriptionCanceled(subscription: Stripe.Subscription): Promise<void> {

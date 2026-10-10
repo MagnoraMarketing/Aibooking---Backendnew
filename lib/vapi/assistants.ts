@@ -2,7 +2,13 @@ import "server-only";
 import { getVapiVoiceTemplateAssistantId } from "@/lib/settings/platform";
 import { DEFAULT_VOICE_GENDER, FALLBACK_VOICE_BY_GENDER, type VapiVoiceGender } from "./voice-gender";
 import { getPublicAppUrl, isPubliclyReachableAppUrl } from "@/lib/app-url";
-import { toolWaitText, toolFailedText, withNoBookingDirective } from "@/lib/i18n/agent-content";
+import {
+  toolWaitText,
+  toolFailedText,
+  withNoBookingDirective,
+  withBookingFlowDirective,
+  withEndCallDirective,
+} from "@/lib/i18n/agent-content";
 import { vapiFetch } from "./client";
 
 export type { VapiVoiceGender };
@@ -250,6 +256,25 @@ function buildBookingTools() {
   ];
 }
 
+// Vapi's built-in hang-up tool, on every assistant: when the customer says
+// goodbye, the agent says goodbye back and calls it (see END_CALL_DIRECTIVE
+// in lib/i18n/agent-content.ts). The function is named explicitly so the
+// prompt and the tool always agree on what to call. An empty `messages`
+// keeps withSpokenToolMessages from putting "Lige et øjeblik." in front of
+// the hang-up.
+export function buildEndCallTool() {
+  return {
+    type: "endCall",
+    messages: [],
+    function: {
+      name: "endCall",
+      description:
+        "Afslut opkaldet. Brug det, når kunden har sagt farvel eller beder om at afslutte samtalen — efter du har sagt en kort afskedshilsen.",
+      parameters: { type: "object", properties: {} },
+    },
+  };
+}
+
 // Vapi speaks a filler the instant a tool fires, before the model has said
 // anything — and a tool that carries no `messages` of its own gets Vapi's
 // built-in ones, which are English whatever language the agent is speaking.
@@ -276,6 +301,27 @@ function withSpokenToolMessages(tools: unknown[], language: string | null | unde
   });
 }
 
+// Once the agent has asked for an email address, it waits for a full second
+// of silence before answering. People dictate addresses in bursts ("anna …
+// punktum … hansen"), and the default endpointing jumps in at the first
+// pause — the agent then reads back half an address. The rule only matches
+// right after the agent's own question, so every other turn keeps its normal
+// snappy timing. Matched against the assistant's last message; written with
+// explicit case alternatives rather than regexOptions to keep the payload to
+// the fields Vapi documents for every rule type.
+export const EMAIL_PAUSE_RULE = {
+  type: "assistant",
+  regex: "[Mm]ail|[Cc]orreo|[Cc]ourriel",
+  timeoutSeconds: 1,
+} as const;
+
+// If Vapi ever rejects the endpointing plan, the prompt and tools must still
+// reach the assistant (same reasoning as isVoiceRejection below).
+function isStartSpeakingPlanRejection(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /startSpeakingPlan|customEndpointingRules/i.test(message);
+}
+
 // Transcriber is still fixed (Soniox STT RT v5) — voice and model both come
 // from whichever male/female template the customer's widget is set to (see
 // VapiAssistantParams.voiceGender), read in a single fetch.
@@ -294,9 +340,19 @@ async function buildAssistantBody(
   // the tool list knows whether it can — and without this the agent invents
   // the booking rather than admitting it cannot make one. See
   // NO_BOOKING_DIRECTIVE in lib/i18n/agent-content.ts.
-  const systemPrompt = includeBookingTools
-    ? params.systemPrompt
-    : withNoBookingDirective(params.systemPrompt, params.language);
+  //
+  // An agent that can book gets the platform's booking flow instead (fast
+  // offer, email read back and confirmed, explicit yes before booking) — see
+  // BOOKING_FLOW_DIRECTIVE.
+  //
+  // Every agent is also told to hang up once the customer says goodbye — see
+  // buildEndCallTool.
+  const systemPrompt = withEndCallDirective(
+    includeBookingTools
+      ? withBookingFlowDirective(params.systemPrompt, params.language)
+      : withNoBookingDirective(params.systemPrompt, params.language),
+    params.language
+  );
 
   const model: Record<string, unknown> = {
     ...resolveModelConfig(template, gender),
@@ -311,7 +367,7 @@ async function buildAssistantBody(
   // this module having to know anything about webshops; lib/vapi/sync.ts
   // decides which ones a given widget gets.
   model.tools = withSpokenToolMessages(
-    [...(includeBookingTools ? buildBookingTools() : []), ...extraTools],
+    [...(includeBookingTools ? buildBookingTools() : []), ...extraTools, buildEndCallTool()],
     params.language
   );
 
@@ -329,6 +385,10 @@ async function buildAssistantBody(
       model: "stt-rt-v5",
     },
     voice: resolveVoiceConfig(template, gender),
+    // Always sent (not only with booking tools), so a PATCH never leaves a
+    // stale plan behind — the rule only ever lengthens the pause after the
+    // agent asked for an email.
+    startSpeakingPlan: { customEndpointingRules: [EMAIL_PAUSE_RULE] },
     ...(typeof params.silenceTimeoutSeconds === "number"
       ? { silenceTimeoutSeconds: params.silenceTimeoutSeconds }
       : {}),
@@ -408,12 +468,30 @@ export async function createVapiAssistant(
   includeBookingTools = false,
   extraTools: unknown[] = []
 ): Promise<{ id: string }> {
-  const response = await vapiFetch("/assistant", {
-    method: "POST",
-    body: JSON.stringify(await buildAssistantBody(params, includeBookingTools, extraTools)),
-  });
+  const body = await buildAssistantBody(params, includeBookingTools, extraTools);
+  let response: Response;
+  try {
+    response = await vapiFetch("/assistant", { method: "POST", body: JSON.stringify(body) });
+  } catch (err) {
+    if (!isStartSpeakingPlanRejection(err)) throw err;
+    const { startSpeakingPlan: rejectedPlan, ...withoutPlan } = body;
+    console.error(
+      `[vapi] New assistant: startSpeakingPlan rejected (${JSON.stringify(rejectedPlan)}). Retrying without it.`,
+      err
+    );
+    response = await vapiFetch("/assistant", { method: "POST", body: JSON.stringify(withoutPlan) });
+  }
   const data = (await response.json()) as { id: string };
   return { id: data.id };
+}
+
+// DELETE /assistant/{id}. Only ever called on an assistant this request just
+// created for an agent that then failed to save — cleaning up so a failed
+// "Create agent" never leaves an orphaned assistant behind in Vapi. Never
+// used on an agent that exists: agents are paused, not deleted, and keep
+// their assistant.
+export async function deleteVapiAssistant(assistantId: string): Promise<void> {
+  await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, { method: "DELETE" });
 }
 
 // Vapi retires voices, and it refuses the whole PATCH when one is named:
@@ -442,6 +520,16 @@ export async function updateVapiAssistant(
   try {
     await vapiFetch(path, { method: "PATCH", body: JSON.stringify(body) });
   } catch (err) {
+    if (isStartSpeakingPlanRejection(err)) {
+      const { startSpeakingPlan: rejectedPlan, ...withoutPlan } = body;
+      console.error(
+        `[vapi] Assistant ${assistantId}: startSpeakingPlan rejected (${JSON.stringify(rejectedPlan)}). ` +
+          "Retrying without it so the prompt, knowledge base and tools still sync.",
+        err
+      );
+      await vapiFetch(path, { method: "PATCH", body: JSON.stringify(withoutPlan) });
+      return;
+    }
     if (!isVoiceRejection(err)) throw err;
 
     // Retry without the voice: the assistant keeps whatever voice it already

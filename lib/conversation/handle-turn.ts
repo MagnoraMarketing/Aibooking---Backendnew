@@ -16,6 +16,7 @@ import { decryptSecret } from "@/lib/security";
 import { generateReplyWithTools, type ShopifyToolLoopContext } from "./tool-loop";
 import type { CalendarToolContext } from "./calendar-tools";
 import { resolveShopifyCapabilities } from "@/lib/shopify/agent-tools";
+import { withBookingFlowDirective } from "@/lib/i18n/agent-content";
 // Import the specific submodules, not the @/lib/knowledge-base barrel —
 // the barrel also re-exports PDF/URL extraction, which would drag their
 // dependencies (pdf-parse, etc.) into every conversation turn for no
@@ -165,7 +166,10 @@ export async function generateConversationReplyText(params: GenerateReplyTextPar
     calendarContext || shopifyContext
       ? await generateReplyWithTools({
           model: params.llmModel.model_name,
-          systemPrompt,
+          // Same booking flow as the voice agents (see BOOKING_FLOW_DIRECTIVE).
+          systemPrompt: calendarContext
+            ? withBookingFlowDirective(systemPrompt, params.widget.language)
+            : systemPrompt,
           messages: messagesForLLM,
           maxTokens: params.llmModel.max_tokens,
           calendar: calendarContext,

@@ -82,7 +82,7 @@ export async function notifyNewCustomerSignup(params: {
 
 export async function notifyCustomerPayment(params: {
   customer: Pick<Customer, "name" | "email" | "phone">;
-  // What was bought, in plain Danish — e.g. "Voice Widget start: 200 minutter"
+  // What was bought, in plain Danish — e.g. "Voice Widget start: 150 minutter"
   // or a package name. Goes in the subject as well as the body.
   productLabel: string;
   // Preformatted, because the amount comes from Stripe in whatever currency

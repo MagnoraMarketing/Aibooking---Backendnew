@@ -1,7 +1,8 @@
 import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { getBalanceSeconds, listTransactions } from "@/lib/credits";
-import { isWithinTrial, trialDaysRemaining, TRIAL_MINUTES } from "@/lib/billing";
+import { isWithinTrial, trialDaysRemaining } from "@/lib/billing";
+import { getCustomerTrialMinutes } from "@/lib/settings/platform";
 import { BillingManager } from "@/components/dashboard/billing-manager";
 import type { Customer, Package, Subscription } from "@/types/database";
 
@@ -12,7 +13,7 @@ export default async function BillingPage() {
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
-  const [{ data: customer }, { data: subscription }, balanceSeconds, { data: availablePackages }, transactions] =
+  const [{ data: customer }, { data: subscription }, balanceSeconds, { data: availablePackages }, transactions, trialMinutes] =
     await Promise.all([
       supabase.from("customers").select("*").eq("id", customerId).single<Customer>(),
       supabase
@@ -25,6 +26,8 @@ export default async function BillingPage() {
       getBalanceSeconds(customerId),
       supabase.from("packages").select("*").eq("active", true).order("monthly_price", { ascending: true }).returns<Package[]>(),
       listTransactions(customerId, 10),
+      // The minutes this customer was actually given, not today's setting.
+      getCustomerTrialMinutes(customerId),
     ]);
 
   return (
@@ -36,7 +39,7 @@ export default async function BillingPage() {
       availablePackages={availablePackages ?? []}
       isWithinTrial={customer ? isWithinTrial(customer.created_at) : false}
       trialDaysRemaining={customer ? trialDaysRemaining(customer.created_at) : 0}
-      trialMinutes={TRIAL_MINUTES}
+      trialMinutes={trialMinutes}
       transactions={transactions.map((t) => ({
         id: t.id,
         description: t.description,
