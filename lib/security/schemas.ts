@@ -15,6 +15,8 @@ export const createCustomerSchema = z.object({
   // Who sold this customer, e.g. a salesperson's name — shown in the client
   // portal so Master Admin can see who to attribute a customer to.
   reference: z.string().trim().max(200).optional(),
+  // "samarbejde" = partnership/demo customer, never billed.
+  customerType: z.enum(["standard", "samarbejde"]).optional().default("standard"),
 });
 
 // ---------------------------------------------------------------------------
@@ -45,6 +47,7 @@ export const updateCustomerSchema = z.object({
   email: z.string().trim().email().max(320).optional(),
   status: z.enum(["active", "inactive", "deleted"]).optional(),
   reference: z.string().trim().max(200).optional().nullable(),
+  customer_type: z.enum(["standard", "samarbejde"]).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -559,6 +562,14 @@ export const checkoutRequestSchema = z.object({
   includeSetup: z.boolean().optional().default(false),
 });
 
+// Nordcall Outbound add-on (see lib/billing/nordcall-outbound.ts): start the
+// free trial or check out one of the two fixed monthly plans. The price is
+// never taken from the request, only the plan key.
+export const nordcallOutboundRequestSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("trial") }),
+  z.object({ action: z.literal("checkout"), plan: z.enum(["minutes_1000", "minutes_2000"]) }),
+]);
+
 // ---------------------------------------------------------------------------
 // Booking setup (see 0030_optional_booking.sql) — the customer asks for
 // booking from the dashboard, our team does the Cal.com/calendar work and
@@ -599,3 +610,38 @@ export const shopifyConnectQuerySchema = z.object({
   // to keep an absurd value out of the parser.
   shop: z.string().trim().min(1).max(255),
 });
+
+// ---------------------------------------------------------------------------
+// Admin: Aibooking.dk Dashboard agents (0048_aibooking_dashboard_agents.sql).
+// Vapi assistant ids are UUIDs; anything else is a paste mistake.
+// ---------------------------------------------------------------------------
+export const dashboardAgentChannelSchema = z.enum(["widget", "inbound", "outbound"]);
+
+export const createDashboardAgentSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  channel: dashboardAgentChannelSchema,
+  vapiAssistantId: z.string().trim().uuid(),
+});
+
+export const updateDashboardAgentSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    channel: dashboardAgentChannelSchema,
+    vapiAssistantId: z.string().trim().uuid(),
+    isActive: z.boolean(),
+    sortOrder: z.number().int().min(0).max(1000),
+  })
+  .partial();
+
+// The settings of one of the platform's own Vapi assistants the admin edits
+// from the Aibooking.dk Dashboard (lib/aibooking-dashboard/assistant-config.ts).
+export const updateDashboardAssistantSchema = z
+  .object({
+    firstMessage: z.string().max(1000),
+    systemPrompt: z.string().max(60_000),
+    endCallOnGoodbye: z.boolean(),
+    endCallMessage: z.string().max(500),
+    silenceTimeoutSeconds: z.number().int().min(10).max(3600).nullable(),
+    maxDurationSeconds: z.number().int().min(10).max(43_200).nullable(),
+  })
+  .partial();
