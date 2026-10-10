@@ -1,3 +1,5 @@
+import type { CustomerType } from "@/types/database";
+
 export const TRIAL_DAYS = 7;
 
 // New customers get a small free trial — TRIAL_MINUTES of usable minutes
@@ -6,6 +8,9 @@ export const TRIAL_DAYS = 7;
 // and try it live before deciding to subscribe. Either limit running out
 // ends the trial: 7 days pass, or the 10 minutes are used, whichever comes
 // first (see hasEmbedCodeAccess below).
+//
+// TRIAL_MINUTES is the default only: the master admin sets the actual number
+// under Indstillinger (getTrialMinutes in lib/settings/platform.ts).
 export const TRIAL_MINUTES = 10;
 export const TRIAL_SECONDS = TRIAL_MINUTES * 60;
 
@@ -44,22 +49,26 @@ export function hasEmbedCodeAccess(params: {
   subscriptionStatus: string | null | undefined;
   balanceSeconds: number;
   widgetLaunchPaidAt?: string | null;
+  customerType?: CustomerType | null;
 }): boolean {
   return getBillingStatus(params) !== "expired";
 }
 
-export type BillingStatus = "paid" | "trial" | "expired";
+export type BillingStatus = "paid" | "trial" | "expired" | "partner";
 
 // The client portal's green/orange/red indicator (spec: grøn for betalt
 // pakke, orange for prøveperiode, rød hvis betaling mangler). Same inputs
-// and precedence as hasEmbedCodeAccess above, just split into the three
-// states instead of collapsed to a boolean.
+// and precedence as hasEmbedCodeAccess above, just split into states
+// instead of collapsed to a boolean. Samarbejde (partnership) customers are
+// never billed, so they get their own "partner" state and never expire.
 export function getBillingStatus(params: {
   customerCreatedAt: string;
   subscriptionStatus: string | null | undefined;
   balanceSeconds: number;
   widgetLaunchPaidAt?: string | null;
+  customerType?: CustomerType | null;
 }): BillingStatus {
+  if (params.customerType === "samarbejde") return "partner";
   if (params.subscriptionStatus && ACTIVE_SUBSCRIPTION_STATUSES.includes(params.subscriptionStatus)) {
     return "paid";
   }
