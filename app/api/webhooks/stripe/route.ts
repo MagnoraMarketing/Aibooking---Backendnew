@@ -13,6 +13,7 @@ import { getInvoiceSubscriptionId } from "@/lib/billing/stripe-payload";
 import { writeAuditLog } from "@/lib/security/audit";
 import { provisionVapiNumbersForNewlyPaidCustomer } from "@/lib/phone-numbers";
 import type { SyncedSubscription } from "@/lib/billing/subscription-sync";
+import { handleNordcallOutboundEvent } from "@/lib/billing/nordcall-outbound";
 
 // A phone agent's number is gated on having an active subscription (see
 // app/api/customer/phone-numbers/vapi/route.ts) — this is what actually
@@ -85,6 +86,14 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
+    // Nordcall Outbound add-on subscriptions are routed before the package
+    // handling below: they are not packages and must never reach
+    // syncSubscriptionFromStripe or grantCreditsForPaidInvoice.
+    if (await handleNordcallOutboundEvent(event, stripe)) {
+      await recordProcessed(supabase, event);
+      return NextResponse.json({ received: true });
+    }
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -175,6 +184,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 
+  await recordProcessed(supabase, event);
+  return NextResponse.json({ received: true });
+}
+
+async function recordProcessed(supabase: ReturnType<typeof getAdminClient>, event: Stripe.Event): Promise<void> {
   const { error: recordError } = await supabase
     .from("stripe_events")
     .insert({ id: event.id, type: event.type, payload: event as unknown as Record<string, unknown> });
@@ -182,6 +196,4 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (recordError) {
     console.error("Failed to record processed stripe event:", recordError.message);
   }
-
-  return NextResponse.json({ received: true });
 }
