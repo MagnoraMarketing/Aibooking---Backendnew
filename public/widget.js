@@ -726,7 +726,11 @@
       } catch (e) {
         return;
       }
-      if (payload.type === "response.audio_transcript.done" && payload.transcript) {
+      // GA renamed response.audio_transcript.done → response.output_audio_transcript.done
+      if (
+        (payload.type === "response.output_audio_transcript.done" || payload.type === "response.audio_transcript.done") &&
+        payload.transcript
+      ) {
         addTranscriptLine(payload.transcript, "assistant");
       } else if (
         payload.type === "conversation.item.input_audio_transcription.completed" &&
@@ -775,7 +779,9 @@
           });
         })
         .then(function (offer) {
-          return fetch("https://api.openai.com/v1/realtime?model=" + encodeURIComponent(realtime.model), {
+          // GA Realtime API: the SDP offer goes to /v1/realtime/calls (the beta
+          // /v1/realtime?model= endpoint was retired together with /sessions).
+          return fetch("https://api.openai.com/v1/realtime/calls?model=" + encodeURIComponent(realtime.model), {
             method: "POST",
             body: offer.sdp,
             headers: {
