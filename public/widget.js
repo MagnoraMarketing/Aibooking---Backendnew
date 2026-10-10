@@ -82,6 +82,32 @@
     return null;
   }
 
+  // What the customer reads when a call can't start or breaks off. Never the
+  // raw provider text ("Fejl: Bad Request", "WebRTC handshake … failed",
+  // "se browserkonsollen"): that is meaningless to a shop's visitor and makes
+  // the shop look broken. The real error is always console.error'ed at the
+  // call site, so nothing is lost for debugging. The one failure the visitor
+  // can fix themselves — a blocked or missing microphone — gets its own
+  // instruction; everything else gets one calm "try again" line.
+  function customerCallMessage(err) {
+    if (err && err.status === 402) {
+      return "Assistenten er ikke tilgængelig lige nu. Prøv igen senere, eller kontakt os direkte.";
+    }
+    var name = (err && (err.name || (err.error && err.error.name))) || "";
+    var text = (describeError(err) || "").toLowerCase();
+    if (
+      name === "NotAllowedError" ||
+      name === "PermissionDeniedError" ||
+      name === "NotFoundError" ||
+      /permission|not ?allowed|microphone|mikrofon|getusermedia/.test(text)
+    ) {
+      return "Giv adgang til mikrofonen i din browser, og tryk på knappen igen.";
+    }
+    return "Vi kunne ikke starte samtalen lige nu. Prøv igen om et øjeblik.";
+  }
+
+  var CALL_DROPPED_MESSAGE = "Forbindelsen blev afbrudt. Tryk på knappen for at prøve igen.";
+
   // Ends a usage session — the only thing that bills its minutes against the
   // customer's credit ledger and closes the conversation (see
   // finalizeUsageSession in lib/usage/session.ts).
@@ -561,8 +587,8 @@
         .catch(function (err) {
           var message =
             err.status === 402
-              ? "Denne assistent er midlertidigt utilgængelig."
-              : "Der opstod en fejl. Prøv igen om lidt.";
+              ? "Assistenten er ikke tilgængelig lige nu. Prøv igen senere, eller kontakt os direkte."
+              : "Beskeden kunne ikke sendes. Prøv igen om et øjeblik.";
           // Transient client-side notice, not part of the actual
           // conversation — shown once, never saved to history.
           addMessage(message, "assistant", true);
@@ -738,7 +764,7 @@
       ) {
         addTranscriptLine(payload.transcript, "user");
       } else if (payload.type === "error") {
-        statusEl.textContent = "Der opstod en fejl under samtalen.";
+        statusEl.textContent = CALL_DROPPED_MESSAGE;
       }
     }
 
@@ -824,10 +850,7 @@
           console.error("[aibooking] Realtime widget failed to start:", err);
           rtc.starting = false;
           teardownConnection();
-          statusEl.textContent =
-            err.status === 402
-              ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
+          statusEl.textContent = customerCallMessage(err);
         });
     }
 
@@ -1055,15 +1078,11 @@
               call.client.on("error", function (e) {
                 // Vapi's error event shape isn't fixed (varies by failure
                 // source — mic permissions, ICE negotiation, the assistant
-                // itself) — surface whatever text it gives us instead of a
-                // dead-end generic message, and always log the raw object so
-                // it's visible in devtools even when no readable text exists.
+                // itself) — log the raw object for devtools and show the
+                // customer a friendly line (see customerCallMessage).
                 console.error("Vapi call error:", e);
                 call.starting = false;
-                var detail = describeError(e);
-                statusEl.textContent = detail
-                  ? "Fejl: " + detail
-                  : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
+                statusEl.textContent = call.active ? CALL_DROPPED_MESSAGE : customerCallMessage(e);
               });
             }
             call.client.start(data.vapi.assistantId);
@@ -1077,10 +1096,7 @@
           // generic status line every failure used to collapse into.
           console.error("[aibooking] Vapi widget failed to start:", err);
           call.starting = false;
-          statusEl.textContent =
-            err.status === 402
-              ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
+          statusEl.textContent = customerCallMessage(err);
         });
     }
 
@@ -1232,10 +1248,7 @@
               call.device = new Twilio.Device(data.token);
               call.device.on("error", function (e) {
                 console.error("Twilio device error:", e);
-                var detail = describeError(e);
-                statusEl.textContent = detail
-                  ? "Fejl: " + detail
-                  : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
+                statusEl.textContent = call.active ? CALL_DROPPED_MESSAGE : customerCallMessage(e);
               });
             } else {
               call.device.updateToken(data.token);
@@ -1257,19 +1270,13 @@
           twilioCall.on("error", function (e) {
             console.error("Twilio call error:", e);
             call.starting = false;
-            var detail = describeError(e);
-            statusEl.textContent = detail
-              ? "Fejl: " + detail
-              : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
+            statusEl.textContent = call.active ? CALL_DROPPED_MESSAGE : customerCallMessage(e);
           });
         })
         .catch(function (err) {
           console.error("[aibooking] Twilio Relay widget failed to start:", err);
           call.starting = false;
-          statusEl.textContent =
-            err.status === 402
-              ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
+          statusEl.textContent = customerCallMessage(err);
         });
     }
 
