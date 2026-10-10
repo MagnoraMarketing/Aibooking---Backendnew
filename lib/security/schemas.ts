@@ -562,6 +562,14 @@ export const checkoutRequestSchema = z.object({
   includeSetup: z.boolean().optional().default(false),
 });
 
+// Nordcall Outbound add-on (see lib/billing/nordcall-outbound.ts): start the
+// free trial or check out one of the two fixed monthly plans. The price is
+// never taken from the request, only the plan key.
+export const nordcallOutboundRequestSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("trial") }),
+  z.object({ action: z.literal("checkout"), plan: z.enum(["minutes_1000", "minutes_2000"]) }),
+]);
+
 // ---------------------------------------------------------------------------
 // Booking setup (see 0030_optional_booking.sql) — the customer asks for
 // booking from the dashboard, our team does the Cal.com/calendar work and
