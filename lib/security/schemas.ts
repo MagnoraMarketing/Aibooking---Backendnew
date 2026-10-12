@@ -34,6 +34,14 @@ export const signupSchema = z.object({
   language: z.enum(LOCALES).default("da"),
 });
 
+// /account-incomplete: a signed-in login without an AIbooking account (e.g.
+// a Nordcall user) creates its own. Email and password come from the session.
+export const completeSignupSchema = z.object({
+  companyName: z.string().trim().min(1).max(200),
+  phone: z.string().trim().max(40).optional(),
+  language: z.enum(LOCALES).default("da"),
+});
+
 // ---------------------------------------------------------------------------
 // Profile: Dashboard/Admin UI language (see lib/i18n) — every signed-in
 // user, either role, can change their own.
