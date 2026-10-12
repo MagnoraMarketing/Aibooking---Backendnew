@@ -16,6 +16,7 @@ import { decryptSecret } from "@/lib/security";
 import { getOAuthCalendarSession, refreshGoogleToken, refreshOutlookToken } from "@/lib/calendar";
 import { generateReplyWithTools, type ShopifyToolLoopContext, type DeliveryToolLoopContext } from "./tool-loop";
 import { loadUberDirectConfig } from "@/lib/uber-direct/connection";
+import { loadJustEatConfig } from "@/lib/just-eat/connection";
 import type { CalendarToolContext } from "./calendar-tools";
 import { resolveShopifyCapabilities } from "@/lib/shopify/agent-tools";
 import { withBookingFlowDirective } from "@/lib/i18n/agent-content";
@@ -360,10 +361,16 @@ async function resolveShopifyToolContext(widgetId: string): Promise<ShopifyToolL
 }
 
 async function resolveDeliveryToolContext(widgetId: string, customerId: string): Promise<DeliveryToolLoopContext | null> {
-  try {
-    return (await loadUberDirectConfig(widgetId)) ? { widgetId, customerId } : null;
-  } catch (err) {
-    console.error("Failed to resolve Uber Direct tool context:", err);
-    return null;
-  }
+  const [uber, justEat] = await Promise.all([
+    loadUberDirectConfig(widgetId).catch((err) => {
+      console.error("Failed to resolve Uber Direct tool context:", err);
+      return null;
+    }),
+    loadJustEatConfig(widgetId).catch((err) => {
+      console.error("Failed to resolve Just Eat tool context:", err);
+      return null;
+    }),
+  ]);
+  if (!uber && !justEat) return null;
+  return { widgetId, customerId, uber: Boolean(uber), justEat: Boolean(justEat) };
 }

@@ -304,6 +304,27 @@ export const uberDirectInputSchema = z.object({
   }),
 });
 
+// ---------------------------------------------------------------------------
+// Just Eat (JET Go) delivery for one agent (see lib/just-eat/connection.ts).
+// The API key is only sent when it is being set or replaced.
+// ---------------------------------------------------------------------------
+export const justEatInputSchema = z.object({
+  enabled: z.boolean(),
+  apiKey: z.string().trim().min(1).max(500).optional(),
+  pickup: z.object({
+    name: z.string().trim().min(1).max(200),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^\+[1-9]\d{6,14}$/, "Telefonnummeret skal være i internationalt format, fx +4512345678"),
+    street: z.string().trim().min(1).max(300),
+    postalCode: z.string().trim().min(1).max(20),
+    city: z.string().trim().min(1).max(100),
+    country: z.string().trim().length(2).default("DK"),
+    notes: z.string().trim().max(275).optional(),
+  }),
+});
+
 export const createAdminWidgetSchema = createWidgetSchema.extend({
   // Required for deploymentType "customer_website"; ignored (and resolved
   // server-side to the reserved internal customer) for "aibooking_website"

@@ -3,7 +3,10 @@ import { getAdminClient } from "@/lib/database/admin";
 import { decryptSecret } from "@/lib/security";
 import { fetchCalcomEventTypes, type CalcomEventType } from "@/lib/calendar";
 import { CalendarIntegrationsManager } from "@/components/dashboard/calendar-integrations-manager";
-import { IntegrationsHero, IntegrationCategories } from "@/components/dashboard/integrations-showcase";
+import { IntegrationsHero, IntegrationCategories, FoodDeliverySpotlight } from "@/components/dashboard/integrations-showcase";
+import { IntegrationsOverview, type IntegrationsOverviewRow } from "@/components/dashboard/integrations-overview";
+import { summarizeUberDirect } from "@/lib/uber-direct/connection";
+import { summarizeJustEat } from "@/lib/just-eat/connection";
 import type { Widget } from "@/types/database";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 
@@ -28,7 +31,7 @@ export default async function IntegrationsPage() {
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
-  const [{ data: widgets }, { data: connectionRows }] = await Promise.all([
+  const [{ data: widgets }, { data: connectionRows }, { data: shopifyRows }] = await Promise.all([
     supabase
       .from("widgets")
       .select("*")
@@ -42,7 +45,13 @@ export default async function IntegrationsPage() {
       )
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false }),
+    supabase.from("shopify_connections").select("widget_id, status").eq("customer_id", customerId),
   ]);
+
+  const widgetIds = (widgets ?? []).map((widget) => widget.id);
+  const { data: settingsRows } = widgetIds.length
+    ? await supabase.from("widget_settings").select("widget_id, extra").in("widget_id", widgetIds)
+    : { data: [] as { widget_id: string; extra: unknown }[] };
 
   // The dashboard's Event Type dropdown needs real titles, not just the
   // stored id — fetched here server-side (decrypting the key just for this
@@ -76,9 +85,39 @@ export default async function IntegrationsPage() {
     created_at: row.created_at,
   }));
 
+  // Every integration per agent, grouped the way the agent's tabs are:
+  // Kalender, Webshop, Levering.
+  const extraByWidget = new Map(
+    (settingsRows ?? []).map((row) => [row.widget_id as string, (row.extra as Record<string, unknown> | null) ?? null])
+  );
+  const overview: IntegrationsOverviewRow[] = (widgets ?? []).map((widget) => {
+    const shopify = (shopifyRows ?? []).find((row) => row.widget_id === widget.id);
+    const extra = extraByWidget.get(widget.id) ?? null;
+    return {
+      widgetId: widget.id,
+      name: widget.name,
+      calendars: Array.from(
+        new Set(connections.filter((c) => c.widget_id === widget.id && c.status === "connected").map((c) => c.provider))
+      ),
+      shopify:
+        shopify?.status === "connected"
+          ? "connected"
+          : shopify?.status === "reauth_required" || shopify?.status === "error"
+            ? "needs_reauth"
+            : null,
+      uber: Boolean(summarizeUberDirect(extra)?.enabled),
+      justEat: Boolean(summarizeJustEat(extra)?.enabled),
+    };
+  });
+
   return (
     <div className="space-y-16">
       <IntegrationsHero locale={locale} />
+      <FoodDeliverySpotlight
+        locale={locale}
+        setupHref={widgets?.[0] ? `/dashboard/agent/${widgets[0].id}?tab=delivery` : "/dashboard/agent"}
+      />
+      <IntegrationsOverview rows={overview} locale={locale} />
       <IntegrationCategories locale={locale} />
       <CalendarIntegrationsManager
         widgets={widgets ?? []}

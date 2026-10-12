@@ -6,6 +6,7 @@ import { executeBookingTool, resolveToolContext } from "@/lib/vapi/booking-tools
 import { findWidgetIdForAssistant } from "@/lib/vapi/assistant-owner";
 import { executeShopifyTool, isShopifyToolName } from "@/lib/shopify/agent-tools";
 import { executeUberDirectTool, isUberToolName } from "@/lib/uber-direct/agent-tools";
+import { executeJustEatTool, isJustEatToolName } from "@/lib/just-eat/agent-tools";
 import { settleCampaignContact, vapiCallWasAnswered } from "@/lib/outbound/settle";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -285,7 +286,9 @@ async function handleToolCalls(message: Record<string, unknown>): Promise<NextRe
           ? await executeShopifyTool(name, args, ctx.widgetId)
           : isUberToolName(name)
             ? await executeUberDirectTool(name, args, ctx.widgetId, ctx.customerId)
-            : await executeBookingTool(name, args, ctx);
+            : isJustEatToolName(name)
+              ? await executeJustEatTool(name, args, ctx.widgetId, ctx.customerId)
+              : await executeBookingTool(name, args, ctx);
         return { toolCallId, result };
       } catch (err) {
         // Nothing thrown here may escape: an unhandled rejection would make

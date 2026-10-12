@@ -3,6 +3,7 @@ import type { z } from "zod";
 import { getAdminClient } from "@/lib/database/admin";
 import { encryptSecret, decryptSecret } from "@/lib/security/crypto";
 import type { UberAddress, UberDirectCredentials } from "./api";
+import { JUST_EAT_EXTRA_KEY, summarizeJustEat } from "@/lib/just-eat/connection";
 
 // An agent's Uber Direct setup lives in widget_settings.extra.uberDirect, next
 // to the other per-agent integrations' settings. Secrets (client secret,
@@ -68,9 +69,12 @@ export function summarizeUberDirect(extra: Record<string, unknown> | null | unde
 
 // `extra` as it may be sent to a browser: the Uber Direct block is replaced
 // by its summary, so ciphertexts never leave the server.
+// Just Eat's block (lib/just-eat/connection.ts) is summarized the same way.
 export function publicWidgetExtra(extra: Record<string, unknown>): Record<string, unknown> {
-  if (!(UBER_EXTRA_KEY in extra)) return extra;
-  return { ...extra, [UBER_EXTRA_KEY]: summarizeUberDirect(extra) };
+  let out = extra;
+  if (UBER_EXTRA_KEY in out) out = { ...out, [UBER_EXTRA_KEY]: summarizeUberDirect(extra) };
+  if (JUST_EAT_EXTRA_KEY in out) out = { ...out, [JUST_EAT_EXTRA_KEY]: summarizeJustEat(extra) };
+  return out;
 }
 
 // Merges an input into what is stored: new secrets are encrypted, omitted

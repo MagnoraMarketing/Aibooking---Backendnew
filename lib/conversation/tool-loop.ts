@@ -10,6 +10,13 @@ import {
   isUberToolName,
   UBER_TOOL_GUIDANCE,
 } from "@/lib/uber-direct/agent-tools";
+import {
+  BOTH_DELIVERY_GUIDANCE,
+  buildJustEatAnthropicTools,
+  executeJustEatTool,
+  isJustEatToolName,
+  JUST_EAT_TOOL_GUIDANCE,
+} from "@/lib/just-eat/agent-tools";
 
 // The tool-use loop for the chat/relay pipeline. Runs the same single-turn
 // shape as AnthropicProvider.generateReply, but with tools enabled and a loop
@@ -28,10 +35,13 @@ export interface ShopifyToolLoopContext {
   capabilities: ShopifyCapabilities;
 }
 
-// Uber Direct delivery tools, for an agent with a complete setup.
+// Delivery tools — Uber Direct and/or Just Eat (JET Go) — for an agent with a
+// complete, enabled setup of each.
 export interface DeliveryToolLoopContext {
   widgetId: string;
   customerId: string;
+  uber: boolean;
+  justEat: boolean;
 }
 
 export interface ToolLoopResult {
@@ -52,7 +62,8 @@ function buildTools(
   const tools: Anthropic.Tool[] = [];
   if (calendar) tools.push(...CALENDAR_TOOLS);
   if (shopify) tools.push(...(buildShopifyAnthropicTools(shopify.capabilities) as Anthropic.Tool[]));
-  if (delivery) tools.push(...(buildUberAnthropicTools() as Anthropic.Tool[]));
+  if (delivery?.uber) tools.push(...(buildUberAnthropicTools() as Anthropic.Tool[]));
+  if (delivery?.justEat) tools.push(...(buildJustEatAnthropicTools() as Anthropic.Tool[]));
   return tools;
 }
 
@@ -92,7 +103,9 @@ function buildToolGuidance(
     );
   }
 
-  if (delivery) parts.push(UBER_TOOL_GUIDANCE);
+  if (delivery?.uber) parts.push(UBER_TOOL_GUIDANCE);
+  if (delivery?.justEat) parts.push(JUST_EAT_TOOL_GUIDANCE);
+  if (delivery?.uber && delivery.justEat) parts.push(BOTH_DELIVERY_GUIDANCE);
 
   return parts.join(" ");
 }
@@ -104,8 +117,12 @@ async function executeTool(
   shopify: ShopifyToolLoopContext | null,
   delivery: DeliveryToolLoopContext | null
 ): Promise<string> {
+  if (isJustEatToolName(name)) {
+    if (!delivery?.justEat) return "Levering med Just Eat er ikke sat op, så det kan du ikke gøre.";
+    return executeJustEatTool(name, (input ?? {}) as Record<string, unknown>, delivery.widgetId, delivery.customerId);
+  }
   if (isUberToolName(name)) {
-    if (!delivery) return "Levering med Uber er ikke sat op, så det kan du ikke gøre.";
+    if (!delivery?.uber) return "Levering med Uber er ikke sat op, så det kan du ikke gøre.";
     return executeUberDirectTool(name, (input ?? {}) as Record<string, unknown>, delivery.widgetId, delivery.customerId);
   }
   if (isShopifyToolName(name)) {

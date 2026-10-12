@@ -14,6 +14,8 @@ import { resolveShopifyCapabilities } from "@/lib/shopify/agent-tools";
 import { buildShopifyVapiTools } from "@/lib/shopify/tool-definitions";
 import { resolveUberDirectConfig } from "@/lib/uber-direct/connection";
 import { buildUberVapiTools, UBER_TOOL_GUIDANCE } from "@/lib/uber-direct/agent-tools";
+import { resolveJustEatConfig } from "@/lib/just-eat/connection";
+import { BOTH_DELIVERY_GUIDANCE, buildJustEatVapiTools, JUST_EAT_TOOL_GUIDANCE } from "@/lib/just-eat/agent-tools";
 import { updateVapiAssistant, type VapiVoiceGender } from "./assistants";
 import { DEFAULT_VOICE_GENDER } from "./voice-gender";
 
@@ -57,8 +59,16 @@ export async function syncWidgetToVapiAssistant(
     (extra.knowledgeBase as KnowledgeBaseSource[] | undefined) ?? []
   );
   const basePrompt = widget.system_prompt ?? (await getDefaultSystemPrompt());
+  const hasUber = Boolean(resolveUberDirectConfig(extra));
+  const hasJustEat = Boolean(resolveJustEatConfig(extra));
   const systemPrompt = withLanguageDirective(
-    [basePrompt, knowledgeBase, resolveUberDirectConfig(extra) ? UBER_TOOL_GUIDANCE : null]
+    [
+      basePrompt,
+      knowledgeBase,
+      hasUber ? UBER_TOOL_GUIDANCE : null,
+      hasJustEat ? JUST_EAT_TOOL_GUIDANCE : null,
+      hasUber && hasJustEat ? BOTH_DELIVERY_GUIDANCE : null,
+    ]
       .filter(Boolean)
       .join("\n\n"),
     widget.language
@@ -83,8 +93,8 @@ export async function syncWidgetToVapiAssistant(
   }
 
   // Delivery tools only for an agent with a complete, enabled Uber Direct
-  // setup — same reasoning as the webshop tools above.
-  const uberTools = resolveUberDirectConfig(extra) ? buildUberVapiTools() : [];
+  // and/or Just Eat setup — same reasoning as the webshop tools above.
+  const deliveryTools = [...(hasUber ? buildUberVapiTools() : []), ...(hasJustEat ? buildJustEatVapiTools() : [])];
 
   const silenceTimeoutSeconds = typeof extra.silenceTimeoutSeconds === "number" ? extra.silenceTimeoutSeconds : null;
   const maxDurationSeconds = typeof extra.maxDurationSeconds === "number" ? extra.maxDurationSeconds : null;
@@ -102,7 +112,7 @@ export async function syncWidgetToVapiAssistant(
         language: widget.language,
       },
       includeBookingTools,
-      [...shopifyTools, ...uberTools]
+      [...shopifyTools, ...deliveryTools]
     );
     return { status: "synced" };
   } catch (err) {
