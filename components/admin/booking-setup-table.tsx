@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { BookingSetupRequestStatus } from "@/types/database";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 export interface AdminBookingSetupRow {
   id: string;
@@ -25,11 +26,11 @@ const STATUS_STYLE: Record<BookingSetupRequestStatus, string> = {
   cancelled: "bg-slate-100 text-slate-500",
 };
 
-const STATUS_LABEL: Record<BookingSetupRequestStatus, string> = {
-  pending: "Afventer",
-  in_progress: "I gang",
-  completed: "Færdig",
-  cancelled: "Annulleret",
+const STATUS_LABEL_KEY: Record<BookingSetupRequestStatus, string> = {
+  pending: "adminPages.bookingSetup.status.pending",
+  in_progress: "adminPages.bookingSetup.status.inProgress",
+  completed: "adminPages.bookingSetup.status.completed",
+  cancelled: "adminPages.bookingSetup.status.cancelled",
 };
 
 // What a status may move to next. Completing is what actually switches the
@@ -49,6 +50,7 @@ function formatDate(value: string | null): string {
 }
 
 export function AdminBookingSetupTable({ initialRows }: { initialRows: AdminBookingSetupRow[] }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState(initialRows);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export function AdminBookingSetupTable({ initialRows }: { initialRows: AdminBook
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Kunne ikke opdatere status.");
+      setError(data?.error?.message ?? t("adminPages.bookingSetup.errorUpdateFailed"));
       return;
     }
 
@@ -89,30 +91,27 @@ export function AdminBookingSetupTable({ initialRows }: { initialRows: AdminBook
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Booking-opsætninger</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Kunder der har bestilt booking. At markere en som færdig slår booking til på deres agent og
-          giver stemmeagenten booking-værktøjerne.
-        </p>
+        <h1 className="text-2xl font-semibold text-slate-900">{t("adminPages.bookingSetup.title")}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t("adminPages.bookingSetup.subtitle")}</p>
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-          Ingen bestillinger endnu.
+          {t("adminPages.bookingSetup.noneYet")}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">Kunde</th>
-                <th className="px-4 py-3">Agent</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Kalender</th>
-                <th className="px-4 py-3">Bestilt</th>
-                <th className="px-4 py-3">Handling</th>
+                <th className="px-4 py-3">{t("adminPages.bookingSetup.columnCustomer")}</th>
+                <th className="px-4 py-3">{t("adminPages.bookingSetup.columnAgent")}</th>
+                <th className="px-4 py-3">{t("adminPages.bookingSetup.columnStatus")}</th>
+                <th className="px-4 py-3">{t("adminPages.bookingSetup.columnCalendar")}</th>
+                <th className="px-4 py-3">{t("adminPages.bookingSetup.columnOrdered")}</th>
+                <th className="px-4 py-3">{t("adminPages.bookingSetup.columnAction")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -128,21 +127,23 @@ export function AdminBookingSetupTable({ initialRows }: { initialRows: AdminBook
                   <td className="px-4 py-3 text-slate-700">{row.widgetName}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLE[row.status]}`}>
-                      {STATUS_LABEL[row.status]}
+                      {t(STATUS_LABEL_KEY[row.status])}
                     </span>
                     {row.bookingEnabled ? (
-                      <p className="mt-1 text-xs text-emerald-600">Booking er slået til</p>
+                      <p className="mt-1 text-xs text-emerald-600">{t("adminPages.bookingSetup.bookingOn")}</p>
                     ) : null}
                   </td>
                   <td className="px-4 py-3">
                     <span className={row.calendarConnected ? "text-emerald-600" : "text-slate-400"}>
-                      {row.calendarConnected ? "Forbundet" : "Ikke forbundet"}
+                      {row.calendarConnected
+                        ? t("adminPages.bookingSetup.calendarConnected")
+                        : t("adminPages.bookingSetup.calendarNotConnected")}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
-                    <p>Bestilt: {formatDate(row.createdAt)}</p>
-                    <p>Startet: {formatDate(row.startedAt)}</p>
-                    <p>Færdig: {formatDate(row.completedAt)}</p>
+                    <p>{t("adminPages.bookingSetup.rowOrdered", { date: formatDate(row.createdAt) })}</p>
+                    <p>{t("adminPages.bookingSetup.rowStarted", { date: formatDate(row.startedAt) })}</p>
+                    <p>{t("adminPages.bookingSetup.rowCompleted", { date: formatDate(row.completedAt) })}</p>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -158,10 +159,10 @@ export function AdminBookingSetupTable({ initialRows }: { initialRows: AdminBook
                             type="button"
                             onClick={() => updateStatus(row, next)}
                             disabled={busyId === row.id || blocked}
-                            title={blocked ? "Forbind kundens kalender først" : undefined}
+                            title={blocked ? t("adminPages.bookingSetup.connectCalendarFirst") : undefined}
                             className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {STATUS_LABEL[next]}
+                            {t(STATUS_LABEL_KEY[next])}
                           </button>
                         );
                       })}
