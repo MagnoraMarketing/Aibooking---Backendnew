@@ -16,6 +16,10 @@ interface CalendarIntegrationsManagerProps {
   widgets: Widget[];
   initialConnections: CalendarConnectionSummary[];
   eventTypesByConnection: Record<string, CalcomEventType[]>;
+  // Whether the platform's Google/Microsoft OAuth app is set up (env vars on
+  // the server). Without it the connect button could only end on an error
+  // page, so the provider is shown as "Kommer snart" instead.
+  oauthAvailable: { google: boolean; outlook: boolean };
 }
 
 // Everything else from aibooking.dk/integrationer's "Populære Integrationer"
@@ -58,6 +62,7 @@ export function CalendarIntegrationsManager({
   widgets,
   initialConnections,
   eventTypesByConnection,
+  oauthAvailable,
 }: CalendarIntegrationsManagerProps) {
   const { t } = useTranslation();
 
@@ -424,6 +429,10 @@ export function CalendarIntegrationsManager({
                           ? t("dashboardPages.calendar-integrations.disconnecting")
                           : t("dashboardPages.calendar-integrations.disconnect")}
                       </button>
+                    ) : provider.kind === "oauth" && !oauthAvailable[provider.key as "google" | "outlook"] ? (
+                      <span className="block w-full rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-semibold text-amber-700">
+                        {t("dashboardPages.shared.comingSoon")}
+                      </span>
                     ) : provider.kind === "oauth" ? (
                       <a
                         href={`/api/customer/calendar/${provider.key}/connect?widgetId=${widgetId}`}

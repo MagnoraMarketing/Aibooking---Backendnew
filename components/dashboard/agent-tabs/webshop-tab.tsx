@@ -288,6 +288,18 @@ export function WebshopTab({ widget }: WebshopTabProps) {
           </div>
         )}
       </div>
+
+      {/* Restaurants and shops that deliver look for it next to their webshop. */}
+      <a
+        href={`/dashboard/agent/${widget.id}?tab=delivery`}
+        className="flex items-center justify-between gap-4 rounded-2xl border border-orange-200 bg-orange-50 p-5 hover:bg-orange-100"
+      >
+        <div>
+          <p className="text-sm font-semibold text-slate-900">🚚 {t("agent.webshop.deliveryLinkTitle")}</p>
+          <p className="mt-1 text-sm text-slate-600">{t("agent.webshop.deliveryLinkText")}</p>
+        </div>
+        <span className="shrink-0 text-sm font-semibold text-brand-600">{t("agent.webshop.deliveryLinkCta")}</span>
+      </a>
     </div>
   );
 }
