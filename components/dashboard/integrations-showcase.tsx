@@ -65,6 +65,13 @@ const ICONS = {
       <circle cx="17" cy="20.5" r="1.3" />
     </svg>
   ),
+  truck: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+      <path d="M3 6.5h11v9H3zM14 9.5h4l3 3v3h-7" strokeLinejoin="round" />
+      <circle cx="7" cy="17.5" r="1.8" />
+      <circle cx="17.5" cy="17.5" r="1.8" />
+    </svg>
+  ),
   wrench: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
       <path d="m14.5 6.5 3 3-8 8-3-3 8-8Z" strokeLinejoin="round" />
@@ -164,6 +171,12 @@ export function IntegrationCategories({ locale }: { locale: Locale }) {
       tools: "Shopify, WooCommerce, Stripe",
     },
     {
+      icon: ICONS.truck,
+      tint: "bg-orange-50 text-orange-600",
+      title: t("dashboardPages.integrations-showcase.categoryDeliveryTitle"),
+      tools: "Just Eat (JET Go), Uber Direct",
+    },
+    {
       icon: ICONS.wrench,
       tint: "bg-violet-50 text-violet-600",
       title: t("dashboardPages.integrations-showcase.categoryAutomationTitle"),
@@ -191,5 +204,53 @@ export function IntegrationCategories({ locale }: { locale: Locale }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// Food delivery is highlighted on its own: for a restaurant or webshop it is
+// the integration that turns "hvornår kan I levere?" into an order. Links to
+// the Levering tab of the customer's first agent (or the agent list).
+export function FoodDeliverySpotlight({ locale, setupHref }: { locale: Locale; setupHref: string }) {
+  const t = (key: string) => translate(locale, key);
+  const points = [
+    t("dashboardPages.integrations-showcase.deliveryPoint1"),
+    t("dashboardPages.integrations-showcase.deliveryPoint2"),
+    t("dashboardPages.integrations-showcase.deliveryPoint3"),
+  ];
+  return (
+    <section className="rounded-3xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white p-6 sm:p-8">
+      <div className="flex flex-col gap-6 md:flex-row md:items-center">
+        <div className="flex-1">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+            {ICONS.truck}
+            {t("dashboardPages.integrations-showcase.deliveryBadge")}
+          </span>
+          <h2 className="mt-3 text-xl font-semibold text-slate-900 sm:text-2xl">
+            {t("dashboardPages.integrations-showcase.deliveryTitle")}
+          </h2>
+          <p className="mt-2 text-sm text-slate-600">{t("dashboardPages.integrations-showcase.deliveryDescription")}</p>
+          <ul className="mt-4 space-y-1.5 text-sm text-slate-700">
+            {points.map((point) => (
+              <li key={point} className="flex items-start gap-2">
+                <span className="mt-0.5 text-orange-600">✓</span>
+                {point}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="flex flex-col items-start gap-3 md:items-end">
+          <div className="flex gap-2">
+            <span className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[#ff8000]">Just Eat</span>
+            <span className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900">Uber Direct</span>
+          </div>
+          <a
+            href={setupHref}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            {t("dashboardPages.integrations-showcase.deliveryCta")}
+          </a>
+        </div>
+      </div>
+    </section>
   );
 }
