@@ -2,6 +2,7 @@ import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { getBalanceSeconds, grantCredits } from "./ledger";
 import { chargePackageRecharge } from "@/lib/billing/recharge";
+import { isNotBilled, NOT_BILLED_BALANCE_SECONDS } from "@/lib/customers/customer-type";
 import type { Customer, Package, Subscription } from "@/types/database";
 
 export interface RefillResult {
@@ -49,6 +50,12 @@ export async function checkAndRefillIfNeeded(customerId: string): Promise<Refill
   // directly via the existing manual-credit endpoint (/api/admin/credits)
   // instead, at whatever internal cost/credit basis they choose. This never
   // touches or reads customer-facing package pricing (spec section 9).
+  // Samarbejde (partnership) customers are never billed: no Stripe charge,
+  // and an exhausted ledger never takes their agents offline.
+  if (isNotBilled(customer)) {
+    return { balanceSeconds: NOT_BILLED_BALANCE_SECONDS, refilled: false, reason: "not_billed" };
+  }
+
   if (customer.is_platform_owned) {
     return { balanceSeconds: balance, refilled: false, reason: "platform_owned_needs_manual_topup" };
   }

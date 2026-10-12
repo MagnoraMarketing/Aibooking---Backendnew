@@ -10,9 +10,25 @@ function normalizeBaseUrl(rawUrl: string): string {
   return rawUrl.trim().replace(/\/+$/, "");
 }
 
+// NEXT_PUBLIC_APP_URL first; otherwise Vercel's own production domain
+// (VERCEL_PROJECT_PRODUCTION_URL, set automatically on every hosted
+// deployment). Production ran without NEXT_PUBLIC_APP_URL, so every Twilio
+// URL built here was http://localhost:3000 — the manual dialer's TwiML App
+// pointed at it, and outbound Twilio calls were handed it as their answer
+// URL, so nothing ever connected. The production domain is safe to use
+// here, unlike lib/app-url.ts's last-resort VERCEL_URL: it is the same
+// string on every deployment, so the URL Twilio was configured with and
+// the one a later deploy validates signatures against stay identical.
+function configuredBaseUrl(): string | null {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configured) return normalizeBaseUrl(configured);
+  const productionDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (productionDomain) return `https://${normalizeBaseUrl(productionDomain).replace(/^https?:\/\//i, "")}`;
+  return null;
+}
+
 function getAppUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_APP_URL;
-  return configured ? normalizeBaseUrl(configured) : "http://localhost:3000";
+  return configuredBaseUrl() ?? "http://localhost:3000";
 }
 
 // Called right before handing a webhook URL to Twilio (number purchase and
@@ -23,12 +39,11 @@ function getAppUrl(): string {
 // own logs to show for it; failing here instead surfaces as a plain
 // provisioning error the customer can act on.
 export function assertTwilioWebhookBaseUrlConfigured(): void {
-  const configured = process.env.NEXT_PUBLIC_APP_URL;
-  if (!configured) {
+  const base = configuredBaseUrl();
+  if (!base) {
     throw new Error("NEXT_PUBLIC_APP_URL er ikke konfigureret — Twilio kan ikke kalde vores webhooks.");
   }
 
-  const base = normalizeBaseUrl(configured);
   if (!/^https:\/\//i.test(base) || /^https:\/\/(localhost|127\.0\.0\.1)([:/]|$)/i.test(base)) {
     throw new Error(
       `NEXT_PUBLIC_APP_URL (${base}) skal være en offentligt tilgængelig https-adresse, før et nummer kan tage imod opkald.`

@@ -94,6 +94,7 @@ export async function AgentConfigurePage({
     subscriptionStatus: subscription?.status ?? null,
     balanceSeconds,
     widgetLaunchPaidAt: customer!.widget_launch_paid_at,
+    customerType: customer!.customer_type,
   });
 
   return (

@@ -5,6 +5,7 @@ import { requireCredentialEnv } from "@/lib/security/env";
 export {
   createVapiAssistant,
   updateVapiAssistant,
+  deleteVapiAssistant,
   listVapiAssistants,
   getVapiAssistantDetails,
   type VapiAssistantParams,

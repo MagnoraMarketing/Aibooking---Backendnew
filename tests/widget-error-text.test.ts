@@ -99,9 +99,18 @@ describe("the shipped widget uses it everywhere a failure reaches the customer",
     expect(source).not.toContain("e.message || e.errorMsg");
   });
 
-  it("routes every provider's failure through describeError", () => {
-    // Vapi, Realtime and Twilio Relay each have a connect-failure path.
-    const uses = source.match(/describeError\(/g) ?? [];
+  it("never shows the customer raw technical error text", () => {
+    // Provider errors ("Bad Request", "WebRTC handshake … failed") belong in
+    // the console, not in front of a shop's visitor.
+    expect(source).not.toMatch(/"Fejl: " \+/);
+    expect(source).not.toContain("(se browserkonsollen");
+    expect(source).not.toContain('"Kunne ikke forbinde (" +');
+  });
+
+  it("routes every provider's call failure through customerCallMessage", () => {
+    // Vapi, Realtime and Twilio Relay each have a connect-failure path, and
+    // Vapi and Twilio also have mid-call error handlers.
+    const uses = source.match(/customerCallMessage\((err|e)\)/g) ?? [];
     expect(uses.length).toBeGreaterThanOrEqual(6);
   });
 });
