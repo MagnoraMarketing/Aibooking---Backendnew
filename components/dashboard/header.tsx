@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { LogoutButton } from "./logout-button";
 import { useTranslation } from "@/components/i18n/language-provider";
-import { DIALER_ENABLED } from "@/lib/features";
+import { DIALER_ENABLED, OUTBOUND_ENABLED } from "@/lib/features";
 
 const LEADING_NAV_ITEMS = [
   { key: "dashboardShell.nav.gettingStarted", href: "/dashboard/getting-started" },
@@ -19,9 +19,10 @@ const LEADING_NAV_ITEMS = [
 const AGENT_NAV_ITEMS = [
   { key: "dashboardShell.nav.widgetAgents", href: "/dashboard/agent", enabled: true },
   { key: "dashboardShell.nav.inbound", href: "/dashboard/inbound", enabled: true },
-  // Always shown: while the AI campaign dialer is unfinished, the page sells
-  // the Nordcall add-on instead (see app/dashboard/outbound/page.tsx).
-  { key: "dashboardShell.nav.outbound", href: "/dashboard/outbound", enabled: true },
+  // Only the AI campaign dialer belongs here. Nordcall (outbound-dialer12) is a
+  // separate, non-AI product with its own link and app, so it is not shown in
+  // this dashboard; /dashboard/outbound still answers for Stripe checkout returns.
+  { key: "dashboardShell.nav.outbound", href: "/dashboard/outbound", enabled: OUTBOUND_ENABLED },
   { key: "dashboardShell.nav.dialer", href: "/dashboard/dialer", enabled: DIALER_ENABLED },
 ].filter((item) => item.enabled);
 
