@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getBrowserClient } from "@/lib/database/browser";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { InstallAppButton } from "@/components/app/install-app-button";
 
 export function LoginForm() {
   return (
@@ -114,6 +115,18 @@ function LoginFormInner() {
             {t("auth.login.createAccount")}
           </Link>
         </p>
+
+        <div className="mt-6 flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          {/* The QR code is for desktop visitors; on a phone you are already there. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/app-qr" alt={t("auth.app.title")} width={88} height={88} className="hidden h-[88px] w-[88px] flex-none rounded-lg bg-white sm:block" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900">{t("auth.app.title")}</p>
+            <p className="mt-0.5 hidden text-xs leading-relaxed text-slate-500 sm:block">{t("auth.app.scanHint")}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-slate-500 sm:hidden">{t("auth.app.mobileHint")}</p>
+            <InstallAppButton />
+          </div>
+        </div>
       </div>
     </main>
   );
