@@ -87,3 +87,8 @@ export async function ensureInboundAssistant(widgetId: string): Promise<string> 
 
   return assistant.id;
 }
+
+// Same thing for any agent type. The admin Control Center uses it when an
+// agent is created without picking an existing Vapi assistant: the agent's
+// prompt is written in AIbooking, and the assistant is built from it.
+export const ensureVapiAssistant = ensureInboundAssistant;

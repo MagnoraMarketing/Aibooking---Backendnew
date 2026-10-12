@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "@/components/i18n/language-provider";
+import {
+  UberDirectFields,
+  EMPTY_UBER_DIRECT,
+  formStateFromSummary,
+  uberDirectPayload,
+  type UberDirectFormState,
+  type UberDirectSummaryView,
+} from "@/components/uber-direct/uber-direct-fields";
 import { WapiAgentSelector, type WapiAgentSelection } from "@/components/admin/wapi-agent-selector";
 import type { Customer, WidgetDeploymentType } from "@/types/database";
 
@@ -62,10 +70,40 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
   const [calcomFetching, setCalcomFetching] = useState(false);
   const [calcomFetchError, setCalcomFetchError] = useState<string | null>(null);
 
+  const [uberDirect, setUberDirect] = useState<UberDirectFormState>(EMPTY_UBER_DIRECT);
+  const [uberSummary, setUberSummary] = useState<UberDirectSummaryView | null>(null);
+  const [uberWebhookUrl, setUberWebhookUrl] = useState<string | null>(null);
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [availableNumbers, setAvailableNumbers] = useState<AvailablePhoneNumber[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // A new agent starts from the platform's default prompt, so the admin
+  // edits a working prompt instead of guessing at a blank box. Editing an
+  // existing agent keeps its own.
+  useEffect(() => {
+    if (isEdit) return;
+    fetch("/api/admin/settings/default-prompt")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data?.prompt === "string") setSystemPrompt((current) => current || data.prompt);
+      })
+      .catch(() => {});
+  }, [isEdit]);
+
+  // Editing: load the agent's current Uber Direct setup (never its secrets).
+  useEffect(() => {
+    if (!initial?.id) return;
+    fetch(`/api/admin/widgets/${initial.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setUberSummary(data?.uberDirect ?? null);
+        setUberWebhookUrl(data?.uberDirectWebhookUrl ?? null);
+        setUberDirect(formStateFromSummary(data?.uberDirect));
+      })
+      .catch(() => {});
+  }, [initial?.id]);
 
   useEffect(() => {
     fetch("/api/admin/customers")
@@ -124,6 +162,20 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
       return;
     }
 
+    // Uber Direct: sent only when switched on (complete) or switched off
+    // after having been set up (removes it).
+    let uberDirectBody: Record<string, unknown> | null | undefined;
+    if (uberDirect.enabled) {
+      const payload = uberDirectPayload(uberDirect, Boolean(uberSummary?.hasClientSecret));
+      if (!payload) {
+        setError(t("agent.uberDirect.incomplete"));
+        return;
+      }
+      uberDirectBody = payload;
+    } else if (uberSummary) {
+      uberDirectBody = null;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -137,6 +189,7 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
       wapiAgentId: agentSelection.wapiAgentId,
       wapiAgentExternalId: agentSelection.wapiAgentExternalId,
       phoneNumberId: phoneNumberId || undefined,
+      ...(uberDirectBody !== undefined ? { uberDirect: uberDirectBody } : {}),
     };
     if (calcomApiKey.trim()) {
       body.calcomApiKey = calcomApiKey.trim();
@@ -158,9 +211,16 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
 
     setSaving(false);
 
+    const data = await res.json().catch(() => null);
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
       setError(data?.error?.message || t("adminPages.widgets.formErrorSave"));
+      return;
+    }
+
+    // Saved either way; if Vapi refused the prompt, say so instead of
+    // closing as if the agent were already running on it.
+    if (data?.vapiSync?.status === "failed") {
+      setError(`${t("adminPages.widgets.vapiSyncFailed")} ${data.vapiSync.error ?? ""}`.trim());
       return;
     }
 
@@ -333,7 +393,23 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
             </div>
           </div>
 
-          {agentType === "phone" ? (
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="mb-1 text-sm font-medium text-slate-700">🚚 {t("agent.uberDirect.title")}</p>
+            <p className="mb-3 text-xs text-slate-500">{t("agent.uberDirect.intro")}</p>
+            <UberDirectFields
+              value={uberDirect}
+              onChange={setUberDirect}
+              hasClientSecret={uberSummary?.hasClientSecret}
+              hasWebhookSigningKey={uberSummary?.hasWebhookSigningKey}
+              webhookUrl={uberWebhookUrl}
+            />
+          </div>
+
+          <div className="rounded-lg border border-brand-200 bg-brand-50/40 p-3 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-slate-800">{t("adminPages.widgets.promptSectionLabel")}</p>
+              <p className="mt-1 text-xs text-slate-500">{t("adminPages.widgets.promptSectionHelp")}</p>
+            </div>
             <>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">{t("adminPages.inbound.greetingLabel")}</label>
@@ -348,12 +424,12 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
                 <textarea
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
-                  rows={4}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  rows={10}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 />
               </div>
             </>
-          ) : null}
+          </div>
         </div>
 
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}

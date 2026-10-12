@@ -7,7 +7,7 @@ import {
   withErrorHandling,
   writeAuditLog,
   widgetUpdateSchema,
-  widgetExtraSettingsSchema,
+  customerWidgetExtraSettingsSchema,
   requireParam,
 } from "@/lib/security";
 import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
@@ -15,6 +15,7 @@ import { syncWidgetToVapiAssistant, createVapiAssistant, type VapiVoiceGender } 
 import { DEFAULT_VOICE_GENDER } from "@/lib/vapi/voice-gender";
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
 import { defaultGreeting, withLanguageDirective } from "@/lib/i18n/agent-content";
+import { publicWidgetExtra } from "@/lib/uber-direct/connection";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -22,7 +23,7 @@ import { ApiError } from "@/types/errors";
 export const dynamic = "force-dynamic";
 
 const patchWidgetSchema = widgetUpdateSchema.extend({
-  extra: widgetExtraSettingsSchema.optional(),
+  extra: customerWidgetExtraSettingsSchema.optional(),
 });
 
 async function loadOwnWidget(supabase: ReturnType<typeof getAdminClient>, widgetId: string, customerId: string) {
@@ -52,7 +53,7 @@ export const GET = withErrorHandling(async (_request, { params }) => {
       ...widget,
       shareUrl: buildShareUrl(widget.public_id),
       embedSnippet: buildEmbedSnippet(widget.public_id),
-      extra,
+      extra: publicWidgetExtra(extra),
     },
   });
 });
@@ -148,7 +149,6 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   if (
     assistantJustProvisioned ||
     relevantFieldsChanged ||
-    extraUpdate?.vapiAssistantId !== undefined ||
     extraUpdate?.voiceGender !== undefined
   ) {
     await syncWidgetToVapiAssistant(data, extra);
@@ -165,6 +165,6 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   });
 
   return NextResponse.json({
-    widget: { ...data, shareUrl: buildShareUrl(data.public_id), embedSnippet: buildEmbedSnippet(data.public_id), extra },
+    widget: { ...data, shareUrl: buildShareUrl(data.public_id), embedSnippet: buildEmbedSnippet(data.public_id), extra: publicWidgetExtra(extra) },
   });
 });

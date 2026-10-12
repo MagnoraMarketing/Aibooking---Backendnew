@@ -177,6 +177,17 @@ describe("automatic credit refill", () => {
     expect(chargePackageRechargeMock).not.toHaveBeenCalled();
   });
 
+  it("never charges or blocks a samarbejde (partnership) customer, even with an exhausted balance", async () => {
+    customers[0]!.customer_type = "samarbejde";
+    creditAccounts[0]!.balance_seconds = -600;
+    const result = await checkAndRefillIfNeeded("cust-1");
+    expect(result.refilled).toBe(false);
+    expect(result.reason).toBe("not_billed");
+    expect(result.balanceSeconds).toBeGreaterThan(0);
+    expect(await canUserMakeCall("cust-1")).toBe(true);
+    expect(chargePackageRechargeMock).not.toHaveBeenCalled();
+  });
+
   it("skips a second recharge attempt while one is already claimed", async () => {
     creditAccounts[0]!.recharge_pending_at = new Date().toISOString();
     const result = await checkAndRefillIfNeeded("cust-1");

@@ -174,12 +174,12 @@ export const dashboardPages: Namespace = {
   },
   "dashboard.minutes": { da: "Minutter", en: "Minutes", es: "Minutos", fr: "Minutes", pt: "Minutos", de: "Minuten" },
   "dashboard.phoneHeading": {
-    da: "Telefon (indgående og udgående opkald)",
-    en: "Phone (Inbound/Outbound)",
-    es: "Teléfono (entrante/saliente)",
-    fr: "Téléphone (entrant/sortant)",
-    pt: "Telefone (recebidas/efetuadas)",
-    de: "Telefon (eingehend/ausgehend)",
+    da: "Telefon (indgående opkald)",
+    en: "Phone (Inbound)",
+    es: "Teléfono (entrante)",
+    fr: "Téléphone (entrant)",
+    pt: "Telefone (recebidas)",
+    de: "Telefon (eingehend)",
   },
   "dashboard.calls": { da: "Opkald", en: "Calls", es: "Llamadas", fr: "Appels", pt: "Chamadas", de: "Anrufe" },
   "dashboard.recentConversationsHeading": {
@@ -2967,12 +2967,12 @@ export const dashboardPages: Namespace = {
     de: "Von diesem Gespräch gibt es keine Aufnahme.",
   },
   "session-details-modal.downloadRecording": {
-    da: "Åbn optagelsen i ny fane",
-    en: "Open the recording in a new tab",
-    es: "Abrir la grabación en una pestaña nueva",
-    fr: "Ouvrir l'enregistrement dans un nouvel onglet",
-    pt: "Abrir a gravação num novo separador",
-    de: "Aufnahme in neuem Tab öffnen",
+    da: "Download optagelsen",
+    en: "Download the recording",
+    es: "Descargar la grabación",
+    fr: "Télécharger l'enregistrement",
+    pt: "Transferir a gravação",
+    de: "Aufnahme herunterladen",
   },
   "session-details-modal.analysisUnavailable": {
     da: "Automatisk samtaleanalyse er ikke tilgængelig endnu.",
@@ -3056,34 +3056,6 @@ export const dashboardPages: Namespace = {
     fr: "Impossible de démarrer le paiement. Réessayez.",
     pt: "Não foi possível iniciar o pagamento. Tente novamente.",
     de: "Die Zahlung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
-  },
-
-  // ---------------------------------------------------------------------
-  // app/account-incomplete/page.tsx
-  // ---------------------------------------------------------------------
-  "account-incomplete.title": {
-    da: "Kontoen er ikke helt oprettet",
-    en: "The account isn't fully set up",
-    es: "La cuenta no está completamente configurada",
-    fr: "Le compte n'est pas entièrement configuré",
-    pt: "A conta não está totalmente configurada",
-    de: "Das Konto ist nicht vollständig eingerichtet",
-  },
-  "account-incomplete.bodyPrefix": {
-    da: "Der er en konto tilknyttet denne login, men opsætningen blev ikke fuldført. Kontakt os på",
-    en: "There's an account linked to this login, but the setup wasn't completed. Contact us at",
-    es: "Hay una cuenta vinculada a este inicio de sesión, pero la configuración no se completó. Contáctenos en",
-    fr: "Un compte est associé à cette connexion, mais la configuration n'a pas été terminée. Contactez-nous à",
-    pt: "Há uma conta vinculada a este login, mas a configuração não foi concluída. Entre em contato conosco em",
-    de: "Es ist ein Konto mit diesem Login verknüpft, aber die Einrichtung wurde nicht abgeschlossen. Kontaktieren Sie uns unter",
-  },
-  "account-incomplete.bodySuffix": {
-    da: "for at få det rettet.",
-    en: "to get this fixed.",
-    es: "para que lo solucionemos.",
-    fr: "pour que nous puissions corriger cela.",
-    pt: "para resolvermos isso.",
-    de: ", um dies beheben zu lassen.",
   },
 
   // ---------------------------------------------------------------------

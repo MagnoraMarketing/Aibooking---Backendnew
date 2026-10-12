@@ -50,14 +50,46 @@ export async function ensureStripeCustomer(customer: Customer): Promise<string> 
   return stripeCustomer.id;
 }
 
-// Every package renews on the 1st of the month, prepaid, regardless of the
-// day someone actually checks out — Stripe bills a prorated amount for the
-// partial first period up front (proration_behavior: "create_prorations")
-// and then settles into the 1st-of-month cadence from there.
-function nextBillingCycleAnchor(): number {
-  const now = new Date();
-  const nextMonthFirst = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0);
-  return Math.floor(nextMonthFirst / 1000);
+// Stripe Managed Payments (on by default for this account) rejects any
+// Checkout line item whose Product has no tax_code: "Invalid line_items[0]:
+// the product tax code is missing". Every product we sell is the platform
+// itself — hosted software used by businesses — so it all carries Stripe's
+// "Software as a service (SaaS) - business use" code. Overridable in case
+// the accountant wants a different eligible code (STRIPE_PRODUCT_TAX_CODE).
+const DEFAULT_PRODUCT_TAX_CODE = "txcd_10103001";
+
+export function getProductTaxCode(): string {
+  const configured = process.env.STRIPE_PRODUCT_TAX_CODE?.trim();
+  return configured && configured.length > 0 ? configured : DEFAULT_PRODUCT_TAX_CODE;
+}
+
+// Prices whose Product we already stamped (or found stamped) in this server
+// instance, so a warm function doesn't re-read the same Price every checkout.
+const pricesWithTaxedProduct = new Set<string>();
+
+// A Price pinned by env var, stored in packages.stripe_price_id, or created
+// before this code existed belongs to a Product without a tax code — and
+// Managed Payments then rejects the whole checkout. Stamp the code onto that
+// Product once, rather than asking an admin to fix each one in the Stripe
+// dashboard.
+async function ensurePriceProductHasTaxCode(priceId: string): Promise<void> {
+  if (pricesWithTaxedProduct.has(priceId)) return;
+
+  const stripe = getStripeClient();
+  const price = await callStripe(() => stripe.prices.retrieve(priceId, { expand: ["product"] }));
+  const product = price.product;
+  const productId = typeof product === "string" ? product : product.id;
+  const currentTaxCode =
+    typeof product === "string" || product.deleted
+      ? null
+      : typeof product.tax_code === "string"
+        ? product.tax_code
+        : (product.tax_code?.id ?? null);
+
+  if (!currentTaxCode) {
+    await callStripe(() => stripe.products.update(productId, { tax_code: getProductTaxCode() }));
+  }
+  pricesWithTaxedProduct.add(priceId);
 }
 
 // Every package is priced in our own database (monthly_price, currency,
@@ -74,9 +106,11 @@ function nextBillingCycleAnchor(): number {
 // needs a new Stripe Price (they're immutable), which is what the admin
 // pricing API's stripePriceId field is for.
 export async function resolveStripePriceId(pkg: Package): Promise<string> {
-  const configured = getConfiguredStripePriceId(pkg.package_name);
-  if (configured) return configured;
-  if (pkg.stripe_price_id) return pkg.stripe_price_id;
+  const existing = getConfiguredStripePriceId(pkg.package_name) ?? pkg.stripe_price_id;
+  if (existing) {
+    await ensurePriceProductHasTaxCode(existing);
+    return existing;
+  }
 
   const stripe = getStripeClient();
   const price = await callStripe(() =>
@@ -84,10 +118,11 @@ export async function resolveStripePriceId(pkg: Package): Promise<string> {
       currency: pkg.currency.toLowerCase(),
       unit_amount: Math.round(pkg.monthly_price * 100),
       recurring: { interval: "month" },
-      product_data: { name: pkg.package_name },
+      product_data: { name: pkg.package_name, tax_code: getProductTaxCode() },
       metadata: { aibooking_package_id: pkg.id },
     })
   );
+  pricesWithTaxedProduct.add(price.id);
 
   const supabase = getAdminClient();
   const { error } = await supabase.from("packages").update({ stripe_price_id: price.id }).eq("id", pkg.id);
@@ -97,6 +132,14 @@ export async function resolveStripePriceId(pkg: Package): Promise<string> {
 
   return price.id;
 }
+
+// Stripe Managed Payments (on by default for this account) refuses to
+// create a Checkout Session on API versions older than 2025-03-31.basil, and
+// the SDK client pins 2025-02-24.acacia (stripe-client.ts). Only this one
+// request is sent on the newer version: we read nothing back but the URL, so
+// no response-shape change reaches our code, while moving the whole client
+// would change the shape of every subscription and invoice we read.
+const CHECKOUT_API_VERSION = "2025-03-31.basil";
 
 export async function createCheckoutSession(params: {
   customer: Customer;
@@ -132,34 +175,44 @@ export async function createCheckoutSession(params: {
       price_data: {
         currency: params.pkg.currency.toLowerCase(),
         unit_amount: Math.round(params.pkg.setup_fee * 100),
-        product_data: { name: `${params.pkg.package_name}: opsætning og onboarding` },
+        product_data: {
+          name: `${params.pkg.package_name}: opsætning og onboarding`,
+          tax_code: getProductTaxCode(),
+        },
       },
       quantity: 1,
     });
   }
 
   const session = await callStripe(() =>
-    stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: stripeCustomerId,
-      line_items: lineItems,
-      success_url: params.successUrl ?? `${appUrl}/dashboard/billing?checkout=success`,
-      cancel_url: params.cancelUrl ?? `${appUrl}/dashboard/billing?checkout=cancelled`,
-      discounts: params.discountCouponId ? [{ coupon: params.discountCouponId }] : undefined,
-      metadata: {
-        aibooking_customer_id: params.customer.id,
-        aibooking_package_id: params.pkg.id,
-      },
-      subscription_data: {
-        billing_cycle_anchor: nextBillingCycleAnchor(),
-        proration_behavior: "create_prorations",
+    stripe.checkout.sessions.create(
+      {
+        mode: "subscription",
+        customer: stripeCustomerId,
+        line_items: lineItems,
+        success_url: params.successUrl ?? `${appUrl}/dashboard/billing?checkout=success`,
+        cancel_url: params.cancelUrl ?? `${appUrl}/dashboard/billing?checkout=cancelled`,
+        discounts: params.discountCouponId ? [{ coupon: params.discountCouponId }] : undefined,
         metadata: {
           aibooking_customer_id: params.customer.id,
           aibooking_package_id: params.pkg.id,
-          ...params.subscriptionMetadata,
+        },
+        // No billing_cycle_anchor: the subscription renews on the day the
+        // customer checked out, so every invoice, the first one included, is
+        // a full month at the package's full price. It used to anchor on the
+        // 1st of the next month with a prorated first charge, which left a
+        // partial amount per sale that a salesperson's commission can't be
+        // settled against.
+        subscription_data: {
+          metadata: {
+            aibooking_customer_id: params.customer.id,
+            aibooking_package_id: params.pkg.id,
+            ...params.subscriptionMetadata,
+          },
         },
       },
-    })
+      { apiVersion: CHECKOUT_API_VERSION }
+    )
   );
 
   if (!session.url) throw ApiError.internal("Stripe returnerede ingen betalings-URL. Prøv igen.");
