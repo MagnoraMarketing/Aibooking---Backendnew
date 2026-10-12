@@ -3043,34 +3043,6 @@ export const dashboardPages: Namespace = {
   },
 
   // ---------------------------------------------------------------------
-  // app/account-incomplete/page.tsx
-  // ---------------------------------------------------------------------
-  "account-incomplete.title": {
-    da: "Kontoen er ikke helt oprettet",
-    en: "The account isn't fully set up",
-    es: "La cuenta no está completamente configurada",
-    fr: "Le compte n'est pas entièrement configuré",
-    pt: "A conta não está totalmente configurada",
-    de: "Das Konto ist nicht vollständig eingerichtet",
-  },
-  "account-incomplete.bodyPrefix": {
-    da: "Der er en konto tilknyttet denne login, men opsætningen blev ikke fuldført. Kontakt os på",
-    en: "There's an account linked to this login, but the setup wasn't completed. Contact us at",
-    es: "Hay una cuenta vinculada a este inicio de sesión, pero la configuración no se completó. Contáctenos en",
-    fr: "Un compte est associé à cette connexion, mais la configuration n'a pas été terminée. Contactez-nous à",
-    pt: "Há uma conta vinculada a este login, mas a configuração não foi concluída. Entre em contato conosco em",
-    de: "Es ist ein Konto mit diesem Login verknüpft, aber die Einrichtung wurde nicht abgeschlossen. Kontaktieren Sie uns unter",
-  },
-  "account-incomplete.bodySuffix": {
-    da: "for at få det rettet.",
-    en: "to get this fixed.",
-    es: "para que lo solucionemos.",
-    fr: "pour que nous puissions corriger cela.",
-    pt: "para resolvermos isso.",
-    de: ", um dies beheben zu lassen.",
-  },
-
-  // ---------------------------------------------------------------------
   // app/page.tsx
   // ---------------------------------------------------------------------
   "home.loginLink": {
