@@ -292,7 +292,7 @@ export function CalendarIntegrationsManager({
               return (
                 <div key={provider.key} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <h2 className="text-sm font-semibold text-slate-900">{provider.name}</h2>
                       {connection ? (
                         <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">

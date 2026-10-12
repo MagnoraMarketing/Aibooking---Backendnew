@@ -216,7 +216,7 @@ export function AdminWidgetsTable({ initialWidgets }: { initialWidgets: AdminWid
       {embedFor ? (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/50 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-slate-900">{t("adminPages.widgets.embedTitle")}</h2>
               <button type="button" onClick={() => setEmbedFor(null)} className="text-slate-400 hover:text-slate-600">
                 ✕

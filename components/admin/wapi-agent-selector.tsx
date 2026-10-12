@@ -80,7 +80,7 @@ export function WapiAgentSelector({ value, onChange, currentLabel }: WapiAgentSe
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="block text-sm font-medium text-slate-700">{t("adminPages.wapiAgents.selectorLabel")}</label>
         <button
           type="button"

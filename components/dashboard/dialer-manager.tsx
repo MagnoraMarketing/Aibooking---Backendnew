@@ -318,7 +318,7 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Dialer</h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -450,7 +450,7 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
             </div>
           ) : (
             <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm font-medium text-slate-700">
                   {calledCount} af {leads.length} ringet
                 </p>

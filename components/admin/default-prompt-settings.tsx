@@ -45,7 +45,7 @@ export function DefaultPromptSettings({ initialPrompt }: DefaultPromptSettingsPr
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Standard System Prompt</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Standard systemprompt</label>
         <p className="text-sm text-gray-600 mb-3">
           Denne prompt bruges som standard når nye agenter oprettes. Kunder kan tilpasse den for hver agent.
         </p>

@@ -4,14 +4,14 @@ import type { Namespace } from "./types";
 // wrapping every Dashboard page.
 export const dashboardShell: Namespace = {
   "nav.gettingStarted": {
-    da: "Getting Started",
+    da: "Kom i gang",
     en: "Getting Started",
     es: "Primeros pasos",
     fr: "Prise en main",
     pt: "Primeiros passos",
     de: "Erste Schritte",
   },
-  "nav.dashboard": { da: "Dashboard", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel", de: "Dashboard" },
+  "nav.dashboard": { da: "Overblik", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel", de: "Dashboard" },
 
   // Grouping header for the "Agenter" dropdown (Widget/Inbound/Outbound/Dialer)
   // in the header nav — keeps the four agent types together instead of
@@ -25,28 +25,28 @@ export const dashboardShell: Namespace = {
     pt: "Widget de chat",
     de: "Chat-Widget",
   },
-  "nav.inbound": { da: "Inbound (indgående opkald)", en: "Inbound (incoming calls)", es: "Entrantes (llamadas)", fr: "Entrant (appels)", pt: "Recebidas (chamadas)", de: "Inbound (eingehende Anrufe)" },
-  "nav.outbound": { da: "Outbound (udgående opkald)", en: "Outbound (outgoing calls)", es: "Salientes (llamadas)", fr: "Sortant (appels)", pt: "Efetuadas (chamadas)", de: "Outbound (ausgehende Anrufe)" },
-  "nav.dialer": { da: "Dialer", en: "Dialer", es: "Marcador", fr: "Numéroteur", pt: "Discador", de: "Dialer" },
+  "nav.inbound": { da: "Indgående opkald", en: "Inbound (incoming calls)", es: "Entrantes (llamadas)", fr: "Entrant (appels)", pt: "Recebidas (chamadas)", de: "Inbound (eingehende Anrufe)" },
+  "nav.outbound": { da: "Udgående opkald", en: "Outbound (outgoing calls)", es: "Salientes (llamadas)", fr: "Sortant (appels)", pt: "Efetuadas (chamadas)", de: "Outbound (ausgehende Anrufe)" },
+  "nav.dialer": { da: "Manuelle opkald", en: "Dialer", es: "Marcador", fr: "Numéroteur", pt: "Discador", de: "Dialer" },
   "nav.knowledgeBase": {
-    da: "Knowledge Base",
+    da: "Vidensbase",
     en: "Knowledge Base",
     es: "Base de conocimiento",
     fr: "Base de connaissances",
     pt: "Base de conhecimento",
     de: "Wissensdatenbank",
   },
-  "nav.analytics": { da: "Analytics", en: "Analytics", es: "Analítica", fr: "Statistiques", pt: "Análises", de: "Analysen" },
+  "nav.analytics": { da: "Statistik", en: "Analytics", es: "Analítica", fr: "Statistiques", pt: "Análises", de: "Analysen" },
   "nav.integrations": {
-    da: "Integrations",
+    da: "Integrationer",
     en: "Integrations",
     es: "Integraciones",
     fr: "Intégrations",
     pt: "Integrações",
     de: "Integrationen",
   },
-  "nav.billing": { da: "Billing", en: "Billing", es: "Facturación", fr: "Facturation", pt: "Faturamento", de: "Abrechnung" },
-  "nav.agency": { da: "Agency", en: "Agency", es: "Agencia", fr: "Agence", pt: "Agência", de: "Agentur" },
+  "nav.billing": { da: "Betaling", en: "Billing", es: "Facturación", fr: "Facturation", pt: "Faturamento", de: "Abrechnung" },
+  "nav.agency": { da: "Bureau", en: "Agency", es: "Agencia", fr: "Agence", pt: "Agência", de: "Agentur" },
   openMenu: { da: "Åbn menu", en: "Open menu", es: "Abrir menú", fr: "Ouvrir le menu", pt: "Abrir menu", de: "Menü öffnen" },
   notifications: {
     da: "Notifikationer",
@@ -56,7 +56,7 @@ export const dashboardShell: Namespace = {
     pt: "Notificações",
     de: "Benachrichtigungen",
   },
-  credits: { da: "Credits", en: "Credits", es: "Créditos", fr: "Crédits", pt: "Créditos", de: "Guthaben" },
+  credits: { da: "Minutter", en: "Credits", es: "Créditos", fr: "Crédits", pt: "Créditos", de: "Guthaben" },
   defaultUserLabel: { da: "Bruger", en: "User", es: "Usuario", fr: "Utilisateur", pt: "Usuário", de: "Benutzer" },
   profile: { da: "Profil", en: "Profile", es: "Perfil", fr: "Profil", pt: "Perfil", de: "Profil" },
   logout: { da: "Log ud", en: "Log out", es: "Cerrar sesión", fr: "Se déconnecter", pt: "Sair", de: "Abmelden" },
