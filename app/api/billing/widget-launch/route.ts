@@ -17,7 +17,7 @@ const bodySchema = z.object({
 
 // Hands the wizard's payment step the Stripe Payment Link to send the
 // customer to. The link itself is public, but the client_reference_id that
-// decides *who gets the 200 minutes* is built here from the session — never
+// decides *who gets the 150 minutes* is built here from the session — never
 // from anything the browser sends — so a customer can't buy minutes onto
 // someone else's account (see lib/billing/widget-launch.ts).
 export const POST = withErrorHandling(async (request) => {

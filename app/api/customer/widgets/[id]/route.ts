@@ -7,7 +7,7 @@ import {
   withErrorHandling,
   writeAuditLog,
   widgetUpdateSchema,
-  widgetExtraSettingsSchema,
+  customerWidgetExtraSettingsSchema,
   requireParam,
 } from "@/lib/security";
 import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/widgets";
@@ -23,7 +23,7 @@ import { ApiError } from "@/types/errors";
 export const dynamic = "force-dynamic";
 
 const patchWidgetSchema = widgetUpdateSchema.extend({
-  extra: widgetExtraSettingsSchema.optional(),
+  extra: customerWidgetExtraSettingsSchema.optional(),
 });
 
 async function loadOwnWidget(supabase: ReturnType<typeof getAdminClient>, widgetId: string, customerId: string) {
@@ -149,7 +149,6 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
   if (
     assistantJustProvisioned ||
     relevantFieldsChanged ||
-    extraUpdate?.vapiAssistantId !== undefined ||
     extraUpdate?.voiceGender !== undefined
   ) {
     await syncWidgetToVapiAssistant(data, extra);

@@ -64,6 +64,7 @@ vi.mock("@/lib/billing/stripe-client", () => ({
         created.prices.push(payload);
         return { id: "price_created_1" };
       },
+      retrieve: async (id: string) => ({ id, product: { id: "prod_manual", tax_code: "txcd_10103001" } }),
     },
     checkout: {
       sessions: {
@@ -152,6 +153,14 @@ describe("checkout for a package with no Stripe price", () => {
       success_url: "https://aibooking.dk/dashboard/billing?checkout=success",
       cancel_url: "https://aibooking.dk/dashboard/billing?checkout=cancelled",
     });
+  });
+
+  it("bills a full month from the day of purchase, never a prorated partial first month", async () => {
+    await createCheckoutSession({ customer: CUSTOMER, pkg: pkg() });
+
+    const subscriptionData = created.sessions[0]!.subscription_data as Record<string, unknown>;
+    expect(subscriptionData).not.toHaveProperty("billing_cycle_anchor");
+    expect(subscriptionData).not.toHaveProperty("proration_behavior");
   });
 
   it("leaves the one-time setup fee out by default — it's an opt-in add-on", async () => {

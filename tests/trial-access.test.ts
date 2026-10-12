@@ -113,3 +113,38 @@ describe("getBillingStatus (client portal green/orange/red indicator)", () => {
     ).toBe("expired");
   });
 });
+
+describe("samarbejde (partnership) customers", () => {
+  it("are 'partner' in the client portal, never 'expired', with no subscription or minutes", () => {
+    expect(
+      getBillingStatus({
+        customerCreatedAt: daysAgo(TRIAL_DAYS + 30),
+        subscriptionStatus: null,
+        balanceSeconds: -600,
+        customerType: "samarbejde",
+      })
+    ).toBe("partner");
+  });
+
+  it("keep embed code access without a subscription", () => {
+    expect(
+      hasEmbedCodeAccess({
+        customerCreatedAt: daysAgo(TRIAL_DAYS + 30),
+        subscriptionStatus: null,
+        balanceSeconds: 0,
+        customerType: "samarbejde",
+      })
+    ).toBe(true);
+  });
+
+  it("leave standard customers' status unchanged", () => {
+    expect(
+      getBillingStatus({
+        customerCreatedAt: daysAgo(TRIAL_DAYS + 30),
+        subscriptionStatus: null,
+        balanceSeconds: 0,
+        customerType: "standard",
+      })
+    ).toBe("expired");
+  });
+});

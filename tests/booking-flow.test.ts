@@ -15,7 +15,7 @@ vi.mock("@/lib/settings/platform", () => ({
 }));
 
 import { createVapiAssistant, updateVapiAssistant, EMAIL_PAUSE_RULE } from "@/lib/vapi/assistants";
-import { bookingFlowDirective, withBookingFlowDirective } from "@/lib/i18n/agent-content";
+import { bookingFlowDirective, endCallDirective, withBookingFlowDirective } from "@/lib/i18n/agent-content";
 
 const PARAMS = { name: "Agent", systemPrompt: "prompt", firstMessage: "hej", voiceGender: "female" as const };
 
@@ -63,7 +63,7 @@ describe("a Vapi agent with booking tools", () => {
   it("runs on the booking flow, in its own language", async () => {
     await createVapiAssistant({ ...PARAMS, language: "en" }, true);
 
-    expect(systemMessage(0)).toBe(`prompt\n\n${bookingFlowDirective("en")}`);
+    expect(systemMessage(0)).toBe(`prompt\n\n${bookingFlowDirective("en")}\n\n${endCallDirective("en")}`);
   });
 
   it("reaches an existing assistant through an update too", async () => {

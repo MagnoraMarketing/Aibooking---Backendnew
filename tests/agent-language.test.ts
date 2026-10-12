@@ -20,10 +20,11 @@ import { languageDirective, withLanguageDirective, toolWaitText } from "@/lib/i1
 
 const PARAMS = { name: "Frisørstuen", systemPrompt: "Du er receptionist.", firstMessage: "Hej!" };
 
-function toolsSent(callIndex = 0): Array<{ function?: { name?: string }; messages?: Array<{ type: string; content: string }> }> {
+function toolsSent(callIndex = 0): Array<{ type?: string; function?: { name?: string }; messages?: Array<{ type: string; content: string }> }> {
   const init = vapiFetchMock.mock.calls[callIndex]![1] as RequestInit;
   const body = JSON.parse(String(init.body)) as { model: { tools: unknown[] } };
-  return body.model.tools as ReturnType<typeof toolsSent>;
+  // The hang-up tool deliberately carries no filler (see buildEndCallTool).
+  return (body.model.tools as ReturnType<typeof toolsSent>).filter((tool) => tool.type !== "endCall");
 }
 
 beforeEach(() => {
