@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptionsWithName } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { LOCALE_COOKIE, isLocale, matchLocale } from "@/lib/i18n/locales";
+import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from "@/lib/i18n/locales";
 
 interface CookieToSet {
   name: string;
@@ -13,25 +13,19 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
   const isLoginRoute = pathname === "/login" || pathname === "/signup";
 
-  // Resolves NEXT_LOCALE from Accept-Language on a visitor's very first
-  // request (signup/login, pre-auth — see lib/i18n/get-locale.ts), and, when
-  // it's missing, mutates request.cookies (not just response.cookies) with
-  // it *before* anything below builds a NextResponse.next({ request }).
-  // Every one of those downstream responses carries this same request
-  // object forward, so getRequestLocale() — which reads the cookie via
-  // next/headers's cookies() — sees it on THIS render already, not only on
-  // the browser's next request. response.cookies.set() alone (the previous
-  // approach) only reaches the browser as a Set-Cookie header: it can't
-  // affect the response already being computed for the current request, so
-  // a brand new visitor's very first page load fell back to the platform
-  // default (Danish) for exactly one render, regardless of their browser
-  // language, and only corrected itself on their next navigation. A
-  // signed-in user's profile.language (set explicitly, possibly overriding
-  // this guess) always takes precedence wherever it's read, same as before.
+  // Everything is in Danish unless the person has chosen another language
+  // themselves — on the signup form or in Profile settings (both set the
+  // NEXT_LOCALE cookie; a signed-in user's profile.language takes precedence
+  // wherever it's read). The browser's Accept-Language is deliberately not
+  // used as a guess: a Danish business owner on an English-language browser
+  // should still land on a Danish signup/login page.
+  //
+  // A missing cookie is stamped on request.cookies (not just
+  // response.cookies) *before* anything below builds a
+  // NextResponse.next({ request }), so getRequestLocale() sees it on this
+  // very render rather than only on the browser's next request.
   const existingLocaleCookie = request.cookies.get(LOCALE_COOKIE)?.value;
-  const locale = isLocale(existingLocaleCookie)
-    ? existingLocaleCookie
-    : matchLocale(request.headers.get("accept-language"));
+  const locale = isLocale(existingLocaleCookie) ? existingLocaleCookie : DEFAULT_LOCALE;
   const needsLocaleCookie = !isLocale(existingLocaleCookie);
   if (needsLocaleCookie) {
     request.cookies.set(LOCALE_COOKIE, locale);

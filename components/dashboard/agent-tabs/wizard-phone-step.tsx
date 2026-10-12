@@ -14,7 +14,7 @@ interface ExistingPhoneNumber {
   released_at: string | null;
 }
 
-type Status = "checking" | "provisioning" | "ready" | "error";
+type Status = "checking" | "provisioning" | "ready" | "error" | "paymentRequired";
 
 // The final wizard step for a Telefon (Inbound/Outbound) agent — the
 // counterpart to EmbedCodeTab for a Voice Widget agent. The widget already
@@ -60,6 +60,10 @@ export function WizardPhoneStep({ widget }: { widget: WidgetWithExtras }) {
       });
 
       if (!res.ok) {
+        if (res.status === 402) {
+          setStatus("paymentRequired");
+          return;
+        }
         const data = await res.json().catch(() => null);
         setError(data?.error?.message ?? t("agent.wizardPhone.errorGetNumber"));
         setStatus("error");
@@ -88,6 +92,15 @@ export function WizardPhoneStep({ widget }: { widget: WidgetWithExtras }) {
       ) : null}
 
       {status === "ready" && phoneNumber ? <CallForwardingInstructions phoneNumber={phoneNumber} /> : null}
+
+      {status === "paymentRequired" ? (
+        <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <p>{t("agent.wizardPhone.paymentRequired", { name: widget.name })}</p>
+          <Link href="/dashboard/inbound/free-trial" className="inline-block font-medium text-amber-900 hover:underline">
+            {t("agent.wizardPhone.paymentRequiredCta")}
+          </Link>
+        </div>
+      ) : null}
 
       {status === "error" ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>

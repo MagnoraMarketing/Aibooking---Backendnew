@@ -197,6 +197,19 @@ export function WebshopTab({ widget }: WebshopTabProps) {
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-sm font-semibold text-emerald-900">{t("agent.webshop.featuresTitle")}</p>
+              <ul className="mt-2 space-y-1.5">
+                {(["feature1", "feature2", "feature3", "feature4"] as const).map((key) => (
+                  <li key={key} className="flex items-start gap-2 text-sm text-emerald-800">
+                    <span aria-hidden className="mt-0.5 text-emerald-600">✓</span>
+                    {t(`agent.webshop.${key}`)}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs font-medium text-emerald-700">{t("agent.webshop.featuresChannels")}</p>
+            </div>
+
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-700" htmlFor="shopify-shop-domain">
                 {t("agent.webshop.shopDomainLabel")}

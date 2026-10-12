@@ -13,12 +13,14 @@ beforeEach(() => {
 });
 
 // A visitor's very first request ever has no NEXT_LOCALE cookie yet.
+// Everything is Danish unless the person has chosen another language
+// themselves, so the browser's Accept-Language must not decide it.
 // response.cookies.set() alone only reaches the browser on the *next*
 // request — it can't affect the page already rendering for *this* one — so
-// the fix has to land the cookie on request.cookies too, before any
-// downstream NextResponse.next({ request }) is built (see middleware.ts).
+// the cookie has to land on request.cookies too, before any downstream
+// NextResponse.next({ request }) is built (see middleware.ts).
 describe("middleware's locale stamping", () => {
-  it("mutates request.cookies synchronously so this exact request's render sees the browser-matched locale", async () => {
+  it("defaults a first-time visitor to Danish even when the browser is in English", async () => {
     const { middleware } = await import("@/middleware");
     const request = new NextRequest("https://aibooking.dk/login", {
       headers: { "accept-language": "en-US,en;q=0.9" },
@@ -28,7 +30,7 @@ describe("middleware's locale stamping", () => {
 
     await middleware(request);
 
-    expect(request.cookies.get("NEXT_LOCALE")?.value).toBe("en");
+    expect(request.cookies.get("NEXT_LOCALE")?.value).toBe("da");
   });
 
   it("also sets the cookie on the response, for the browser's next request", async () => {
@@ -39,27 +41,15 @@ describe("middleware's locale stamping", () => {
 
     const response = await middleware(request);
 
-    expect(response.cookies.get("NEXT_LOCALE")?.value).toBe("fr");
+    expect(response.cookies.get("NEXT_LOCALE")?.value).toBe("da");
   });
 
-  it("falls back to the platform default for an unsupported browser language", async () => {
-    const { middleware } = await import("@/middleware");
-    const request = new NextRequest("https://aibooking.dk/login", {
-      headers: { "accept-language": "ja-JP,ja;q=0.9" },
-    });
-
-    await middleware(request);
-
-    expect(request.cookies.get("NEXT_LOCALE")?.value).toBe("da");
-  });
-
-  it("leaves an already-chosen locale alone instead of overwriting it from the browser", async () => {
+  it("leaves a language the person chose alone", async () => {
     const { middleware } = await import("@/middleware");
     const request = new NextRequest("https://aibooking.dk/login", {
       headers: { "accept-language": "da-DK,da;q=0.9" },
-      // A previous visit (or an explicit choice in Profile settings, see
-      // components/i18n/language-provider.tsx's setLocale) already set this
-      // — the browser's current language must not override it.
+      // An explicit choice on the signup form or in Profile settings (see
+      // components/i18n/language-provider.tsx's setLocale) already set this.
     });
     request.cookies.set("NEXT_LOCALE", "en");
 

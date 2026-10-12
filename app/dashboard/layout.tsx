@@ -58,6 +58,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         subscriptionStatus: subscription?.status ?? null,
         balanceSeconds,
         widgetLaunchPaidAt: customer.widget_launch_paid_at,
+        customerType: customer.customer_type,
       })
     : false;
 
@@ -70,7 +71,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           minutesRemaining={minutesRemaining}
         />
         {trialEnded ? <TrialEndedBanner /> : null}
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 pb-28 pt-8 sm:px-6">{children}</main>
         <SupportWidget />
       </div>
     </LanguageProvider>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslation } from "@/components/i18n/language-provider";
 
 // Shown across every dashboard page once a customer's free trial (7 days or
-// 5 minutes, whichever ran out first — see lib/billing/trial.ts) is over and
+// its free minutes, whichever ran out first — see lib/billing/trial.ts) is over and
 // they haven't converted to a paid package or the one-off Voice Widget
 // launch offer. app/dashboard/layout.tsx decides whether to render this with
 // the same hasEmbedCodeAccess check the embed-code tab itself uses, so the

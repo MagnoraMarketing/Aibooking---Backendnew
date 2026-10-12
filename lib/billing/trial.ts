@@ -1,12 +1,17 @@
+import type { CustomerType } from "@/types/database";
+
 export const TRIAL_DAYS = 7;
 
 // New customers get a small free trial — TRIAL_MINUTES of usable minutes
 // (voice and widget draw from the same shared credit pool, see
 // lib/credits/ledger.ts), good for TRIAL_DAYS — so they can set an agent up
 // and try it live before deciding to subscribe. Either limit running out
-// ends the trial: 7 days pass, or the 5 minutes are used, whichever comes
+// ends the trial: 7 days pass, or the 10 minutes are used, whichever comes
 // first (see hasEmbedCodeAccess below).
-export const TRIAL_MINUTES = 5;
+//
+// TRIAL_MINUTES is the default only: the master admin sets the actual number
+// under Indstillinger (getTrialMinutes in lib/settings/platform.ts).
+export const TRIAL_MINUTES = 10;
 export const TRIAL_SECONDS = TRIAL_MINUTES * 60;
 
 export function isWithinTrial(customerCreatedAt: string): boolean {
@@ -34,7 +39,7 @@ const ACTIVE_SUBSCRIPTION_STATUSES = ["active", "trialing"];
 // satisfies this via subscriptionStatus — no separate bypass needed.
 //
 // The wizard's closing payment step (lib/billing/widget-launch.ts) is a
-// one-off purchase of 200 minutes rather than a subscription, so it leaves
+// one-off purchase of 150 minutes rather than a subscription, so it leaves
 // nothing in `subscriptions` to check: widgetLaunchPaidAt is how that
 // purchase keeps the embed code unlocked once the minutes are spent. The
 // minutes still run out like any others — this only governs whether the
@@ -44,10 +49,30 @@ export function hasEmbedCodeAccess(params: {
   subscriptionStatus: string | null | undefined;
   balanceSeconds: number;
   widgetLaunchPaidAt?: string | null;
+  customerType?: CustomerType | null;
 }): boolean {
+  return getBillingStatus(params) !== "expired";
+}
+
+export type BillingStatus = "paid" | "trial" | "expired" | "partner";
+
+// The client portal's green/orange/red indicator (spec: grøn for betalt
+// pakke, orange for prøveperiode, rød hvis betaling mangler). Same inputs
+// and precedence as hasEmbedCodeAccess above, just split into states
+// instead of collapsed to a boolean. Samarbejde (partnership) customers are
+// never billed, so they get their own "partner" state and never expire.
+export function getBillingStatus(params: {
+  customerCreatedAt: string;
+  subscriptionStatus: string | null | undefined;
+  balanceSeconds: number;
+  widgetLaunchPaidAt?: string | null;
+  customerType?: CustomerType | null;
+}): BillingStatus {
+  if (params.customerType === "samarbejde") return "partner";
   if (params.subscriptionStatus && ACTIVE_SUBSCRIPTION_STATUSES.includes(params.subscriptionStatus)) {
-    return true;
+    return "paid";
   }
-  if (params.widgetLaunchPaidAt) return true;
-  return isWithinTrial(params.customerCreatedAt) && params.balanceSeconds > 0;
+  if (params.widgetLaunchPaidAt) return "paid";
+  if (isWithinTrial(params.customerCreatedAt) && params.balanceSeconds > 0) return "trial";
+  return "expired";
 }

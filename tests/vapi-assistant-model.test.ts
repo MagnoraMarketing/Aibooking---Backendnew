@@ -16,7 +16,7 @@ vi.mock("@/lib/settings/platform", () => ({
   getVapiVoiceTemplateAssistantId: (gender: string) => templateIdMock(gender),
 }));
 
-import { createVapiAssistant, updateVapiAssistant } from "@/lib/vapi/assistants";
+import { buildEndCallTool, createVapiAssistant, updateVapiAssistant } from "@/lib/vapi/assistants";
 
 const PARAMS = { name: "Agent", systemPrompt: "prompt", firstMessage: "hej", voiceGender: "female" as const };
 
@@ -65,7 +65,9 @@ describe("the model a widget assistant runs on", () => {
     await createVapiAssistant(PARAMS, true);
 
     const model = bodyOf(1).model as { messages: { content: string }[]; tools: unknown[] };
-    expect(model.messages).toEqual([{ role: "system", content: "prompt" }]);
+    expect(model.messages).toHaveLength(1);
+    expect(model.messages[0]!.content.startsWith("prompt\n\n")).toBe(true);
+    expect(model.messages[0]!.content).not.toContain("admin template prompt");
     expect(model.tools.length).toBeGreaterThan(0);
   });
 
@@ -134,11 +136,11 @@ describe("an agent that has no calendar", () => {
     expect(systemMessage(1)).toContain("You cannot book");
   });
 
-  it("carries no booking tools either way", async () => {
+  it("carries no booking tools either way — only the hang-up tool", async () => {
     await createVapiAssistant(PARAMS);
 
     const model = bodyOf(1).model as { tools: unknown[] };
-    expect(model.tools).toEqual([]);
+    expect(model.tools).toEqual([buildEndCallTool()]);
   });
 
   // The directive is about a missing capability, not a missing calendar
@@ -147,7 +149,8 @@ describe("an agent that has no calendar", () => {
   it("is never added to an agent that does have the tools", async () => {
     await createVapiAssistant({ ...PARAMS, language: "da" }, true);
 
-    expect(systemMessage(1)).toBe("prompt");
+    expect(systemMessage(1)).not.toContain("Du kan ikke booke");
+    expect(systemMessage(1)).toContain("Sådan booker du et møde");
     expect((bodyOf(1).model as { tools: unknown[] }).tools.length).toBeGreaterThan(0);
   });
 

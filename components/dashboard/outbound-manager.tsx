@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Widget } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
@@ -413,12 +414,12 @@ export function OutboundManager({
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.outbound.title")}</h1>
           <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.outbound.subtitle")}</p>
         </div>
-        {!showForm ? (
+        {!showForm && widgets.length > 0 && phoneNumbers.length > 0 ? (
           <button
             type="button"
             onClick={() => {
@@ -432,9 +433,21 @@ export function OutboundManager({
         ) : null}
       </div>
 
-      {phoneNumbers.length === 0 ? (
+      {/* Outbound has no agents of its own: campaigns dial with the same phone
+          agent (and number) the customer set up under Inbound. */}
+      {widgets.length === 0 || phoneNumbers.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-          {t("dashboardPages.outbound.noNumbersYet")}
+          <p>
+            {widgets.length === 0
+              ? t("dashboardPages.outbound.noAgentsYet")
+              : t("dashboardPages.outbound.noNumbersYet")}
+          </p>
+          <Link
+            href="/dashboard/inbound"
+            className="mt-4 inline-block rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            {t("dashboardPages.outbound.goToInbound")}
+          </Link>
         </div>
       ) : showForm ? (
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

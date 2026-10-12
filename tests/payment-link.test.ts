@@ -64,6 +64,7 @@ vi.mock("@/lib/billing/stripe-client", () => ({
         created.prices.push(payload);
         return { id: "price_created_1" };
       },
+      retrieve: async (id: string) => ({ id, product: { id: "prod_manual", tax_code: "txcd_10103001" } }),
     },
     checkout: {
       sessions: {
@@ -154,13 +155,30 @@ describe("checkout for a package with no Stripe price", () => {
     });
   });
 
-  it("still bills the one-time setup fee alongside the subscription", async () => {
-    await createCheckoutSession({ customer: CUSTOMER, pkg: pkg({ setup_fee: 1998 }) });
+  it("bills a full month from the day of purchase, never a prorated partial first month", async () => {
+    await createCheckoutSession({ customer: CUSTOMER, pkg: pkg() });
+
+    const subscriptionData = created.sessions[0]!.subscription_data as Record<string, unknown>;
+    expect(subscriptionData).not.toHaveProperty("billing_cycle_anchor");
+    expect(subscriptionData).not.toHaveProperty("proration_behavior");
+  });
+
+  it("leaves the one-time setup fee out by default — it's an opt-in add-on", async () => {
+    await createCheckoutSession({ customer: CUSTOMER, pkg: pkg({ setup_fee: 999 }) });
+
+    const session = created.sessions[0];
+    expect(session).toBeDefined();
+    const lineItems = session!.line_items as Record<string, unknown>[];
+    expect(lineItems).toHaveLength(1);
+  });
+
+  it("bills the one-time setup fee alongside the subscription when the customer opts in", async () => {
+    await createCheckoutSession({ customer: CUSTOMER, pkg: pkg({ setup_fee: 999 }), includeSetup: true });
 
     const session = created.sessions[0];
     expect(session).toBeDefined();
     const lineItems = session!.line_items as Record<string, unknown>[];
     expect(lineItems).toHaveLength(2);
-    expect(lineItems[1]).toMatchObject({ price_data: { currency: "dkk", unit_amount: 199800 } });
+    expect(lineItems[1]).toMatchObject({ price_data: { currency: "dkk", unit_amount: 99900 } });
   });
 });

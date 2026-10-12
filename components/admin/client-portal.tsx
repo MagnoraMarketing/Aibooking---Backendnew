@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AdminStatCard } from "./stat-card";
 import { useTranslation } from "@/components/i18n/language-provider";
+import type { CustomerType } from "@/types/database";
+
+export type BillingStatus = "paid" | "trial" | "expired" | "partner";
 
 export interface ClientRow {
   id: string;
@@ -11,6 +14,12 @@ export interface ClientRow {
   email: string;
   status: "active" | "inactive" | "deleted";
   createdAt: string;
+  // Who sold this customer, e.g. a salesperson's name — null for
+  // self-signups and older customers created before this field existed.
+  reference: string | null;
+  billingStatus: BillingStatus;
+  // "samarbejde" = partnership/demo customer, never billed.
+  customerType: CustomerType;
   creditPricePerMinute: number | null;
   currency: string;
   minutesRemaining: number;
@@ -18,6 +27,13 @@ export interface ClientRow {
   activeAgents: number;
   totalAgents: number;
 }
+
+const BILLING_STATUS_DOT: Record<BillingStatus, string> = {
+  paid: "bg-emerald-500",
+  trial: "bg-amber-500",
+  expired: "bg-red-500",
+  partner: "bg-indigo-500",
+};
 
 export interface AdminStats {
   totalClients: number;
@@ -49,6 +65,8 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [newReference, setNewReference] = useState("");
+  const [newCustomerType, setNewCustomerType] = useState<CustomerType>("standard");
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [creditPromptFor, setCreditPromptFor] = useState<{ id: string; direction: "add" | "remove" } | null>(null);
@@ -74,7 +92,12 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
     const res = await fetch("/api/admin/customers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName.trim(), email: newEmail.trim() }),
+      body: JSON.stringify({
+        name: newName.trim(),
+        email: newEmail.trim(),
+        reference: newReference.trim() || undefined,
+        customerType: newCustomerType,
+      }),
     });
 
     setCreating(false);
@@ -86,6 +109,8 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
 
     setNewName("");
     setNewEmail("");
+    setNewReference("");
+    setNewCustomerType("standard");
     setShowAddForm(false);
     window.location.reload();
   }
@@ -178,7 +203,7 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
         <AdminStatCard label={t("adminPages.clientPortal.statTotalAgents")} value={String(stats.totalAgents)} />
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-slate-900">{t("adminShell.nav.customers")}</h2>
         <button
           type="button"
@@ -214,6 +239,32 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
                 onChange={(e) => setNewEmail(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
               />
+            </div>
+            <div>
+              <label htmlFor="new-client-reference" className="mb-1 block text-sm font-medium text-slate-700">
+                {t("adminPages.clientPortal.formReferenceLabel")}
+              </label>
+              <input
+                id="new-client-reference"
+                value={newReference}
+                onChange={(e) => setNewReference(e.target.value)}
+                placeholder={t("adminPages.clientPortal.formReferencePlaceholder")}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="new-client-type" className="mb-1 block text-sm font-medium text-slate-700">
+                {t("adminPages.clientPortal.formCustomerTypeLabel")}
+              </label>
+              <select
+                id="new-client-type"
+                value={newCustomerType}
+                onChange={(e) => setNewCustomerType(e.target.value as CustomerType)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              >
+                <option value="standard">{t("adminPages.clientPortal.customerType.standard")}</option>
+                <option value="samarbejde">{t("adminPages.clientPortal.customerType.samarbejde")}</option>
+              </select>
             </div>
           </div>
           {formError ? <p className="mt-2 text-sm text-red-600">{formError}</p> : null}
@@ -258,11 +309,33 @@ export function ClientPortal({ initialClients, stats }: { initialClients: Client
                     {initials(client.name) || "?"}
                   </span>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">{client.name}</p>
+                    <p className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                      {client.name}
+                      {client.customerType === "samarbejde" ? (
+                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                          {t("adminPages.clientPortal.samarbejdeBadge")}
+                        </span>
+                      ) : null}
+                    </p>
                     <p className="text-xs text-slate-500">{client.email}</p>
+                    {client.reference ? (
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {t("adminPages.clientPortal.referencePrefix")} {client.reference}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  <span
+                    className="flex items-center gap-1.5 text-xs font-medium text-slate-600"
+                    title={t(`adminPages.clientPortal.billingStatus.${client.billingStatus}`)}
+                  >
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${BILLING_STATUS_DOT[client.billingStatus]}`}
+                      aria-hidden="true"
+                    />
+                    {t(`adminPages.clientPortal.billingStatus.${client.billingStatus}`)}
+                  </span>
                   {client.creditPricePerMinute !== null ? (
                     <span className="text-xs text-slate-500">
                       {t("adminPages.clientPortal.overpricePerMinute", {

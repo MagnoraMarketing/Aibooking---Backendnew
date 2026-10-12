@@ -121,6 +121,74 @@ export function withNoBookingDirective(systemPrompt: string, widgetLanguage: str
   return `${systemPrompt}\n\n${NO_BOOKING_DIRECTIVE[resolveLocale(widgetLanguage)]}`;
 }
 
+// How every agent that CAN book runs a booking — widget chat, voice widget
+// and phone alike, so a visitor and a caller get the same flow:
+//
+//  1. Fast: offer real times straight away, whatever the meeting is about —
+//     no interview about the purpose before the calendar is even checked.
+//  2. Email: let the customer say the whole address, then read it back,
+//     spelled out, and get a yes before using it. A misheard address is the
+//     one booking error the customer can fix on the spot, and otherwise the
+//     confirmation never arrives. (Voice agents also wait for a pause after
+//     asking for it — see EMAIL_PAUSE_RULE in lib/vapi/assistants.ts.)
+//     Name and a confirmed email are also enforced when the booking tool
+//     runs (checkBookingDetails in lib/calendar/booking-failure.ts), so a
+//     booking without them is refused rather than made.
+//  3. Accept: sum up day, date, time and email, and only book once the
+//     customer has said yes to exactly that.
+const BOOKING_FLOW_DIRECTIVE: Record<Locale, string> = {
+  da: "### Sådan booker du et møde\n1. Gør det hurtigt: Uanset hvad mødet handler om, så spørg ikke først ind til formålet. Tjek kalenderen med det samme og tilbyd de to-tre nærmeste ledige tider.\n2. Når kunden har valgt en tid, så spørg om kundens fulde navn og derefter om den e-mailadresse, bekræftelsen skal sendes til. Book aldrig uden begge — heller ikke hvis kunden har travlt.\n3. Lad kunden sige hele e-mailadressen færdig uden at afbryde, og vent til der er helt stille, før du svarer.\n4. Læs e-mailadressen tilbage, stavet tydeligt (fx „anna punktum hansen snabel-a firma punktum dk“), og spørg: „Er det korrekt?“ Er den forkert, så bed kunden sige den igen.\n5. Opsummér mødet: dag, dato, klokkeslæt og e-mail, og spørg om du må booke det.\n6. Book først, når kunden tydeligt har sagt ja. Sig først at mødet er booket, når bookingen er lykkedes, og fortæl at bekræftelsen kommer på e-mail.",
+  en: "### How to book a meeting\n1. Be fast: Whatever the meeting is about, don't ask about its purpose first. Check the calendar straight away and offer the two or three nearest available times.\n2. Once the customer has picked a time, ask for their full name and then the email address the confirmation should go to. Never book without both — not even if the customer is in a hurry.\n3. Let the customer say the whole email address without interrupting, and wait until there is silence before you answer.\n4. Read the email address back, clearly spelled out (e.g. “anna dot hansen at company dot com”), and ask: “Is that correct?” If it is wrong, ask them to say it again.\n5. Sum up the meeting: day, date, time and email, and ask whether you may book it.\n6. Only book once the customer has clearly said yes. Only say the meeting is booked once the booking has succeeded, and tell them the confirmation will arrive by email.",
+  es: "### Cómo reservar una reunión\n1. Sé rápido: Trate de lo que trate la reunión, no preguntes primero por el motivo. Consulta el calendario enseguida y ofrece las dos o tres horas libres más próximas.\n2. Cuando el cliente haya elegido una hora, pide su nombre completo y luego el correo electrónico al que se enviará la confirmación. Nunca reserves sin ambos, aunque el cliente tenga prisa.\n3. Deja que el cliente diga el correo completo sin interrumpir y espera a que haya silencio antes de responder.\n4. Lee el correo en voz alta, deletreado con claridad, y pregunta: «¿Es correcto?» Si no lo es, pide que lo repita.\n5. Resume la reunión: día, fecha, hora y correo, y pregunta si puedes reservarla.\n6. Reserva solo cuando el cliente haya dicho claramente que sí. Di que la reunión está reservada solo cuando la reserva se haya completado, e indica que la confirmación llegará por correo.",
+  fr: "### Comment réserver un rendez-vous\n1. Soyez rapide : quel que soit l'objet du rendez-vous, ne demandez pas d'abord son motif. Consultez l'agenda tout de suite et proposez les deux ou trois créneaux libres les plus proches.\n2. Une fois le créneau choisi, demandez le nom complet du client puis l'adresse e-mail à laquelle envoyer la confirmation. Ne réservez jamais sans les deux, même si le client est pressé.\n3. Laissez le client dicter toute l'adresse e-mail sans l'interrompre, et attendez un silence avant de répondre.\n4. Relisez l'adresse e-mail en l'épelant clairement et demandez : « Est-ce correct ? » Si elle est fausse, demandez-lui de la répéter.\n5. Récapitulez : jour, date, heure et e-mail, et demandez si vous pouvez réserver.\n6. Ne réservez qu'après un oui clair du client. Ne dites que le rendez-vous est réservé qu'une fois la réservation réussie, et précisez que la confirmation arrivera par e-mail.",
+  pt: "### Como marcar uma reunião\n1. Sê rápido: Seja qual for o assunto da reunião, não perguntes primeiro pelo motivo. Consulta o calendário de imediato e oferece os dois ou três horários livres mais próximos.\n2. Depois de o cliente escolher um horário, pede o nome completo e depois o e-mail para onde vai a confirmação. Nunca marques sem os dois, mesmo que o cliente tenha pressa.\n3. Deixa o cliente dizer o e-mail completo sem interromper e espera que haja silêncio antes de responder.\n4. Lê o e-mail em voz alta, soletrado com clareza, e pergunta: «Está correto?» Se estiver errado, pede que o repita.\n5. Resume a reunião: dia, data, hora e e-mail, e pergunta se podes marcá-la.\n6. Marca só quando o cliente disser claramente que sim. Diz que a reunião está marcada só depois de a marcação ter sido concluída, e indica que a confirmação chega por e-mail.",
+  de: "### So buchen Sie einen Termin\n1. Schnell sein: Egal worum es im Termin geht, fragen Sie nicht zuerst nach dem Anlass. Prüfen Sie sofort den Kalender und bieten Sie die zwei oder drei nächsten freien Zeiten an.\n2. Hat der Kunde eine Zeit gewählt, fragen Sie nach dem vollständigen Namen und dann nach der E-Mail-Adresse, an die die Bestätigung geht. Buchen Sie nie ohne beides — auch nicht, wenn der Kunde es eilig hat.\n3. Lassen Sie den Kunden die ganze E-Mail-Adresse ohne Unterbrechung sagen und warten Sie, bis es still ist, bevor Sie antworten.\n4. Lesen Sie die E-Mail-Adresse deutlich buchstabiert vor und fragen Sie: „Ist das korrekt?“ Ist sie falsch, bitten Sie den Kunden, sie zu wiederholen.\n5. Fassen Sie den Termin zusammen: Tag, Datum, Uhrzeit und E-Mail, und fragen Sie, ob Sie ihn buchen dürfen.\n6. Buchen Sie erst nach einem klaren Ja. Sagen Sie erst, dass der Termin gebucht ist, wenn die Buchung erfolgreich war, und dass die Bestätigung per E-Mail kommt.",
+};
+
+export function bookingFlowDirective(widgetLanguage: string | null | undefined): string {
+  return BOOKING_FLOW_DIRECTIVE[resolveLocale(widgetLanguage)];
+}
+
+// Appended to the system prompt of every agent that has booking tools.
+export function withBookingFlowDirective(systemPrompt: string, widgetLanguage: string | null | undefined): string {
+  return `${systemPrompt}\n\n${bookingFlowDirective(widgetLanguage)}`;
+}
+
+// How every voice agent ends a call: when the customer says goodbye or is
+// done, the agent says a short goodbye and hangs up with its endCall
+// (Vapi's built-in endCall tool — see buildEndCallTool in
+// lib/vapi/assistants.ts). Without it the line stayed open after "tak,
+// farvel" until the caller hung up or the silence timeout ran out, which
+// costs the customer minutes for nothing.
+const END_CALL_DIRECTIVE: Record<Locale, string> = {
+  da: "### Sådan afslutter du samtalen\nNår kunden siger farvel, siger tak for hjælpen og tydeligt er færdig, eller selv beder om at afslutte samtalen, så sig en kort, venlig afskedshilsen (fx „Tak for opkaldet, hav en god dag. Farvel.“) og brug derefter straks værktøjet endCall til at lægge på. Stil ikke flere spørgsmål, når kunden har sagt farvel. Afslut aldrig samtalen, mens kunden stadig er i gang med noget, eller midt i en booking.",
+  en: "### How to end the call\nWhen the customer says goodbye, thanks you and is clearly done, or asks to end the conversation, say a short, friendly goodbye (e.g. “Thanks for calling, have a great day. Goodbye.”) and then immediately use the endCall tool to hang up. Don't ask more questions once the customer has said goodbye. Never end the call while the customer is still in the middle of something or during a booking.",
+  es: "### Cómo terminar la llamada\nCuando el cliente se despida, dé las gracias y haya terminado claramente, o pida terminar la conversación, di una despedida breve y amable (p. ej. «Gracias por llamar, que tengas un buen día. Adiós.») y usa inmediatamente la herramienta endCall para colgar. No hagas más preguntas cuando el cliente se haya despedido. Nunca termines la llamada mientras el cliente siga con algo o en medio de una reserva.",
+  fr: "### Comment terminer l'appel\nLorsque le client dit au revoir, remercie et a clairement terminé, ou demande à mettre fin à la conversation, dites un au revoir court et aimable (par ex. « Merci de votre appel, bonne journée. Au revoir. ») puis utilisez immédiatement l'outil endCall pour raccrocher. Ne posez plus de questions une fois que le client a dit au revoir. Ne terminez jamais l'appel tant que le client est encore en train de faire quelque chose ou au milieu d'une réservation.",
+  pt: "### Como terminar a chamada\nQuando o cliente se despedir, agradecer e tiver claramente terminado, ou pedir para terminar a conversa, diz uma despedida curta e simpática (p. ex. «Obrigado pela chamada, tenha um bom dia. Adeus.») e usa imediatamente a ferramenta endCall para desligar. Não faças mais perguntas depois de o cliente se despedir. Nunca termines a chamada enquanto o cliente ainda estiver a meio de algo ou de uma marcação.",
+  de: "### So beenden Sie das Gespräch\nWenn der Kunde sich verabschiedet, sich bedankt und offensichtlich fertig ist oder darum bittet, das Gespräch zu beenden, verabschieden Sie sich kurz und freundlich (z. B. „Danke für Ihren Anruf, einen schönen Tag noch. Auf Wiederhören.“) und verwenden Sie dann sofort das Tool endCall, um aufzulegen. Stellen Sie keine weiteren Fragen, wenn der Kunde sich verabschiedet hat. Beenden Sie das Gespräch nie, während der Kunde noch mitten in etwas oder in einer Buchung ist.",
+};
+
+export function endCallDirective(widgetLanguage: string | null | undefined): string {
+  return END_CALL_DIRECTIVE[resolveLocale(widgetLanguage)];
+}
+
+// A prompt with any language's end-call directive taken back out — for the
+// admin editor of the platform's own assistants, which shows the prompt as
+// it was written and adds the directive on save when "læg på ved farvel" is on.
+export function stripEndCallDirective(systemPrompt: string): string {
+  let result = systemPrompt;
+  for (const directive of Object.values(END_CALL_DIRECTIVE)) {
+    result = result.split(`\n\n${directive}`).join("").split(directive).join("");
+  }
+  return result.trimEnd();
+}
+
+// Appended to the system prompt of every voice agent (lib/vapi/assistants.ts).
+export function withEndCallDirective(systemPrompt: string, widgetLanguage: string | null | undefined): string {
+  return `${systemPrompt}\n\n${endCallDirective(widgetLanguage)}`;
+}
+
 // The literal first thing an agent says, spoken before any AI turn runs —
 // used whenever a widget has no opening_message/welcome_message of its own
 // yet (a freshly created agent). Unlike the system prompt, there's no

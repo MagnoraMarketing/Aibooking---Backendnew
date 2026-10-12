@@ -70,3 +70,85 @@ export function normalizeDictatedEmail(raw: string): string {
 export function looksLikeEmail(value: string): boolean {
   return EMAIL_SHAPE.test(value);
 }
+
+// What every booking needs before Cal.com is asked: a time, the customer's
+// real name, and an email address the customer has heard read back and said
+// yes to — that address is where the confirmation goes, so a wrong one means
+// a booking the customer never hears about. Checked here, server-side,
+// rather than left to the prompt alone: a model in a hurry fills in
+// "Kunden" as the name or books on an address it never read back, and the
+// calendar takes it either way.
+//
+// Each refusal names the one thing missing, so the agent asks for exactly
+// that and books again, instead of starting the conversation over.
+export interface BookingDetailsInput {
+  start_time?: string;
+  customer_name?: string;
+  customer_email?: string;
+  // Some models send a JSON boolean as the string "true".
+  email_confirmed?: boolean | string;
+}
+
+export type BookingDetailsCheck =
+  | { ok: true; startTime: string; customerName: string; customerEmail: string }
+  | { ok: false; advice: string };
+
+export const MISSING_TIME_ADVICE =
+  "Bookingen blev IKKE gennemført, fordi tidspunktet mangler. Tjek ledige tider, lad kunden vælge en, og book derefter igen.";
+
+export const MISSING_NAME_ADVICE =
+  "Bookingen blev IKKE gennemført, fordi kundens navn mangler. Spørg kunden om deres fulde navn, og book derefter igen.";
+
+export const MISSING_EMAIL_ADVICE =
+  "Bookingen blev IKKE gennemført, fordi e-mailadressen mangler — det er dertil bekræftelsen sendes. " +
+  "Spørg kunden om deres e-mailadresse, læs den op stavet tydeligt til godkendelse, og book derefter igen.";
+
+export const UNCONFIRMED_EMAIL_ADVICE =
+  "Bookingen blev IKKE gennemført, fordi kunden ikke har bekræftet e-mailadressen. Tiden er stadig ledig. " +
+  "Læs e-mailadressen op stavet tydeligt, spørg „Er det korrekt?“, og book igen med email_confirmed sat til true, når kunden har sagt ja.";
+
+// Words a model writes in the name field when it never asked for one.
+const PLACEHOLDER_NAMES = new Set([
+  "kunde",
+  "kunden",
+  "ukendt",
+  "ukendt kunde",
+  "navn",
+  "anonym",
+  "customer",
+  "the customer",
+  "caller",
+  "unknown",
+  "name",
+  "anonymous",
+  "n/a",
+  "na",
+  "none",
+  "null",
+  "undefined",
+]);
+
+// A name has at least two letters, isn't an email address that ended up in
+// the wrong field, and isn't a stand-in for "I didn't ask".
+export function looksLikeName(value: string): boolean {
+  const name = value.trim();
+  if (name.includes("@")) return false;
+  if ((name.match(/\p{L}/gu) ?? []).length < 2) return false;
+  return !PLACEHOLDER_NAMES.has(name.toLowerCase());
+}
+
+export function checkBookingDetails(input: BookingDetailsInput): BookingDetailsCheck {
+  const startTime = input.start_time?.trim();
+  if (!startTime) return { ok: false, advice: MISSING_TIME_ADVICE };
+
+  const customerName = input.customer_name?.trim().replace(/\s+/g, " ") ?? "";
+  if (!looksLikeName(customerName)) return { ok: false, advice: MISSING_NAME_ADVICE };
+
+  const customerEmail = input.customer_email ? normalizeDictatedEmail(input.customer_email) : "";
+  if (!customerEmail) return { ok: false, advice: MISSING_EMAIL_ADVICE };
+  if (!looksLikeEmail(customerEmail)) return { ok: false, advice: MALFORMED_EMAIL_ADVICE };
+
+  if (input.email_confirmed !== true && input.email_confirmed !== "true") return { ok: false, advice: UNCONFIRMED_EMAIL_ADVICE };
+
+  return { ok: true, startTime, customerName, customerEmail };
+}

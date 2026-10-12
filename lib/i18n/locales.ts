@@ -22,23 +22,3 @@ export const LOCALE_COOKIE = "NEXT_LOCALE";
 export function isLocale(value: string | null | undefined): value is Locale {
   return !!value && (LOCALES as readonly string[]).includes(value);
 }
-
-// Best-effort match of a browser's Accept-Language / navigator.language
-// value (e.g. "en-US", "pt-BR", "fr") to one of our 6 supported locales —
-// falls back to the platform default rather than guessing at an unsupported
-// language.
-export function matchLocale(acceptLanguage: string | null | undefined): Locale {
-  if (!acceptLanguage) return DEFAULT_LOCALE;
-
-  const candidates = acceptLanguage
-    .split(",")
-    .map((part) => part.split(";")[0]?.trim().toLowerCase())
-    .filter(Boolean) as string[];
-
-  for (const candidate of candidates) {
-    const primary = candidate.split("-")[0];
-    if (isLocale(primary)) return primary;
-  }
-
-  return DEFAULT_LOCALE;
-}

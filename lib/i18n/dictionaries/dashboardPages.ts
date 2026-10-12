@@ -99,7 +99,7 @@ export const dashboardPages: Namespace = {
   // ---------------------------------------------------------------------
   // app/dashboard/page.tsx
   // ---------------------------------------------------------------------
-  "dashboard.title": { da: "Dashboard", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel", de: "Dashboard" },
+  "dashboard.title": { da: "Overblik", en: "Dashboard", es: "Panel", fr: "Tableau de bord", pt: "Painel", de: "Dashboard" },
   "dashboard.subtitle": {
     da: "Følg jeres AI-widgets' performance",
     en: "Track your AI widgets' performance",
@@ -174,12 +174,12 @@ export const dashboardPages: Namespace = {
   },
   "dashboard.minutes": { da: "Minutter", en: "Minutes", es: "Minutos", fr: "Minutes", pt: "Minutos", de: "Minuten" },
   "dashboard.phoneHeading": {
-    da: "Telefon (Inbound/Outbound)",
-    en: "Phone (Inbound/Outbound)",
-    es: "Teléfono (entrante/saliente)",
-    fr: "Téléphone (entrant/sortant)",
-    pt: "Telefone (recebidas/efetuadas)",
-    de: "Telefon (eingehend/ausgehend)",
+    da: "Telefon (indgående opkald)",
+    en: "Phone (Inbound)",
+    es: "Teléfono (entrante)",
+    fr: "Téléphone (entrant)",
+    pt: "Telefone (recebidas)",
+    de: "Telefon (eingehend)",
   },
   "dashboard.calls": { da: "Opkald", en: "Calls", es: "Llamadas", fr: "Appels", pt: "Chamadas", de: "Anrufe" },
   "dashboard.recentConversationsHeading": {
@@ -283,8 +283,8 @@ export const dashboardPages: Namespace = {
     de: "2. Schreiben Sie den Prompt und wählen Sie eine Stimme",
   },
   "getting-started.step2Description": {
-    da: "Fortæl agenten om jeres virksomhed, og vælg en dansk stemme under Prompt Lab / Settings.",
-    en: "Tell the agent about your business, and pick a voice under Prompt Lab / Settings.",
+    da: "Fortæl agenten om jeres virksomhed, og vælg en dansk stemme under Prompt Lab / Indstillinger.",
+    en: "Tell the agent about your business, and pick a voice under Prompt Lab / Indstillinger.",
     es: "Cuéntele al agente sobre su empresa y elija una voz en Prompt Lab / Settings.",
     fr: "Parlez de votre entreprise à l'agent et choisissez une voix dans Prompt Lab / Settings.",
     pt: "Conte ao agente sobre sua empresa e escolha uma voz em Prompt Lab / Settings.",
@@ -677,6 +677,70 @@ export const dashboardPages: Namespace = {
     pt: "Em pausa",
     de: "Pausiert",
   },
+  "billing.paymentFailedMessage": {
+    da: "Jeres minutpulje er opbrugt, og den automatiske betaling kunne ikke gennemføres. Voice-adgang er låst, indtil betalingen lykkes.",
+    en: "Your minute pool is exhausted and the automatic payment could not go through. Voice access is locked until payment succeeds.",
+    es: "Su bolsa de minutos se agotó y el pago automático no pudo procesarse. El acceso de voz está bloqueado hasta que el pago se realice correctamente.",
+    fr: "Votre pool de minutes est épuisé et le paiement automatique n'a pas pu aboutir. L'accès vocal est verrouillé jusqu'à ce que le paiement réussisse.",
+    pt: "Seu pool de minutos se esgotou e o pagamento automático não pôde ser concluído. O acesso de voz está bloqueado até que o pagamento seja bem-sucedido.",
+    de: "Ihr Minutenpool ist aufgebraucht, und die automatische Zahlung konnte nicht durchgeführt werden. Der Sprachzugriff ist gesperrt, bis die Zahlung erfolgreich ist.",
+  },
+  "billing.updateCard": {
+    da: "Opdater betalingskort",
+    en: "Update payment card",
+    es: "Actualizar tarjeta de pago",
+    fr: "Mettre à jour la carte de paiement",
+    pt: "Atualizar cartão de pagamento",
+    de: "Zahlungskarte aktualisieren",
+  },
+  "billing.minutesUsedOfIncluded": {
+    da: "{used} af {included} minutter brugt",
+    en: "{used} of {included} minutes used",
+    es: "{used} de {included} minutos usados",
+    fr: "{used} minutes utilisées sur {included}",
+    pt: "{used} de {included} minutos usados",
+    de: "{used} von {included} Minuten verbraucht",
+  },
+  "billing.autoRechargeNote": {
+    da: "Jeres pakke fornyes automatisk med {minutes} nye minutter for {price}, når de nuværende minutter er brugt.",
+    en: "Your plan automatically renews with {minutes} fresh minutes for {price} once the current minutes run out.",
+    es: "Su plan se renueva automáticamente con {minutes} minutos nuevos por {price} cuando se agoten los minutos actuales.",
+    fr: "Votre forfait se renouvelle automatiquement avec {minutes} nouvelles minutes pour {price} une fois les minutes actuelles épuisées.",
+    pt: "Seu plano é renovado automaticamente com {minutes} novos minutos por {price} quando os minutos atuais acabarem.",
+    de: "Ihr Tarif wird automatisch mit {minutes} neuen Minuten für {price} verlängert, sobald die aktuellen Minuten aufgebraucht sind.",
+  },
+  "billing.includeSetupLabel": {
+    da: "Tilkøb opsætning og onboarding ved bestilling",
+    en: "Add setup and onboarding to this order",
+    es: "Añadir configuración e incorporación a este pedido",
+    fr: "Ajouter la configuration et l'intégration à cette commande",
+    pt: "Adicionar configuração e integração a este pedido",
+    de: "Einrichtung und Onboarding zu dieser Bestellung hinzufügen",
+  },
+  "billing.switchToPackage": {
+    da: "Skift til denne pakke →",
+    en: "Switch to this plan →",
+    es: "Cambiar a este plan →",
+    fr: "Passer à ce forfait →",
+    pt: "Mudar para este plano →",
+    de: "Zu diesem Tarif wechseln →",
+  },
+  "billing.paymentHistoryHeading": {
+    da: "Betalingshistorik",
+    en: "Payment history",
+    es: "Historial de pagos",
+    fr: "Historique des paiements",
+    pt: "Histórico de pagamentos",
+    de: "Zahlungsverlauf",
+  },
+  "billing.noTransactionsYet": {
+    da: "Ingen transaktioner endnu.",
+    en: "No transactions yet.",
+    es: "Aún no hay transacciones.",
+    fr: "Aucune transaction pour le moment.",
+    pt: "Ainda não há transações.",
+    de: "Noch keine Transaktionen.",
+  },
 
   // ---------------------------------------------------------------------
   // components/dashboard/integrations-showcase.tsx
@@ -902,7 +966,7 @@ export const dashboardPages: Namespace = {
     de: "Verbinden Sie sich mit Ihrem Cal.com-API-Schlüssel und wählen Sie, in welchen Termintyp der Agent buchen soll.",
   },
   "calendar-integrations.connectedLabel": {
-    da: "Connected",
+    da: "Forbundet",
     en: "Connected",
     es: "Conectado",
     fr: "Connecté",
@@ -918,7 +982,7 @@ export const dashboardPages: Namespace = {
     de: "Fehler — Verbindung prüfen",
   },
   "calendar-integrations.accountLabel": {
-    da: "Account",
+    da: "Konto",
     en: "Account",
     es: "Cuenta",
     fr: "Compte",
@@ -926,7 +990,7 @@ export const dashboardPages: Namespace = {
     de: "Konto",
   },
   "calendar-integrations.eventTypeLabel": {
-    da: "Event Type",
+    da: "Begivenhedstype",
     en: "Event Type",
     es: "Tipo de evento",
     fr: "Type d'événement",
@@ -934,7 +998,7 @@ export const dashboardPages: Namespace = {
     de: "Termintyp",
   },
   "calendar-integrations.timezoneLabel": {
-    da: "Timezone",
+    da: "Tidszone",
     en: "Timezone",
     es: "Zona horaria",
     fr: "Fuseau horaire",
@@ -1110,11 +1174,89 @@ export const dashboardPages: Namespace = {
     de: "Fehlt eine Integration? Wir fügen laufend neue hinzu — schreiben Sie an den Support, und wir informieren Sie, wenn sie verfügbar ist.",
   },
 
+  // Shopify highlight card — Shopify is a real, working integration (the
+  // per-agent "Webshop" tab, see webshop-tab.tsx), unlike the rest of this
+  // page's COMING_SOON grid. It used to be miscategorised inside that list,
+  // which told customers it didn't exist yet. This card corrects that and
+  // sells it, right on the page where people already look for integrations.
+  "calendar-integrations.shopifyHighlightTitle": {
+    da: "Webshop / Shopify",
+    en: "Webshop / Shopify",
+    es: "Tienda online / Shopify",
+    fr: "Boutique en ligne / Shopify",
+    pt: "Loja online / Shopify",
+    de: "Webshop / Shopify",
+  },
+  "calendar-integrations.shopifyHighlightLiveBadge": {
+    da: "Allerede live",
+    en: "Already live",
+    es: "Ya disponible",
+    fr: "Déjà disponible",
+    pt: "Já disponível",
+    de: "Bereits live",
+  },
+  "calendar-integrations.shopifyHighlightSubtitle": {
+    da: "Forbind jeres Shopify-butik på under et minut — indsæt jeres butiksadresse og godkend. Ingen udvikler, ingen opsætning af produkter.",
+    en: "Connect your Shopify store in under a minute — enter your store address and approve. No developer, no product setup.",
+    es: "Conecte su tienda Shopify en menos de un minuto — indique la dirección de su tienda y apruebe. Sin desarrollador, sin configurar productos.",
+    fr: "Connectez votre boutique Shopify en moins d'une minute — indiquez l'adresse de votre boutique et approuvez. Aucun développeur, aucune configuration de produits.",
+    pt: "Ligue a sua loja Shopify em menos de um minuto — indique o endereço da loja e aprove. Sem programador, sem configurar produtos.",
+    de: "Verbinden Sie Ihren Shopify-Shop in unter einer Minute — Shop-Adresse eingeben und bestätigen. Kein Entwickler, keine Produktkonfiguration nötig.",
+  },
+  "calendar-integrations.shopifyHighlightCta": {
+    da: "Åbn Webshop-fanen for {name} →",
+    en: "Open the Webshop tab for {name} →",
+    es: "Abrir la pestaña Tienda de {name} →",
+    fr: "Ouvrir l'onglet Boutique de {name} →",
+    pt: "Abrir o separador Loja de {name} →",
+    de: "Webshop-Tab für {name} öffnen →",
+  },
+  "calendar-integrations.shopifyHighlightFeature1": {
+    da: "Slår produkter, priser, størrelser og farver op live i butikken",
+    en: "Looks up products, prices, sizes and colours live in your store",
+    es: "Consulta productos, precios, tallas y colores en directo en su tienda",
+    fr: "Consulte produits, prix, tailles et couleurs en direct dans votre boutique",
+    pt: "Consulta produtos, preços, tamanhos e cores em direto na sua loja",
+    de: "Ruft Produkte, Preise, Größen und Farben live aus Ihrem Shop ab",
+  },
+  "calendar-integrations.shopifyHighlightFeature2": {
+    da: "Tjekker lagerstatus, så kunden ikke bestiller noget der er udsolgt",
+    en: "Checks stock levels so customers never order something sold out",
+    es: "Comprueba el stock para que el cliente no pida algo agotado",
+    fr: "Vérifie le stock pour que le client ne commande jamais un article épuisé",
+    pt: "Verifica o stock para o cliente não encomendar algo esgotado",
+    de: "Prüft den Lagerbestand, damit Kunden nichts Ausverkauftes bestellen",
+  },
+  "calendar-integrations.shopifyHighlightFeature3": {
+    da: "Svarer på levering, retur og andre spørgsmål fra jeres egne butiksvilkår",
+    en: "Answers shipping, returns and other questions from your own store policies",
+    es: "Responde a envíos, devoluciones y otras preguntas según las políticas de su tienda",
+    fr: "Répond aux questions de livraison, retour et autres à partir des règles de votre boutique",
+    pt: "Responde sobre entrega, devoluções e outras perguntas das políticas da sua loja",
+    de: "Beantwortet Versand-, Rückgabe- und andere Fragen anhand Ihrer eigenen Shop-Richtlinien",
+  },
+  "calendar-integrations.shopifyHighlightFeature4": {
+    da: "Slår ordrestatus op på ordrenummer — leveret, undervejs eller annulleret",
+    en: "Looks up order status by order number — delivered, on the way or cancelled",
+    es: "Consulta el estado del pedido por número — entregado, en camino o cancelado",
+    fr: "Consulte le statut d'une commande par numéro — livrée, en cours ou annulée",
+    pt: "Consulta o estado da encomenda pelo número — entregue, a caminho ou cancelada",
+    de: "Ruft den Bestellstatus per Bestellnummer ab — geliefert, unterwegs oder storniert",
+  },
+  "calendar-integrations.shopifyHighlightChannels": {
+    da: "Virker med det samme på både jeres webshop-widget og jeres telefonagent (indgående opkald) — samme forbindelse driver begge.",
+    en: "Works instantly on both your webshop widget and your phone agent (inbound calls) — one connection powers both.",
+    es: "Funciona al instante tanto en el widget de su tienda como en el agente telefónico (llamadas entrantes): una sola conexión sirve para ambos.",
+    fr: "Fonctionne instantanément sur votre widget boutique comme sur votre agent téléphonique (appels entrants) — une seule connexion pour les deux.",
+    pt: "Funciona instantaneamente tanto no widget da loja como no agente telefónico (chamadas recebidas) — uma só ligação para ambos.",
+    de: "Funktioniert sofort sowohl auf Ihrem Webshop-Widget als auch auf Ihrem Telefonagenten (eingehende Anrufe) — eine Verbindung für beide.",
+  },
+
   // ---------------------------------------------------------------------
   // components/dashboard/agents-manager.tsx
   // ---------------------------------------------------------------------
   "agents-manager.widgetTitle": {
-    da: "Widget Agents",
+    da: "Widget-agenter",
     en: "Widget Agents",
     es: "Agentes de widget",
     fr: "Agents widget",
@@ -1146,12 +1288,12 @@ export const dashboardPages: Namespace = {
     de: "Telefon-Agenten",
   },
   "agents-manager.phoneSubtitle": {
-    da: "Administrer og opret jeres inbound/outbound AI-agenter",
-    en: "Manage and create your inbound/outbound AI agents",
-    es: "Administre y cree sus agentes de IA de llamadas entrantes/salientes",
-    fr: "Gérez et créez vos agents IA d'appels entrants/sortants",
-    pt: "Administre e crie seus agentes de IA de chamadas recebidas/efetuadas",
-    de: "Verwalten und erstellen Sie Ihre eingehenden/ausgehenden KI-Agenten",
+    da: "Én telefonagent besvarer jeres indgående opkald og ringer også ud i jeres kampagner under Udgående opkald — I opretter den kun ét sted.",
+    en: "One phone agent answers your incoming calls and also calls out in your campaigns under Outbound — you only create it in one place.",
+    es: "Un agente telefónico atiende sus llamadas entrantes y también llama en sus campañas salientes — solo lo crea en un lugar.",
+    fr: "Un seul agent téléphonique répond à vos appels entrants et appelle aussi dans vos campagnes sortantes — vous ne le créez qu'à un seul endroit.",
+    pt: "Um agente telefônico atende suas chamadas recebidas e também liga nas suas campanhas de saída — vocês o criam em um só lugar.",
+    de: "Ein Telefon-Agent nimmt Ihre eingehenden Anrufe an und ruft auch in Ihren ausgehenden Kampagnen an — Sie erstellen ihn nur an einer Stelle.",
   },
   "agents-manager.phoneListTitle": {
     da: "Dine telefon-agenter",
@@ -1293,7 +1435,7 @@ export const dashboardPages: Namespace = {
   // ---------------------------------------------------------------------
   // components/dashboard/inbound-manager.tsx
   // ---------------------------------------------------------------------
-  "inbound.title": { da: "Inbound", en: "Inbound", es: "Entrantes", fr: "Entrant", pt: "Recebidas", de: "Eingehend" },
+  "inbound.title": { da: "Indgående opkald", en: "Inbound", es: "Entrantes", fr: "Entrant", pt: "Recebidas", de: "Eingehend" },
   "inbound.subtitle": {
     da: "Få et telefonnummer, og viderestil jeres eksisterende nummer til det, så AI-agenten svarer kunderne.",
     en: "Get a phone number and forward your existing number to it so the AI agent answers your customers.",
@@ -1438,10 +1580,10 @@ export const dashboardPages: Namespace = {
     pt: "Função do número",
     de: "Rolle der Nummer",
   },
-  "inbound.directionInbound": { da: "Inbound", en: "Inbound", es: "Entrante", fr: "Entrant", pt: "Recebida", de: "Eingehend" },
-  "inbound.directionOutbound": { da: "Outbound", en: "Outbound", es: "Saliente", fr: "Sortant", pt: "Efetuada", de: "Ausgehend" },
+  "inbound.directionInbound": { da: "Indgående", en: "Inbound", es: "Entrante", fr: "Entrant", pt: "Recebida", de: "Eingehend" },
+  "inbound.directionOutbound": { da: "Udgående", en: "Outbound", es: "Saliente", fr: "Sortant", pt: "Efetuada", de: "Ausgehend" },
   "inbound.directionBoth": {
-    da: "Inbound + Outbound",
+    da: "Indgående + udgående",
     en: "Inbound + Outbound",
     es: "Entrante + Saliente",
     fr: "Entrant + Sortant",
@@ -1888,7 +2030,7 @@ export const dashboardPages: Namespace = {
     de: "Sicher bezahlt über Stripe. Sie können jederzeit unter Abrechnung kündigen. Die 75 kostenlosen Minuten sind Twilios eigenes Kontingent für ein neues Twilio-Konto — wenn Sie bereits ein Twilio-Konto haben, kann Ihr Guthaben anders aussehen.",
   },
   "inbound-free-trial.alreadyUsedOffer": {
-    da: "I har allerede brugt introtilbuddet — men kan stadig forbinde flere numre under Inbound.",
+    da: "I har allerede brugt introtilbuddet — men kan stadig forbinde flere numre under Indgående opkald.",
     en: "You've already used the intro offer — but you can still connect more numbers under Inbound.",
     es: "Ya han utilizado la oferta de bienvenida — pero aún pueden conectar más números en Entrantes.",
     fr: "Vous avez déjà utilisé l'offre de bienvenue — mais vous pouvez toujours connecter d'autres numéros dans Entrant.",
@@ -1904,7 +2046,7 @@ export const dashboardPages: Namespace = {
     de: "Sie haben bereits ein Abonnement — das Einführungsangebot gilt nur für Neukunden.",
   },
   "inbound-free-trial.goToInbound": {
-    da: "Gå til Inbound →",
+    da: "Gå til Indgående opkald →",
     en: "Go to Inbound →",
     es: "Ir a Entrantes →",
     fr: "Aller à Entrant →",
@@ -2080,7 +2222,7 @@ export const dashboardPages: Namespace = {
     de: ", oder fügen Sie es direkt mit dem Einbettungscode auf Ihrer Website ein. Alle neuen Konten erhalten dafür 5 kostenlose Minuten für 7 Tage, völlig unabhängig vom obigen Einführungsangebot.",
   },
   "inbound-free-trial.testAgentLink": {
-    da: "Test Agent",
+    da: "Test agenten",
     en: "Test Agent",
     es: "Probar agente",
     fr: "Tester l'agent",
@@ -2091,14 +2233,14 @@ export const dashboardPages: Namespace = {
   // ---------------------------------------------------------------------
   // components/dashboard/outbound-manager.tsx
   // ---------------------------------------------------------------------
-  "outbound.title": { da: "Outbound", en: "Outbound", es: "Salientes", fr: "Sortant", pt: "Efetuadas", de: "Ausgehend" },
+  "outbound.title": { da: "Udgående opkald", en: "Outbound", es: "Salientes", fr: "Sortant", pt: "Efetuadas", de: "Ausgehend" },
   "outbound.subtitle": {
-    da: "Ring automatisk ud til en liste af numre med jeres AI-agent.",
-    en: "Automatically call a list of numbers with your AI agent.",
-    es: "Llame automáticamente a una lista de números con su agente de IA.",
-    fr: "Appelez automatiquement une liste de numéros avec votre agent IA.",
-    pt: "Ligue automaticamente para uma lista de números com seu agente de IA.",
-    de: "Rufen Sie automatisch eine Liste von Nummern mit Ihrem KI-Agenten an.",
+    da: "Ring automatisk ud til en liste af numre med den samme telefonagent, der besvarer jeres indgående opkald.",
+    en: "Automatically call a list of numbers with the same phone agent that answers your incoming calls.",
+    es: "Llame automáticamente a una lista de números con el mismo agente telefónico que atiende sus llamadas entrantes.",
+    fr: "Appelez automatiquement une liste de numéros avec le même agent téléphonique qui répond à vos appels entrants.",
+    pt: "Ligue automaticamente para uma lista de números com o mesmo agente telefônico que atende suas chamadas recebidas.",
+    de: "Rufen Sie automatisch eine Liste von Nummern mit demselben Telefon-Agenten an, der Ihre eingehenden Anrufe annimmt.",
   },
   "outbound.newCampaign": {
     da: "+ Ny kampagne",
@@ -2109,12 +2251,28 @@ export const dashboardPages: Namespace = {
     de: "+ Neue Kampagne",
   },
   "outbound.noNumbersYet": {
-    da: 'Tilføj et telefonnummer under "Inbound" først — outbound-opkald skal ringes fra et nummer.',
+    da: 'Tilføj et telefonnummer under "Indgående opkald" først — udgående opkald ringes fra et nummer.',
     en: 'Add a phone number under "Inbound" first — outbound calls have to be made from a number.',
     es: 'Añada primero un número de teléfono en "Inbound" — las llamadas salientes deben hacerse desde un número.',
     fr: 'Ajoutez d\'abord un numéro de téléphone dans « Inbound » — les appels sortants doivent être passés depuis un numéro.',
     pt: 'Adicionem primeiro um número de telefone em "Inbound" — chamadas efetuadas precisam partir de um número.',
     de: "Fügen Sie zuerst eine Telefonnummer unter „Eingehend“ hinzu — ausgehende Anrufe müssen von einer Nummer aus getätigt werden.",
+  },
+  "outbound.noAgentsYet": {
+    da: "Opret først en telefonagent under Indgående opkald — den samme agent bruges til både indgående og udgående opkald.",
+    en: "Create a phone agent under Inbound first — the same agent handles both incoming and outgoing calls.",
+    es: "Cree primero un agente telefónico en Inbound — el mismo agente gestiona las llamadas entrantes y salientes.",
+    fr: "Créez d'abord un agent téléphonique dans Inbound — le même agent gère les appels entrants et sortants.",
+    pt: "Criem primeiro um agente telefônico em Inbound — o mesmo agente atende chamadas recebidas e efetuadas.",
+    de: "Erstellen Sie zuerst einen Telefon-Agenten unter Eingehend — derselbe Agent übernimmt eingehende und ausgehende Anrufe.",
+  },
+  "outbound.goToInbound": {
+    da: "Gå til Indgående opkald →",
+    en: "Go to Inbound →",
+    es: "Ir a Inbound →",
+    fr: "Aller à Inbound →",
+    pt: "Ir para Inbound →",
+    de: "Zu Eingehend →",
   },
   "outbound.campaignNameLabel": {
     da: "Kampagnenavn",
@@ -2152,7 +2310,7 @@ export const dashboardPages: Namespace = {
   // the customer's numbers, so the agent having one of its own says nothing
   // about whether it can dial.
   "outbound.noUsableNumber": {
-    da: "I har ingen numre, denne agent kan ringe ud fra. Tildel et nummer under Inbound.",
+    da: "I har ingen numre, denne agent kan ringe ud fra. Tildel et nummer under Indgående opkald.",
     en: "You have no numbers this agent can call from. Assign one under Inbound.",
     es: "No tenéis números desde los que este agente pueda llamar. Asigna uno en Inbound.",
     fr: "Vous n'avez aucun numéro depuis lequel cet agent peut appeler. Attribuez-en un dans Inbound.",
@@ -2809,12 +2967,12 @@ export const dashboardPages: Namespace = {
     de: "Von diesem Gespräch gibt es keine Aufnahme.",
   },
   "session-details-modal.downloadRecording": {
-    da: "Åbn optagelsen i ny fane",
-    en: "Open the recording in a new tab",
-    es: "Abrir la grabación en una pestaña nueva",
-    fr: "Ouvrir l'enregistrement dans un nouvel onglet",
-    pt: "Abrir a gravação num novo separador",
-    de: "Aufnahme in neuem Tab öffnen",
+    da: "Download optagelsen",
+    en: "Download the recording",
+    es: "Descargar la grabación",
+    fr: "Télécharger l'enregistrement",
+    pt: "Transferir a gravação",
+    de: "Aufnahme herunterladen",
   },
   "session-details-modal.analysisUnavailable": {
     da: "Automatisk samtaleanalyse er ikke tilgængelig endnu.",
@@ -2898,34 +3056,6 @@ export const dashboardPages: Namespace = {
     fr: "Impossible de démarrer le paiement. Réessayez.",
     pt: "Não foi possível iniciar o pagamento. Tente novamente.",
     de: "Die Zahlung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
-  },
-
-  // ---------------------------------------------------------------------
-  // app/account-incomplete/page.tsx
-  // ---------------------------------------------------------------------
-  "account-incomplete.title": {
-    da: "Kontoen er ikke helt oprettet",
-    en: "The account isn't fully set up",
-    es: "La cuenta no está completamente configurada",
-    fr: "Le compte n'est pas entièrement configuré",
-    pt: "A conta não está totalmente configurada",
-    de: "Das Konto ist nicht vollständig eingerichtet",
-  },
-  "account-incomplete.bodyPrefix": {
-    da: "Der er en konto tilknyttet denne login, men opsætningen blev ikke fuldført. Kontakt os på",
-    en: "There's an account linked to this login, but the setup wasn't completed. Contact us at",
-    es: "Hay una cuenta vinculada a este inicio de sesión, pero la configuración no se completó. Contáctenos en",
-    fr: "Un compte est associé à cette connexion, mais la configuration n'a pas été terminée. Contactez-nous à",
-    pt: "Há uma conta vinculada a este login, mas a configuração não foi concluída. Entre em contato conosco em",
-    de: "Es ist ein Konto mit diesem Login verknüpft, aber die Einrichtung wurde nicht abgeschlossen. Kontaktieren Sie uns unter",
-  },
-  "account-incomplete.bodySuffix": {
-    da: "for at få det rettet.",
-    en: "to get this fixed.",
-    es: "para que lo solucionemos.",
-    fr: "pour que nous puissions corriger cela.",
-    pt: "para resolvermos isso.",
-    de: ", um dies beheben zu lassen.",
   },
 
   // ---------------------------------------------------------------------

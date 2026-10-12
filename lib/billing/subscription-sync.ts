@@ -17,6 +17,11 @@ const ROLLOVER_MONTHS_CAP = 3;
 // respect to a given Stripe event (see /api/webhooks/stripe for the
 // dedup check via the stripe_events table).
 
+export interface SyncedSubscription {
+  customerId: string;
+  status: Stripe.Subscription.Status;
+}
+
 export async function syncSubscriptionFromStripe(
   subscription: Stripe.Subscription,
   // Set by the webhook when the subscription came from a package-launch
@@ -25,11 +30,11 @@ export async function syncSubscriptionFromStripe(
   // subscription metadata, so the customer/package pairing rides on the
   // Checkout Session's client_reference_id instead and is passed in here.
   explicitRef?: { customerId: string; packageId: string }
-): Promise<void> {
+): Promise<SyncedSubscription | null> {
   const supabase = getAdminClient();
 
   const customerId = explicitRef?.customerId ?? subscription.metadata?.aibooking_customer_id;
-  if (!customerId) return; // not a subscription created by this platform
+  if (!customerId) return null; // not a subscription created by this platform
 
   let packageId = explicitRef?.packageId ?? subscription.metadata?.aibooking_package_id ?? null;
 
@@ -52,6 +57,8 @@ export async function syncSubscriptionFromStripe(
   const stripeCustomerId =
     typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
 
+  const period = getSubscriptionPeriod(subscription);
+
   const { error } = await supabase.from("subscriptions").upsert(
     {
       customer_id: customerId,
@@ -59,8 +66,8 @@ export async function syncSubscriptionFromStripe(
       stripe_subscription_id: subscription.id,
       stripe_customer_id: stripeCustomerId,
       status: subscription.status,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      current_period_start: new Date(period.start * 1000).toISOString(),
+      current_period_end: new Date(period.end * 1000).toISOString(),
       cancel_at_period_end: subscription.cancel_at_period_end,
     },
     { onConflict: "stripe_subscription_id" }
@@ -79,6 +86,26 @@ export async function syncSubscriptionFromStripe(
       .eq("id", customerId)
       .is("intro_offer_used_at", null);
   }
+
+  return { customerId, status: subscription.status };
+}
+
+// customer.subscription.* webhook payloads come in the webhook endpoint's
+// API version, not our SDK's. From 2025-03-31 ("basil") on, the billing
+// period lives on each subscription item instead of the subscription itself,
+// so the top-level fields are undefined there — and new Date(NaN)
+// .toISOString() throws, failing the webhook on every retry. Fall back to the
+// first item's period.
+export function getSubscriptionPeriod(subscription: Stripe.Subscription): { start: number; end: number } {
+  const item = subscription.items?.data?.[0] as
+    | { current_period_start?: number; current_period_end?: number }
+    | undefined;
+  const start = subscription.current_period_start ?? item?.current_period_start;
+  const end = subscription.current_period_end ?? item?.current_period_end;
+  if (typeof start !== "number" || typeof end !== "number") {
+    throw new Error(`Stripe subscription ${subscription.id} has no current billing period`);
+  }
+  return { start, end };
 }
 
 export async function markSubscriptionCanceled(subscription: Stripe.Subscription): Promise<void> {

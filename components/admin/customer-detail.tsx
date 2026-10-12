@@ -60,7 +60,7 @@ export function CustomerWidgetList({
     <ul className="space-y-2">
       {widgets.map((widget) => (
         <li key={widget.id} className="space-y-3 rounded-lg border border-slate-200 px-4 py-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-slate-800">{widget.name}</p>
             <p className="text-xs text-slate-500">{widget.public_id}</p>

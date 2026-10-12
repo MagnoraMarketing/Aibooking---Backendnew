@@ -6,6 +6,7 @@ import type { Lead, LeadDisposition } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
 import type { LeadListRow } from "@/app/dashboard/dialer/page";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { normalizeLeadPhoneNumber } from "@/lib/phone-numbers/normalize";
 
 interface DialerManagerProps {
   phoneNumbers: PhoneNumberRow[];
@@ -13,16 +14,28 @@ interface DialerManagerProps {
 }
 
 // One line per lead: "+4512345678" or "+4512345678, Navn" or
-// "+4512345678, Navn, Firma".
+// "+4512345678, Navn, Firma". Semicolons are accepted as the separator too
+// (Danish Excel exports CSV with ";"), and a header row without any digits
+// in its first column ("telefon;navn;firma") is skipped.
 function parseLeads(raw: string): { phoneNumber: string; name?: string; company?: string }[] {
   return raw
-    .split("\n")
+    .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [phoneNumber, name, company] = line.split(",").map((part) => part.trim());
-      return { phoneNumber: phoneNumber ?? "", name: name || undefined, company: company || undefined };
-    });
+      const [phoneNumber, name, company] = line.split(/[,;\t]/).map((part) => part.trim().replace(/^"|"$/g, ""));
+      return {
+        phoneNumber: normalizeLeadPhoneNumber(phoneNumber ?? ""),
+        name: name || undefined,
+        company: company || undefined,
+      };
+    })
+    .filter((lead) => /\d/.test(lead.phoneNumber));
+}
+
+async function readApiError(res: Response, fallback: string): Promise<string> {
+  const data = await res.json().catch(() => null);
+  return data?.error?.message ?? fallback;
 }
 
 const DISPOSITION_VALUES: LeadDisposition[] = [
@@ -165,8 +178,7 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
     setUploading(false);
 
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setUploadError(data?.error?.message ?? t("dashboardPages.dialer.errorCreateListFailed"));
+      setUploadError(await readApiError(res, "Kunne ikke oprette listen."));
       return;
     }
 
@@ -207,7 +219,7 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
     if (deviceRef.current) return deviceRef.current;
 
     const res = await fetch("/api/customer/dialer/token", { method: "POST" });
-    if (!res.ok) throw new Error("dashboardPages.dialer.errorTokenFailed");
+    if (!res.ok) throw new Error(await readApiError(res, "Kunne ikke hente adgangstoken til opkald."));
     const { token } = (await res.json()) as { token: string };
 
     const Twilio = await loadTwilioSdk();
@@ -222,6 +234,13 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
     device.on("error", () => {
       setCallError(t("dashboardPages.dialer.errorConnectionFailed"));
       setCallState("idle");
+      // A device that errored (expired/rejected token, lost signalling) is
+      // not reused — the next "Ring op" fetches a fresh token and a fresh
+      // device instead of failing the same way again until a page reload.
+      if (deviceRef.current === device) {
+        deviceRef.current = null;
+        device.destroy?.();
+      }
     });
 
     deviceRef.current = device;
@@ -313,23 +332,15 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
     if (next !== -1) setCurrentIndex(next);
   }
 
-  if (phoneNumbers.length === 0) {
-    return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.dialer.title")}</h1>
-          <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.dialer.subtitleNoNumbers")}</p>
-        </div>
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-          {t("dashboardPages.dialer.noPhoneNumbers", { inbound: t("dashboardShell.nav.inbound") })}
-        </div>
-      </div>
-    );
-  }
+  // Lists can be built and reviewed before there is anything to call from —
+  // setting the dialer up used to be blocked outright until a number was
+  // bought. Only placing a call needs one, since the caller ID must be a
+  // number in the customer's own Twilio subaccount.
+  const hasNumber = phoneNumbers.length > 0;
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.dialer.title")}</h1>
           <p className="mt-1 text-sm text-slate-500">{t("dashboardPages.dialer.subtitle")}</p>
@@ -344,6 +355,21 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
           </button>
         ) : null}
       </div>
+
+      {!hasNumber ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+          <p>
+            I kan allerede oprette og gennemgå leadlister. For at ringe op skal I have et telefonnummer &mdash; opkald
+            ringes fra et af jeres egne numre.
+          </p>
+          <a
+            href="/dashboard/inbound"
+            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+          >
+            Køb et nummer →
+          </a>
+        </div>
+      ) : null}
 
       {showUploadForm ? (
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -446,28 +472,32 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
             </div>
           ) : (
             <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm font-medium text-slate-700">
                   {t("dashboardPages.dialer.calledProgress", { called: calledCount, total: leads.length })}
                 </p>
-                <div className="w-56">
-                  <label htmlFor="dialer-from" className="sr-only">
-                    {t("dashboardPages.dialer.callFromLabel")}
-                  </label>
-                  <select
-                    id="dialer-from"
-                    value={phoneNumberId}
-                    onChange={(e) => setPhoneNumberId(e.target.value)}
-                    disabled={callState !== "idle"}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-                  >
-                    {phoneNumbers.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {t("dashboardPages.dialer.callFromOption", { label: phoneNumberLabel(p) })}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {hasNumber ? (
+                  <div className="w-56">
+                    <label htmlFor="dialer-from" className="sr-only">
+                      Ring fra
+                    </label>
+                    <select
+                      id="dialer-from"
+                      value={phoneNumberId}
+                      onChange={(e) => setPhoneNumberId(e.target.value)}
+                      disabled={callState !== "idle"}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                    >
+                      {phoneNumbers.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          Ring fra: {phoneNumberLabel(p)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-500">Intet nummer at ringe fra endnu</span>
+                )}
               </div>
 
               {!currentLead ? (
@@ -498,7 +528,9 @@ export function DialerManager({ phoneNumbers, initialLists }: DialerManagerProps
                         <button
                           type="button"
                           onClick={startCall}
-                          className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+                          disabled={!hasNumber}
+                          title={hasNumber ? undefined : "Køb et telefonnummer for at ringe op"}
+                          className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           📞 {t("dashboardPages.dialer.callButton")}
                         </button>
