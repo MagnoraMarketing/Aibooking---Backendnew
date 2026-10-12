@@ -41,6 +41,14 @@ export const common: Namespace = {
     pt: "Erro desconhecido",
     de: "Unbekannter Fehler",
   },
+  optional: {
+    da: "(valgfrit)",
+    en: "(optional)",
+    es: "(opcional)",
+    fr: "(facultatif)",
+    pt: "(opcional)",
+    de: "(optional)",
+  },
   tryAgain: {
     da: "Prøv igen.",
     en: "Try again.",

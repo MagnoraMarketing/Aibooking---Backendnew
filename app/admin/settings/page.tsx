@@ -2,9 +2,14 @@ import { requireMasterAdminForPage } from "@/lib/auth";
 import {
   getDefaultSystemPrompt,
   getVapiVoiceTemplateAssistantId,
+  getVapiPromptDraftingAssistantId,
+  getTrialSettings,
 } from "@/lib/settings/platform";
+import { TrialSettings } from "@/components/admin/trial-settings";
 import { VapiVoiceTemplatesSettings } from "@/components/admin/vapi-voice-templates-settings";
+import { VapiPromptDraftingSettings } from "@/components/admin/vapi-prompt-drafting-settings";
 import { DefaultPromptSettings } from "@/components/admin/default-prompt-settings";
+import { VapiResyncSettings } from "@/components/admin/vapi-resync-settings";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 import { translate } from "@/lib/i18n/dictionaries";
 
@@ -18,10 +23,12 @@ export default async function AdminSettingsPage() {
   // app's own /api/admin/settings/default-prompt: that route sits behind
   // requireMasterAdmin, and a server-side fetch carries no auth cookies, so
   // it would answer 401 and this page would throw instead of rendering.
-  const [maleAssistantId, femaleAssistantId, defaultPrompt] = await Promise.all([
+  const [maleAssistantId, femaleAssistantId, defaultPrompt, promptDraftingAssistantId, trial] = await Promise.all([
     getVapiVoiceTemplateAssistantId("male"),
     getVapiVoiceTemplateAssistantId("female"),
     getDefaultSystemPrompt(),
+    getVapiPromptDraftingAssistantId(),
+    getTrialSettings(),
   ]);
 
   return (
@@ -30,10 +37,13 @@ export default async function AdminSettingsPage() {
         <h1 className="text-2xl font-semibold text-slate-900">{translate(locale, "adminShell.nav.settings")}</h1>
         <p className="mt-1 text-sm text-slate-500">{translate(locale, "adminPages.settings.subtitle")}</p>
       </div>
+      <TrialSettings initialMinutes={trial.minutes} initialInternalNote={trial.internalNote} />
       <VapiVoiceTemplatesSettings
         initialMaleAssistantId={maleAssistantId}
         initialFemaleAssistantId={femaleAssistantId}
       />
+      <VapiResyncSettings />
+      <VapiPromptDraftingSettings initialAssistantId={promptDraftingAssistantId} />
       <DefaultPromptSettings initialPrompt={defaultPrompt} />
     </div>
   );

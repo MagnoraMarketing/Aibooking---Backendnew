@@ -5,14 +5,28 @@ import { useSearchParams } from "next/navigation";
 import type { LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { WIDGET_LAUNCH_MINUTES } from "@/lib/billing/widget-launch-offer";
 import { PromptLabTab } from "./agent-tabs/prompt-lab";
 import { SettingsTab } from "./agent-tabs/settings-tab";
 import { TestAgentTab } from "./agent-tabs/test-agent";
+import { TestCallTab } from "./agent-tabs/test-call";
 import { CustomizeWidgetTab } from "./agent-tabs/customize-widget";
 import { EmbedCodeTab } from "./agent-tabs/embed-code";
 import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
 import { BookingTab } from "./agent-tabs/booking-tab";
+import { WebshopTab } from "./agent-tabs/webshop-tab";
+import { DeliveryTab } from "./agent-tabs/delivery-tab";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
+
+// The "om virksomheden" answers behind a generated system prompt. Saved
+// alongside the prompt itself so it stays regenerable — see
+// agent-tabs/prompt-lab.tsx.
+export interface PromptInputs {
+  businessDescription?: string;
+  keyServices?: string;
+  openingHours?: string;
+  otherNotes?: string;
+}
 
 export interface WidgetExtra {
   tagline?: string | null;
@@ -26,8 +40,20 @@ export interface WidgetExtra {
   showLeadForm?: boolean;
   agentMute?: boolean;
   vapiAssistantId?: string | null;
+  // A second assistant used only for outbound campaign calls — maintained in
+  // Vapi by hand and never synced over. Unset means campaigns use the one
+  // that answers the phone.
+  vapiOutboundAssistantId?: string | null;
   voiceGender?: "male" | "female" | null;
+  silenceTimeoutSeconds?: number | null;
+  maxDurationSeconds?: number | null;
+  promptInputs?: PromptInputs | null;
   knowledgeBase?: KnowledgeBaseSource[];
+  // Picked in the wizard's first step — see AgentPurpose in
+  // agent-creation-wizard.tsx and taskBullets in
+  // app/api/customer/widgets/[id]/generate-prompt/route.ts.
+  agentPurposes?: ("booking" | "shopify" | "qa")[] | null;
+  purposeNotes?: string | null;
 }
 
 export interface WidgetWithExtras extends Widget {
@@ -38,7 +64,7 @@ export interface WidgetWithExtras extends Widget {
 
 export type SavePatch = (patch: Record<string, unknown>) => Promise<boolean>;
 
-type TabKey = "prompt" | "settings" | "knowledge" | "booking" | "customize" | "test" | "embed" | "phone";
+type TabKey = "prompt" | "settings" | "knowledge" | "booking" | "webshop" | "delivery" | "customize" | "test" | "embed" | "phone";
 
 // Which tabs make sense depends on what the agent is for — chosen once at
 // creation (see agent-creation-wizard.tsx's Voice Widget / Telefon type
@@ -56,6 +82,12 @@ function tabsFor(
     { key: "settings", label: t("agent.configurator.tab.settings") },
     { key: "knowledge", label: t("agent.configurator.tab.knowledgeBase") },
     { key: "booking", label: t("agent.configurator.tab.booking") },
+    // Next to Booking on purpose: both are "connect the system you already run"
+    // integrations, and a shop owner looking for one will look where the other is.
+    { key: "webshop", label: t("agent.configurator.tab.webshop") },
+    // Delivery belongs to the same "connect what you already run" group, and
+    // applies to widget and phone agents alike.
+    { key: "delivery", label: t("agent.configurator.tab.delivery") },
   ];
   if (!isPhoneType) tabs.push({ key: "customize", label: t("agent.configurator.tab.customizeWidget") });
   tabs.push({ key: "test", label: t("agent.configurator.tab.testAgent") });
@@ -90,10 +122,18 @@ export function AgentConfigurator({
 }: AgentConfiguratorProps) {
   const { t } = useTranslation();
   const [widget, setWidget] = useState(initialWidget);
-  const isPhoneType = llmModels.find((m) => m.id === widget.llm_model_id)?.provider === "anthropic";
+  // The stored type, not the model it happens to run on — a phone agent is a
+  // Vapi agent too now (see 0036_agent_type.sql).
+  const isPhoneType = widget.agent_type === "phone";
   const tabs = tabsFor(isPhoneType, t);
-  const requestedTab = useSearchParams().get("tab");
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<TabKey>(isTabKey(requestedTab, tabs) ? requestedTab : "prompt");
+  // Set by the Stripe return page once the launch offer is paid and the
+  // minutes are on the ledger (app/dashboard/checkout/return/page.tsx) — the
+  // customer lands here rather than on a Stripe receipt, so this is where
+  // they get told it worked.
+  const justPaid = searchParams.get("paid") === "1";
 
   const savePatch: SavePatch = async (patch) => {
     const res = await fetch(`/api/customer/widgets/${widget.id}`, {
@@ -116,6 +156,15 @@ export function AgentConfigurator({
         <p className="mt-1 text-sm text-slate-500">{widget.name}</p>
       </div>
 
+      {justPaid ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <p className="text-sm font-semibold text-emerald-800">{t("agent.configurator.paidBannerTitle")}</p>
+          <p className="mt-1 text-sm text-emerald-700">
+            {t("agent.configurator.paidBannerBody", { minutes: WIDGET_LAUNCH_MINUTES })}
+          </p>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
         {tabs.map((tab) => (
           <button
@@ -136,6 +185,8 @@ export function AgentConfigurator({
         <SettingsTab widget={widget} llmModels={llmModels} voiceModels={voiceModels} savePatch={savePatch} />
       ) : null}
       {activeTab === "booking" ? <BookingTab widget={widget} /> : null}
+      {activeTab === "webshop" ? <WebshopTab widget={widget} /> : null}
+      {activeTab === "delivery" ? <DeliveryTab widget={widget} /> : null}
       {activeTab === "knowledge" ? (
         <KnowledgeBaseTab
           widget={widget}
@@ -144,7 +195,12 @@ export function AgentConfigurator({
           }
         />
       ) : null}
-      {activeTab === "test" ? <TestAgentTab widget={widget} /> : null}
+      {/* A phone agent is tested as a call, not as a chat bubble on a
+          simulated web page — that preview is what a website visitor sees,
+          and this agent has no website visitors. */}
+      {activeTab === "test" ? (
+        isPhoneType ? <TestCallTab widget={widget} /> : <TestAgentTab widget={widget} />
+      ) : null}
       {activeTab === "customize" ? <CustomizeWidgetTab widget={widget} savePatch={savePatch} /> : null}
       {activeTab === "embed" ? (
         <EmbedCodeTab

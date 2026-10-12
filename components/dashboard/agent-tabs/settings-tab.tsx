@@ -6,6 +6,7 @@ import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 import { ComingSoonField } from "../coming-soon-field";
 import { ToggleSwitch } from "../toggle-switch";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { DEFAULT_VOICE_GENDER } from "@/lib/vapi/voice-gender";
 
 interface SettingsTabProps {
   widget: WidgetWithExtras;
@@ -17,29 +18,67 @@ interface SettingsTabProps {
 export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: SettingsTabProps) {
   const { t } = useTranslation();
   const [voiceModelId, setVoiceModelId] = useState(widget.voice_model_id ?? "");
-  const [voiceGender, setVoiceGender] = useState<"male" | "female">(widget.extra.voiceGender ?? "female");
-  const [llmModelId, setLlmModelId] = useState(widget.llm_model_id ?? "");
+  const [voiceGender, setVoiceGender] = useState<"male" | "female">(widget.extra.voiceGender ?? DEFAULT_VOICE_GENDER);
   const [language, setLanguage] = useState(widget.language);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+  // Vapi's own floor is 10s / 10s; the ceilings here are the useful range for
+  // a website agent, well inside what the API accepts.
+  const [silenceTimeout, setSilenceTimeout] = useState(widget.extra.silenceTimeoutSeconds ?? 30);
+  const [maxDuration, setMaxDuration] = useState(widget.extra.maxDurationSeconds ?? 600);
+  // The booking connection is configured under the Booking tab; shown here
+  // read-only so this page tells the truth about what the agent is set to
+  // instead of offering a second, competing input for the same thing.
+  const [booking, setBooking] = useState<{ eventTypeId: string | null; timezone: string | null } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/customer/calendar");
+      if (!res.ok) return;
+      const data = await res.json();
+      const own = (data.connections as
+        | { widget_id: string; provider: string; calcom_event_type_id: string | null; calcom_timezone: string | null }[]
+        | undefined)?.find((c) => c.widget_id === widget.id && c.provider === "calcom");
+      if (!cancelled) {
+        setBooking(own ? { eventTypeId: own.calcom_event_type_id, timezone: own.calcom_timezone } : null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [widget.id]);
 
   // Picks up a gender auto-defaulted server-side after save (e.g. the
   // model was just switched to Vapi) — the state's initial value only
   // reflects widget.extra at first render.
   useEffect(() => {
-    setVoiceGender(widget.extra.voiceGender ?? "female");
+    setVoiceGender(widget.extra.voiceGender ?? DEFAULT_VOICE_GENDER);
   }, [widget.extra.voiceGender]);
 
-  const selectedModel = llmModels.find((model) => model.id === llmModelId);
+  const knowledgeCount = (widget.extra.knowledgeBase ?? []).length;
+  const selectedModel = llmModels.find((model) => model.id === widget.llm_model_id);
   const isVapiModel = selectedModel?.provider === "vapi";
+  // Only a phone agent places campaign calls; a website widget never does.
+  const isPhoneAgent = widget.agent_type === "phone";
 
   async function handleSave() {
     setSaving(true);
     setStatus("idle");
+    // The call limits are Vapi-only — there is no equivalent knob on the
+    // text pipeline, so sending them for a non-Vapi widget would store a
+    // setting nothing reads.
     const ok = await savePatch(
       isVapiModel
-        ? { llmModelId: llmModelId || null, language, extra: { voiceGender } }
-        : { voiceModelId: voiceModelId || null, llmModelId: llmModelId || null, language }
+        ? {
+            language,
+            extra: {
+              voiceGender,
+              silenceTimeoutSeconds: silenceTimeout,
+              maxDurationSeconds: maxDuration,
+            },
+          }
+        : { voiceModelId: voiceModelId || null, language }
     );
     setSaving(false);
     setStatus(ok ? "saved" : "error");
@@ -93,26 +132,13 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
           </div>
         )}
 
-        <div>
-          <label htmlFor="llm-model" className="mb-1 block text-sm font-medium text-slate-700">
-            {t("agent.settings.modelLabel")}
-          </label>
-          <select
-            id="llm-model"
-            value={llmModelId}
-            onChange={(e) => setLlmModelId(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          >
-            <option value="">{t("common.noneSelected")}</option>
-            {llmModels.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.display_name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Vapi Assistant ID is stored internally but hidden from customer UI */}
+        {/* No model picker: the agent always runs on the model configured on
+            the Vapi template assistant (see lib/vapi/assistants.ts), the same
+            place its voice comes from. The dropdown that used to sit here
+            also listed the legacy Standard/Expert engines, so a customer
+            could silently move a working voice agent onto a pipeline the
+            create flow stopped offering in 0012_vapi_default_model.sql.
+            The Vapi assistant id is stored internally and stays hidden too. */}
 
         <div>
           <label htmlFor="language" className="mb-1 block text-sm font-medium text-slate-700">
@@ -155,11 +181,19 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
           {t("agent.settings.advancedFeaturesTitle")}
         </h2>
 
-        <ComingSoonField label={t("agent.settings.knowledgeBaseComingSoon")}>
-          <select disabled className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-            <option>{t("agent.settings.selectToAddPlaceholder")}</option>
-          </select>
-        </ComingSoonField>
+        {/* Live: the knowledge base is fully implemented and has its own tab.
+            A disabled dropdown here claimed otherwise. */}
+        <div>
+          <span className="mb-1 block text-sm font-medium text-slate-700">
+            {t("agent.settings.knowledgeBaseLabel")}
+          </span>
+          <p className="text-sm text-slate-600">
+            {knowledgeCount === 0
+              ? t("agent.settings.knowledgeBaseEmpty")
+              : t("agent.settings.knowledgeBaseCount", { count: knowledgeCount })}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">{t("agent.settings.knowledgeBaseHint")}</p>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <ComingSoonField label={t("agent.settings.autoEndCallLabel")} />
@@ -172,23 +206,71 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
           </div>
         </ComingSoonField>
 
+        {/* Live: both come from the Cal.com connection made under Booking. */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <ComingSoonField label={t("agent.settings.calendarTimezoneLabel")}>
-            <select disabled className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-              <option>UTC</option>
-            </select>
-          </ComingSoonField>
-          <ComingSoonField label={t("agent.settings.calComEventIdLabel")} />
+          <div>
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              {t("agent.settings.calendarTimezoneLabel")}
+            </span>
+            <p className="text-sm text-slate-600">{booking?.timezone ?? t("agent.settings.bookingNotConnected")}</p>
+          </div>
+          <div>
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              {t("agent.settings.calComEventIdLabel")}
+            </span>
+            <p className="text-sm text-slate-600">{booking?.eventTypeId ?? t("agent.settings.bookingNotConnected")}</p>
+          </div>
         </div>
+        <p className="-mt-2 text-xs text-slate-500">{t("agent.settings.bookingManagedHint")}</p>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <ComingSoonField label={t("agent.settings.endCallOnSilenceLabel")}>
-            <input disabled type="range" className="w-full" />
-          </ComingSoonField>
-          <ComingSoonField label={t("agent.settings.maxDurationLabel")}>
-            <input disabled type="range" className="w-full" />
-          </ComingSoonField>
-        </div>
+        {/* Live for Vapi widgets: both are real Vapi assistant settings, sent
+            with every assistant sync. Left as "coming soon" on the text
+            pipeline, which has no equivalent. */}
+        {isVapiModel ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="silence-timeout" className="mb-1 block text-sm font-medium text-slate-700">
+                {t("agent.settings.endCallOnSilenceLabel")}{" "}
+                <span className="font-normal text-slate-500">({silenceTimeout}s)</span>
+              </label>
+              <input
+                id="silence-timeout"
+                type="range"
+                min={10}
+                max={120}
+                step={5}
+                value={silenceTimeout}
+                onChange={(e) => setSilenceTimeout(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label htmlFor="max-duration" className="mb-1 block text-sm font-medium text-slate-700">
+                {t("agent.settings.maxDurationLabel")}{" "}
+                <span className="font-normal text-slate-500">({Math.round(maxDuration / 60)} min.)</span>
+              </label>
+              <input
+                id="max-duration"
+                type="range"
+                min={60}
+                max={3600}
+                step={60}
+                value={maxDuration}
+                onChange={(e) => setMaxDuration(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <ComingSoonField label={t("agent.settings.endCallOnSilenceLabel")}>
+              <input disabled type="range" className="w-full" />
+            </ComingSoonField>
+            <ComingSoonField label={t("agent.settings.maxDurationLabel")}>
+              <input disabled type="range" className="w-full" />
+            </ComingSoonField>
+          </div>
+        )}
 
         <ComingSoonField label={t("agent.settings.leadConnectorLabel")}>
           <button

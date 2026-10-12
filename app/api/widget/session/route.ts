@@ -7,6 +7,8 @@ import {
   getClientIp,
   widgetSessionStartSchema,
   widgetSessionEndSchema,
+  withPublicCors,
+  corsPreflight,
 } from "@/lib/security";
 import { getWidgetBundleByPublicId } from "@/lib/widgets";
 import { checkAndRefillIfNeeded } from "@/lib/credits";
@@ -26,7 +28,7 @@ export const dynamic = "force-dynamic";
 const DEFAULT_REALTIME_INSTRUCTIONS =
   "Du er en hjælpsom AI-assistent. Tal naturligt og kortfattet på dansk.";
 
-export const POST = withErrorHandling(async (request) => {
+export const POST = withPublicCors(withErrorHandling(async (request) => {
   const ip = getClientIp(request.headers);
   const { allowed } = rateLimit(`widget-session-start:${ip}`, { limit: 20, windowMs: 60_000 });
   if (!allowed) throw ApiError.tooManyRequests();
@@ -47,13 +49,27 @@ export const POST = withErrorHandling(async (request) => {
     throw ApiError.badRequest("Widget is not fully configured yet");
   }
 
+  // AIbooking's own website widget(s) run under the reserved is_platform_owned
+  // customer (see lib/admin/aibooking-customer.ts), which has no Stripe
+  // subscription and is normally gated on a manually-topped-up internal
+  // balance — see checkAndRefillIfNeeded's platform_owned_needs_manual_topup
+  // branch. In Vapi mode that internal balance is redundant: Vapi bills our
+  // account directly for the call regardless of what our ledger says, so
+  // gating on it just means the site's own demo widget goes down whenever an
+  // admin forgets to top it up, even though Vapi itself has plenty of room.
+  // Every paying customer, and this widget in any other mode, still goes
+  // through the normal balance/auto-recharge check.
+  const usesOwnVapiCreditDirectly = bundle.customer.is_platform_owned && isVapi;
+
   // The free 5-minute trial needs no separate gate here: self-signup grants
   // it as real credit (lib/customers/self-signup.ts + lib/billing/trial.ts),
   // so it's already spent through this same balance check — server-side, and
   // unaffected by reloading the page.
-  const refill = await checkAndRefillIfNeeded(bundle.customer.id);
-  if (refill.balanceSeconds <= 0) {
-    throw ApiError.paymentRequired("This assistant is temporarily unavailable — no minutes remaining");
+  if (!usesOwnVapiCreditDirectly) {
+    const refill = await checkAndRefillIfNeeded(bundle.customer.id);
+    if (refill.balanceSeconds <= 0) {
+      throw ApiError.paymentRequired("This assistant is temporarily unavailable — no minutes remaining");
+    }
   }
 
   const supabase = getAdminClient();
@@ -147,9 +163,9 @@ export const POST = withErrorHandling(async (request) => {
     },
     { status: 201 }
   );
-});
+}));
 
-export const PATCH = withErrorHandling(async (request) => {
+export const PATCH = withPublicCors(withErrorHandling(async (request) => {
   const ip = getClientIp(request.headers);
   const { allowed } = rateLimit(`widget-session-end:${ip}`, { limit: 40, windowMs: 60_000 });
   if (!allowed) throw ApiError.tooManyRequests();
@@ -166,4 +182,9 @@ export const PATCH = withErrorHandling(async (request) => {
     sessionId: session.id,
     billedDurationSeconds: session.billed_duration_seconds,
   });
-});
+}));
+
+// CORS preflight for the cross-origin calls public/widget.js makes from
+// the customer's own website (Content-Type: application/json is not a
+// CORS-safelisted header, so the browser sends OPTIONS first).
+export const OPTIONS = () => corsPreflight();

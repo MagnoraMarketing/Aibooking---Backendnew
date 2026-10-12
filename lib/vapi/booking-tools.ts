@@ -1,7 +1,11 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
+import { findWidgetIdForAssistant } from "./assistant-owner";
 import { decryptSecret } from "@/lib/security";
 import {
+  bookingFailureAdvice,
+  checkBookingDetails,
+  type BookingDetailsInput,
   fetchCalcomAvailability,
   createCalcomBooking,
   fetchCalcomEventTypes,
@@ -51,24 +55,20 @@ export interface BookingToolContext {
 }
 
 // Maps a Vapi assistant back to the widget (and therefore the customer) it
-// belongs to. This is the isolation boundary for tool calls: assistant ids
-// are minted by us and stored on widget_settings.extra.vapiAssistantId, so
-// an assistant can only ever resolve to its own customer's widget. The same
-// lookup already backs phone-call billing in app/api/webhooks/vapi.
+// belongs to. This is the isolation boundary for tool calls — see
+// findWidgetIdForAssistant, which also matches an agent's separate outbound
+// assistant, so a campaign call can book too. The same lookup backs
+// phone-call billing in app/api/webhooks/vapi.
 export async function resolveToolContext(assistantId: string): Promise<BookingToolContext | null> {
   const supabase = getAdminClient();
 
-  const { data: settingsRow } = await supabase
-    .from("widget_settings")
-    .select("widget_id")
-    .eq("extra->>vapiAssistantId", assistantId)
-    .maybeSingle();
-  if (!settingsRow) return null;
+  const widgetId = await findWidgetIdForAssistant(assistantId, supabase);
+  if (!widgetId) return null;
 
   const { data: widget } = await supabase
     .from("widgets")
     .select("id, customer_id, booking_enabled")
-    .eq("id", settingsRow.widget_id)
+    .eq("id", widgetId)
     .maybeSingle();
   if (!widget) return null;
 
@@ -163,6 +163,32 @@ async function getCalendarDetails(ctx: BookingToolContext): Promise<CalendarSess
 // never existed.
 const NO_BOOKING = "Booking er ikke sat op for denne virksomhed, så du kan ikke booke en tid. Tilbyd i stedet at tage imod kundens kontaktoplysninger.";
 
+// Today, where the business is. A Vapi assistant's prompt is written once
+// and synced, so it carries no date — and an agent asked for "på mandag"
+// then guesses. One did, in a test call: it worked out a Monday in January,
+// checked that week, and told the caller the time was taken. Nothing was
+// taken; nothing was even looked at. So every availability answer says what
+// day it is, which is the one moment the agent needs to know.
+function isoDateInZone(now: Date, timeZone: string): string {
+  // en-CA renders as YYYY-MM-DD, which is what Cal.com and this tool speak.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+function spokenDateInZone(now: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("da-DK", {
+    timeZone,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(now);
+}
+
 export async function checkAvailability(
   input: { date?: string },
   ctx: BookingToolContext
@@ -170,9 +196,22 @@ export async function checkAvailability(
   const calendar = await getCalendarDetails(ctx);
   if (!calendar) return NO_BOOKING;
 
-  const start = input.date ? new Date(`${input.date}T00:00:00.000Z`) : new Date();
+  const now = new Date();
+  const today = isoDateInZone(now, calendar.timezone);
+  const dateHeader = `I dag er ${spokenDateInZone(now, calendar.timezone)}.`;
+
+  // A date already gone is not a date the caller meant, and searching it
+  // returns nothing — which the agent then reports as "no free times".
+  // Answer from today instead, and say why.
+  const past = Boolean(input.date && input.date < today);
+  const requestedDate = past ? undefined : input.date;
+  const correction = past
+    ? `Datoen ${input.date} er allerede passeret, så her er tiderne fra i dag i stedet. `
+    : "";
+
+  const start = requestedDate ? new Date(`${requestedDate}T00:00:00.000Z`) : now;
   if (Number.isNaN(start.getTime())) {
-    return "Datoen blev ikke forstået. Spørg kunden om en dato i formatet år-måned-dag.";
+    return `${dateHeader} Datoen blev ikke forstået. Spørg kunden om en dato i formatet år-måned-dag.`;
   }
   const end = new Date(start.getTime() + AVAILABILITY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
@@ -215,28 +254,24 @@ export async function checkAvailability(
     }
 
     if (times.length === 0) {
-      return "Der er ingen ledige tider i den periode. Spørg kunden om en anden dato.";
+      return `${dateHeader} ${correction}Der er ingen ledige tider i den periode. Spørg kunden om en anden dato.`;
     }
-    return `Ledige tider (tidszone ${calendar.timezone}): ${times.join(", ")}. Tilbyd kun disse tider.`;
+    return `${dateHeader} ${correction}Ledige tider (tidszone ${calendar.timezone}): ${times.join(", ")}. Tilbyd kun disse tider.`;
   } catch (err) {
     console.error("check_availability failed:", err);
     return "Kalenderen kunne ikke kontaktes lige nu, så der er ingen tider at tilbyde. Sig undskyld og tilbyd at vende tilbage.";
   }
 }
 
-export async function createBooking(
-  input: { start_time?: string; customer_name?: string; customer_email?: string },
-  ctx: BookingToolContext
-): Promise<string> {
+export async function createBooking(input: BookingDetailsInput, ctx: BookingToolContext): Promise<string> {
   const calendar = await getCalendarDetails(ctx);
   if (!calendar) return NO_BOOKING;
 
-  const startTime = input.start_time;
-  const customerName = input.customer_name;
-  const customerEmail = input.customer_email;
-  if (!startTime || !customerName || !customerEmail) {
-    return "Der mangler oplysninger til bookingen. Spørg om tidspunkt, navn og email, og prøv igen.";
-  }
+  // Name, a read-back email and a time — or no booking at all, and the
+  // agent is told which one to ask for (see checkBookingDetails).
+  const details = checkBookingDetails(input);
+  if (!details.ok) return details.advice;
+  const { startTime, customerName, customerEmail } = details;
 
   const supabase = getAdminClient();
 
@@ -309,9 +344,11 @@ export async function createBooking(
     });
 
     // Deliberately explicit: the model must not turn a failure into a
-    // confirmation. The calendar most often rejects a slot because it was
-    // taken between the availability check and now.
-    return "Bookingen kunne IKKE gennemføres — tiden er ikke reserveret. Sig det ærligt til kunden og tilbyd at finde en anden tid.";
+    // confirmation. Which refusal it was decides the next move — a
+    // mis-heard email is fixed by asking the caller to repeat it, and
+    // offering another time instead (as this used to, for every failure
+    // alike) sends the conversation somewhere that was never the problem.
+    return bookingFailureAdvice(err);
   }
 }
 
@@ -429,9 +466,18 @@ export async function rescheduleBooking(
         newStart,
       });
       updatedStart = updated.startTime;
+      // One appointment stays one row — but a Cal.com reschedule cancels the old
+      // booking and answers with a new uid, so the row has to follow that uid.
+      // Keeping the old one would leave us pointing at a cancelled booking, and
+      // the next "flyt min tid" would find nothing to update.
       await supabase
         .from("appointments")
-        .update({ appointment_time: updatedStart, status: "booked" })
+        .update({
+          appointment_time: updatedStart,
+          status: "booked",
+          calcom_booking_uid: updated.uid || booking.uid,
+          calcom_booking_id: updated.id ?? booking.id,
+        })
         .eq("customer_id", ctx.customerId)
         .eq("calcom_booking_uid", booking.uid);
     } else if (calendar.provider === "google") {
@@ -496,7 +542,7 @@ export async function cancelBooking(
     const reason = input.reason?.trim() || "Aflyst af kunden via telefon";
 
     if (calendar.provider === "calcom") {
-      await cancelCalcomBooking({ apiKey: calendar.apiKey, bookingId: booking.id as number, reason });
+      await cancelCalcomBooking({ apiKey: calendar.apiKey, bookingUid: booking.uid as string, reason });
       await supabase
         .from("appointments")
         .update({ status: "cancelled" })
@@ -545,7 +591,7 @@ export async function executeBookingTool(
       return checkAvailability(args as { date?: string }, ctx);
     case "create_booking":
       return createBooking(
-        args as { start_time?: string; customer_name?: string; customer_email?: string },
+        args as BookingDetailsInput,
         ctx
       );
     case "get_booking":

@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/database/admin";
 import { deductPhoneCallCost } from "@/lib/credits";
 import { executeBookingTool, resolveToolContext } from "@/lib/vapi/booking-tools";
+import { findWidgetIdForAssistant } from "@/lib/vapi/assistant-owner";
+import { executeShopifyTool, isShopifyToolName } from "@/lib/shopify/agent-tools";
+import { executeUberDirectTool, isUberToolName } from "@/lib/uber-direct/agent-tools";
+import { settleCampaignContact, vapiCallWasAnswered } from "@/lib/outbound/settle";
 
 // Every route here is per-request (auth cookies, live DB reads) —
 // never statically optimized/cached.
@@ -22,6 +26,87 @@ function isValidSecret(received: string | null, expected: string): boolean {
 
 type SupabaseAdmin = ReturnType<typeof getAdminClient>;
 
+// Whose agent a call belongs to.
+//
+// Normally the assistant it ran on: assistants are minted by us and stored
+// on widget_settings.extra.vapiAssistantId. But that mapping can drift —
+// a number re-pointed at another assistant in Vapi's own dashboard, or an
+// agent's stored assistant changed while the number kept ringing the old
+// one — and the lookup then finds nothing. It used to return here, so the
+// call was neither recorded nor billed, and nothing said so.
+//
+// The number the call came in on is the second answer, and a good one: the
+// platform assigns each number to one agent, so a call on it belongs to
+// that agent's customer even when the assistant no longer matches.
+// Attributing by the line beats dropping the call.
+async function resolveCallOwner(
+  supabase: SupabaseAdmin,
+  assistantId: string,
+  phoneNumberRow: { widget_id: string; customer_id: string; released_at: string | null } | null
+): Promise<{ id: string; customer_id: string } | null> {
+  const widgetId = await findWidgetIdForAssistant(assistantId, supabase);
+
+  if (widgetId) {
+    const { data: widget } = await supabase
+      .from("widgets")
+      .select("id, customer_id")
+      .eq("id", widgetId)
+      .maybeSingle();
+    if (widget) return widget;
+  }
+
+  // A released number's agent is whoever had it last, which is no longer a
+  // claim worth making about a live call.
+  if (!phoneNumberRow || phoneNumberRow.released_at) return null;
+
+  console.error(
+    `Vapi assistant ${assistantId} matches no agent — attributing the call to the agent that owns the number it came in on (widget ${phoneNumberRow.widget_id}). The assistant on that number in Vapi and the one stored for the agent have drifted apart.`
+  );
+  return { id: phoneNumberRow.widget_id, customer_id: phoneNumberRow.customer_id };
+}
+
+// Ties the call to the conversation the dashboard lists it as.
+//
+// Vapi's script-tag SDK does not hand the call id to its call-start
+// listener, so the browser cannot report it; this is the other end. A widget
+// session mints its conversation row and then starts the call a second or
+// two later, so the conversation is the one for this widget, still without a
+// call, opened in the couple of minutes before the call began.
+//
+// Matched only when exactly one conversation fits. Two visitors on the same
+// widget at the same moment is rare, and attaching one caller's transcript
+// to the other's conversation is worse than showing no transcript at all.
+async function linkConversationToCall(
+  supabase: SupabaseAdmin,
+  widgetId: string,
+  callId: string,
+  startedAt: unknown
+): Promise<void> {
+  const startedAtMs = typeof startedAt === "string" ? Date.parse(startedAt) : NaN;
+  if (Number.isNaN(startedAtMs)) return;
+
+  const windowStart = new Date(startedAtMs - 2 * 60_000).toISOString();
+  const windowEnd = new Date(startedAtMs + 30_000).toISOString();
+
+  const { data: candidates } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("widget_id", widgetId)
+    .is("vapi_call_id", null)
+    .gte("created_at", windowStart)
+    .lte("created_at", windowEnd)
+    .limit(2);
+
+  if (!candidates || candidates.length !== 1) return;
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ vapi_call_id: callId })
+    .eq("id", candidates[0]!.id)
+    .is("vapi_call_id", null);
+  if (error) console.error("Failed to link conversation to Vapi call:", error.message);
+}
+
 // Phone calls (inbound + outbound, see 0013_phone_calling.sql) are billed
 // from *here* rather than from our own start/end session calls, because —
 // unlike the widget — nothing in our own backend is on the line for a phone
@@ -33,43 +118,65 @@ async function recordAndBillCall(supabase: SupabaseAdmin, message: Record<string
   const assistantId = call?.assistantId;
   const durationSeconds = Math.round(Number(message.durationSeconds) || 0);
 
-  if (!callId || !assistantId || durationSeconds <= 0) return;
+  if (!callId || !assistantId) return;
+
+  // A campaign call nobody picked up reports zero seconds — nothing to bill
+  // or record, but its contact still has to leave "calling", or the retry
+  // never happens and the campaign never finishes.
+  if (durationSeconds <= 0) {
+    const { data: unansweredContact } = await supabase
+      .from("outbound_campaign_contacts")
+      .select("id")
+      .eq("vapi_call_id", callId)
+      .maybeSingle();
+    if (unansweredContact) {
+      await settleCampaignContact(supabase, unansweredContact.id, {
+        answered: false,
+        reason: typeof message.endedReason === "string" ? message.endedReason : "",
+      });
+    }
+    return;
+  }
 
   // Idempotency: Vapi can redeliver webhooks, and phone_calls.vapi_call_id
   // is unique — never double-bill the same call.
   const { data: existing } = await supabase.from("phone_calls").select("id").eq("vapi_call_id", callId).maybeSingle();
   if (existing) return;
 
-  const { data: settingsRow } = await supabase
-    .from("widget_settings")
-    .select("widget_id")
-    .eq("extra->>vapiAssistantId", assistantId)
-    .maybeSingle();
-  if (!settingsRow) return;
+  // The line the call came in on. Looked up once: it is the row stored on
+  // the call, and the fallback for whose agent this is.
+  let phoneNumberRow: { id: string; widget_id: string; customer_id: string; released_at: string | null } | null = null;
+  if (call?.phoneNumberId) {
+    const { data } = await supabase
+      .from("phone_numbers")
+      .select("id, widget_id, customer_id, released_at")
+      .eq("vapi_phone_number_id", call.phoneNumberId)
+      .maybeSingle();
+    phoneNumberRow = data ?? null;
+  }
 
-  const { data: widget } = await supabase
-    .from("widgets")
-    .select("id, customer_id")
-    .eq("id", settingsRow.widget_id)
-    .maybeSingle();
-  if (!widget) return;
+  const widget = await resolveCallOwner(supabase, assistantId, phoneNumberRow);
+  if (!widget) {
+    // Never silent. A call that reaches no agent is one nobody is billed for
+    // and nobody can see happened — the three inbound calls this replaced
+    // went unrecorded for half an hour before anyone noticed.
+    console.error(
+      `Vapi call ${callId} belongs to no agent we know (assistant ${assistantId}, number ${
+        call?.phoneNumberId ?? "unknown"
+      }) — not recorded, not billed.`
+    );
+    return;
+  }
 
   const { data: contact } = await supabase
     .from("outbound_campaign_contacts")
     .select("id")
     .eq("vapi_call_id", callId)
     .maybeSingle();
+
   const direction = contact ? "outbound" : "inbound";
 
-  let phoneNumberRowId: string | null = null;
-  if (call?.phoneNumberId) {
-    const { data: phoneNumberRow } = await supabase
-      .from("phone_numbers")
-      .select("id")
-      .eq("vapi_phone_number_id", call.phoneNumberId)
-      .maybeSingle();
-    phoneNumberRowId = phoneNumberRow?.id ?? null;
-  }
+  const phoneNumberRowId = phoneNumberRow?.id ?? null;
 
   const { error: insertError } = await supabase.from("phone_calls").insert({
     customer_id: widget.customer_id,
@@ -87,8 +194,16 @@ async function recordAndBillCall(supabase: SupabaseAdmin, message: Record<string
   }
 
   if (contact) {
-    await supabase.from("outbound_campaign_contacts").update({ status: "completed" }).eq("id", contact.id);
+    await settleCampaignContact(supabase, contact.id, {
+      answered: vapiCallWasAnswered(message.endedReason),
+      reason: typeof message.endedReason === "string" ? message.endedReason : "",
+    });
   }
+
+  // What makes the Samtaledetaljer tabs show anything: the transcript,
+  // summary and recording are all in this report, and the conversation row
+  // is how the dashboard finds it again.
+  await linkConversationToCall(supabase, widget.id, callId, message.startedAt);
 
   await deductPhoneCallCost({
     customerId: widget.customer_id,
@@ -163,7 +278,15 @@ async function handleToolCalls(message: Record<string, unknown>): Promise<NextRe
 
       const args = parseToolArguments(toolCall.function?.arguments ?? toolCall.arguments);
       try {
-        return { toolCallId, result: await executeBookingTool(name, args, ctx) };
+        // Which widget's webshop a tool may read is taken from `ctx` — resolved
+        // from the call's assistantId above — never from the tool arguments, so
+        // one customer's agent cannot ask about another's orders.
+        const result = isShopifyToolName(name)
+          ? await executeShopifyTool(name, args, ctx.widgetId)
+          : isUberToolName(name)
+            ? await executeUberDirectTool(name, args, ctx.widgetId, ctx.customerId)
+            : await executeBookingTool(name, args, ctx);
+        return { toolCallId, result };
       } catch (err) {
         // Nothing thrown here may escape: an unhandled rejection would make
         // this a 500, and Vapi would be left mid-call with no tool result at

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { requireAuthForPage } from "@/lib/auth";
-import { AdminHeader } from "@/components/admin/header";
+import { AdminSidebar } from "@/components/admin/sidebar";
 import { LanguageProvider } from "@/components/i18n/language-provider";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
 
@@ -19,9 +19,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <LanguageProvider initialLocale={locale}>
-      <div className="min-h-screen bg-slate-50">
-        <AdminHeader userLabel={userLabel} />
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+      <div className="flex min-h-screen flex-col bg-slate-50 md:flex-row">
+        <AdminSidebar userLabel={userLabel} />
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
       </div>
     </LanguageProvider>
   );

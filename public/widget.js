@@ -47,6 +47,170 @@
     });
   }
 
+  // Errors that reach a customer-visible status line arrive in whatever shape
+  // their source felt like. An Error has a string `message`; a Vapi call
+  // error can carry `error.message` that is the *parsed body* of a failed
+  // HTTP request — an object, not a string. Concatenating one of those into
+  // a status line produced the literal "Fejl: [object Object]": visible to
+  // the customer, useless to everyone, and hiding the one piece of text that
+  // says what actually went wrong.
+  //
+  // Walk the usual nesting for the first real string, and fall back to
+  // compact JSON rather than to nothing, so even an unfamiliar shape says
+  // something. Returns null only when there is genuinely nothing to show.
+  function describeError(value, depth) {
+    depth = depth || 0;
+    if (value == null || depth > 4) return null;
+    if (typeof value === "string") return value.trim() || null;
+    if (typeof value !== "object") return String(value);
+
+    var keys = ["message", "errorMsg", "msg", "error", "reason", "statusText", "description"];
+    for (var i = 0; i < keys.length; i++) {
+      var nested = describeError(value[keys[i]], depth + 1);
+      if (nested) return nested;
+    }
+
+    try {
+      var json = JSON.stringify(value);
+      if (json && json !== "{}" && json !== "[]") {
+        return json.length > 300 ? json.slice(0, 300) + "…" : json;
+      }
+    } catch (circular) {
+      // A circular object can't be serialised — the console.error at the
+      // call site still has the real thing.
+    }
+    return null;
+  }
+
+  // What the customer reads when a call can't start or breaks off. Never the
+  // raw provider text ("Fejl: Bad Request", "WebRTC handshake … failed",
+  // "se browserkonsollen"): that is meaningless to a shop's visitor and makes
+  // the shop look broken. The real error is always console.error'ed at the
+  // call site, so nothing is lost for debugging. The one failure the visitor
+  // can fix themselves — a blocked or missing microphone — gets its own
+  // instruction; everything else gets one calm "try again" line.
+  function customerCallMessage(err) {
+    if (err && err.status === 402) {
+      return "Assistenten er ikke tilgængelig lige nu. Prøv igen senere, eller kontakt os direkte.";
+    }
+    var name = (err && (err.name || (err.error && err.error.name))) || "";
+    var text = (describeError(err) || "").toLowerCase();
+    if (
+      name === "NotAllowedError" ||
+      name === "PermissionDeniedError" ||
+      name === "NotFoundError" ||
+      /permission|not ?allowed|microphone|mikrofon|getusermedia/.test(text)
+    ) {
+      return "Giv adgang til mikrofonen i din browser, og tryk på knappen igen.";
+    }
+    return "Vi kunne ikke starte samtalen lige nu. Prøv igen om et øjeblik.";
+  }
+
+  var CALL_DROPPED_MESSAGE = "Forbindelsen blev afbrudt. Tryk på knappen for at prøve igen.";
+
+  // Ends a usage session — the only thing that bills its minutes against the
+  // customer's credit ledger and closes the conversation (see
+  // finalizeUsageSession in lib/usage/session.ts).
+  //
+  // While the page is alive that's a plain PATCH. When the visitor is
+  // leaving (tab closed, navigation away) a normal fetch is cancelled
+  // mid-flight, so we hand the request to navigator.sendBeacon instead,
+  // which the browser delivers after the page is gone. sendBeacon can only
+  // POST, and only skips the CORS preflight an unloading page would never
+  // complete if the body carries a safelisted content type — hence the
+  // dedicated /api/widget/session/end route and the text/plain blob (the
+  // server parses the text as JSON regardless of the declared type).
+  function endSession(sessionId, durationSeconds, unloading) {
+    if (!sessionId) return;
+    var payload = { sessionId: sessionId };
+    // Only the engines that measure the call client-side (OpenAI Realtime,
+    // Vapi) report a duration. The text pipeline accrues it server-side,
+    // turn by turn, and sending a number here would overwrite that.
+    if (typeof durationSeconds === "number") payload.clientMeasuredDurationSeconds = durationSeconds;
+    var body = JSON.stringify(payload);
+
+    if (unloading) {
+      var url = apiBase + "/api/widget/session/end";
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([body], { type: "text/plain;charset=UTF-8" }));
+      } else {
+        fetch(url, { method: "POST", body: body, keepalive: true }).catch(function () {});
+      }
+      return;
+    }
+
+    apiFetch("/api/widget/session", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: body,
+    }).catch(function () {});
+  }
+
+  // Persists the visible transcript across page loads/reopenings, per widget
+  // and per browser (localStorage, never sent to the server) — so a visitor
+  // who closes the chat and comes back later still sees what they talked
+  // about, even though every open still starts a fresh billed session (see
+  // ensureSession/startCall below; there is no server-side conversation
+  // resume). Wrapped in try/catch throughout: private browsing, a full quota
+  // or a blocked storage API must never break the chat itself, only its
+  // memory of past turns.
+  var HISTORY_LIMIT = 40;
+
+  function historyStorageKey() {
+    return "aibooking_history_" + publicId;
+  }
+
+  function loadHistory() {
+    try {
+      var raw = window.localStorage.getItem(historyStorageKey());
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function appendToHistory(role, text) {
+    try {
+      var list = loadHistory();
+      list.push({ role: role, text: text });
+      window.localStorage.setItem(historyStorageKey(), JSON.stringify(list.slice(-HISTORY_LIMIT)));
+    } catch (e) {
+      // Storage unavailable/full — the current conversation carries on fine
+      // without it, it just won't be there next time.
+    }
+  }
+
+  // The launcher toggles the panel in every UI mode. Registering that in one
+  // place also lets the host page open the agent itself — window.aibooking
+  // .open() / .close() / .toggle() — so a site can wire its own "Book en
+  // tid" button in the page body to the agent instead of relying on the
+  // corner launcher alone. The dashboard's Test Agent preview opens the
+  // widget through exactly this.
+  function registerLauncher(launcher, panel, onOpen) {
+    function setOpen(open) {
+      state.open = open;
+      panel.style.display = open ? "flex" : "none";
+      if (open && onOpen) onOpen();
+    }
+
+    launcher.addEventListener("click", function () {
+      setOpen(!state.open);
+    });
+
+    window.aibooking = {
+      open: function () {
+        setOpen(true);
+      },
+      close: function () {
+        setOpen(false);
+      },
+      toggle: function () {
+        setOpen(!state.open);
+      },
+    };
+  }
+
   function el(tag, attrs, children) {
     var node = document.createElement(tag);
     if (attrs) {
@@ -60,6 +224,77 @@
       node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
     });
     return node;
+  }
+
+
+  // Renders an agent message into a bubble, turning product links into
+  // something the customer can actually click.
+  //
+  // Two forms are recognised, and nothing else: a markdown link
+  // "[Se produkt](https://…)", which the Shopify product tool asks the agent
+  // to emit, and a bare https:// URL. Both become real <a> elements; every
+  // other character stays a text node.
+  //
+  // Built with createElement and createTextNode, never innerHTML: the text
+  // comes from a model that is in turn quoting a merchant's product data, so
+  // it is never treated as markup. The scheme is checked too — an href is only
+  // written when the URL parses as http(s), so a "javascript:" link in the
+  // message can never become a clickable one in the widget.
+  var MESSAGE_LINK_PATTERN = /\[([^\]\n]{1,80})\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"')\]]+)/g;
+
+  function isSafeHttpUrl(value) {
+    try {
+      var parsed = new URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function buildLink(href, label, primaryColor, asButton) {
+    var anchor = document.createElement("a");
+    anchor.setAttribute("href", href);
+    anchor.setAttribute("target", "_blank");
+    // noopener keeps the opened page from reaching back into the widget via
+    // window.opener; noreferrer keeps the customer's page out of the referrer.
+    anchor.setAttribute("rel", "noopener noreferrer");
+    anchor.style.cssText = asButton
+      ? "display:inline-block;margin-top:6px;padding:7px 14px;border-radius:999px;background:" +
+        primaryColor +
+        ";color:#fff;font-weight:600;font-size:13px;text-decoration:none;"
+      : "color:inherit;text-decoration:underline;word-break:break-all;";
+    anchor.appendChild(document.createTextNode(label));
+    return anchor;
+  }
+
+  function appendMessageContent(node, text, primaryColor) {
+    var value = typeof text === "string" ? text : String(text == null ? "" : text);
+    var lastIndex = 0;
+    var match;
+
+    MESSAGE_LINK_PATTERN.lastIndex = 0;
+    while ((match = MESSAGE_LINK_PATTERN.exec(value)) !== null) {
+      if (match.index > lastIndex) {
+        node.appendChild(document.createTextNode(value.slice(lastIndex, match.index)));
+      }
+
+      var label = match[1];
+      var href = match[2] || match[3];
+
+      if (href && isSafeHttpUrl(href)) {
+        // A labelled link is the product CTA the agent was asked for, so it
+        // gets the button treatment; a bare URL stays inline.
+        node.appendChild(buildLink(href, label || href, primaryColor, Boolean(label)));
+      } else {
+        node.appendChild(document.createTextNode(match[0]));
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < value.length) {
+      node.appendChild(document.createTextNode(value.slice(lastIndex)));
+    }
   }
 
   // Shared by all three UI builders below (text chat, OpenAI Realtime, Vapi)
@@ -90,9 +325,9 @@
         style:
           "background:" +
           config.secondaryColor +
-          ";color:#fff;padding:14px 16px;font-weight:600;display:flex;align-items:center;gap:10px;",
+          ";color:#fff;padding:16px 18px;font-weight:600;display:flex;align-items:center;gap:10px;",
       },
-      [avatar, el("span", { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" }, [config.businessName || "AI-assistent"])]
+      [avatar, el("span", { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" }, [config.businessName || "AI-assistent"])]
     );
   }
 
@@ -103,7 +338,7 @@
       "position:fixed;" +
       pos +
       "width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;" +
-      "box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:999999;";
+      "box-shadow:0 10px 28px rgba(15,23,42,.28);z-index:999999;";
 
     if (config.avatarUrl) {
       return el("button", {
@@ -149,7 +384,7 @@
         type: "button",
         title: "Tal i stedet for at skrive",
         style:
-          "border:none;background:#f1f1f1;color:#555;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:15px;",
+          "border:none;background:#f8fafc;color:#475569;border-radius:10px;padding:8px 10px;cursor:pointer;font-size:15px;",
       },
       ["🎤"]
     );
@@ -161,8 +396,8 @@
     };
     recognition.onend = function () {
       listening = false;
-      micBtn.style.background = "#f1f1f1";
-      micBtn.style.color = "#555";
+      micBtn.style.background = "#f8fafc";
+      micBtn.style.color = "#475569";
     };
     recognition.onresult = function (event) {
       var transcript = event.results[0] && event.results[0][0] && event.results[0][0].transcript;
@@ -206,14 +441,14 @@
     var input = el("input", {
       type: "text",
       placeholder: "Skriv en besked...",
-      style: "flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:14px;",
+      style: "flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:14px;",
     });
 
     var sendBtn = el(
       "button",
       {
         style:
-          "border:none;background:" + config.primaryColor + ";color:#fff;border-radius:8px;padding:8px 12px;cursor:pointer;",
+          "border:none;background:" + config.primaryColor + ";color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer;",
       },
       ["Send"]
     );
@@ -231,9 +466,9 @@
         style:
           "position:fixed;" +
           pos +
-          "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
-          "border:1px solid rgba(0,0,0,.06);" +
+          "width:360px;max-width:92vw;height:480px;max-height:72vh;margin-bottom:78px;" +
+          "background:#fff;border-radius:22px;box-shadow:0 20px 50px rgba(15,23,42,.18);" +
+          "border:1px solid rgba(15,23,42,.08);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
@@ -241,13 +476,13 @@
         messagesEl,
         el(
           "div",
-          { style: "display:flex;gap:8px;padding:10px;border-top:1px solid #eee;" },
+          { style: "display:flex;gap:8px;padding:10px;border-top:1px solid #e2e8f0;" },
           micBtn ? [micBtn, input, sendBtn] : [input, sendBtn]
         ),
         config.showBranding
           ? el(
               "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:4px 0 8px;" },
+              { style: "text-align:center;font-size:11px;color:#94a3b8;padding:4px 0 8px;" },
               ["Powered by AIbooking.dk"]
             )
           : el("div", {}, []),
@@ -257,21 +492,41 @@
     document.body.appendChild(panel);
     document.body.appendChild(launcher);
 
-    function addMessage(text, role) {
+    function addMessage(text, role, skipPersist) {
       var bubble = el(
         "div",
         {
           style:
-            "max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.4;" +
+            "max-width:80%;padding:8px 12px;border-radius:16px;font-size:14px;line-height:1.4;" +
             (role === "user"
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
-              : "align-self:flex-start;background:#f1f1f1;color:#222;"),
+              : "align-self:flex-start;background:#f8fafc;color:#1e293b;border:1px solid #e2e8f0;"),
         },
-        [text]
+        []
       );
+      appendMessageContent(bubble, text, config.primaryColor);
       messagesEl.appendChild(bubble);
       messagesEl.scrollTop = messagesEl.scrollHeight;
+      if (!skipPersist) appendToHistory(role, text);
     }
+
+    // Replays whatever this visitor's browser has stored from earlier visits
+    // (see appendToHistory above), then marks where today's conversation
+    // starts — a fresh session/conversation is still created server-side on
+    // the next message either way, this is purely what the panel shows.
+    function restoreHistory() {
+      var history = loadHistory();
+      if (!history.length) return false;
+      history.forEach(function (entry) {
+        addMessage(entry.text, entry.role, true);
+      });
+      messagesEl.appendChild(
+        el("div", { style: "text-align:center;font-size:11px;color:#94a3b8;margin:4px 0;" }, ["— Ny samtale —"])
+      );
+      return true;
+    }
+
+    var hadHistory = restoreHistory();
 
     function playAudio(base64, contentType) {
       try {
@@ -291,19 +546,21 @@
       }).then(function (data) {
         state.sessionId = data.sessionId;
         state.conversationId = data.conversationId;
-        if (data.openingMessage) addMessage(data.openingMessage, "assistant");
+        // Skip the greeting for a visitor who already has a visible history —
+        // they don't need re-welcoming every time they reopen the chat.
+        if (data.openingMessage && !hadHistory) addMessage(data.openingMessage, "assistant");
       });
     }
 
-    function endSessionBeacon() {
+    // pagehide rather than beforeunload: it also fires on mobile Safari and
+    // when the page goes into the back/forward cache, where beforeunload
+    // never runs at all.
+    window.addEventListener("pagehide", function () {
       if (!state.sessionId) return;
-      var payload = JSON.stringify({ sessionId: state.sessionId });
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(apiBase + "/api/widget/session", new Blob([payload], { type: "application/json" }));
-      }
-    }
-
-    window.addEventListener("beforeunload", endSessionBeacon);
+      var sessionId = state.sessionId;
+      state.sessionId = null;
+      endSession(sessionId, undefined, true);
+    });
 
     function send() {
       var text = input.value.trim();
@@ -330,9 +587,11 @@
         .catch(function (err) {
           var message =
             err.status === 402
-              ? "Denne assistent er midlertidigt utilgængelig."
-              : "Der opstod en fejl. Prøv igen om lidt.";
-          addMessage(message, "assistant");
+              ? "Assistenten er ikke tilgængelig lige nu. Prøv igen senere, eller kontakt os direkte."
+              : "Beskeden kunne ikke sendes. Prøv igen om et øjeblik.";
+          // Transient client-side notice, not part of the actual
+          // conversation — shown once, never saved to history.
+          addMessage(message, "assistant", true);
         });
     }
 
@@ -341,11 +600,7 @@
       if (e.key === "Enter") send();
     });
 
-    launcher.addEventListener("click", function () {
-      state.open = !state.open;
-      panel.style.display = state.open ? "flex" : "none";
-      if (state.open) ensureSession();
-    });
+    registerLauncher(launcher, panel, ensureSession);
   }
 
   // "Expert model" widgets are speech-to-speech via OpenAI's Realtime API,
@@ -371,7 +626,7 @@
 
     var statusEl = el(
       "div",
-      { style: "font-size:13px;color:#666;text-align:center;padding:4px 0 10px;" },
+      { style: "font-size:13px;color:#475569;text-align:center;padding:4px 0 10px;" },
       ["Klik på mikrofonen for at starte samtalen"]
     );
 
@@ -379,7 +634,7 @@
       "button",
       {
         style:
-          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;" +
+          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;box-shadow:0 8px 22px rgba(15,23,42,.2);" +
           "background:" +
           config.primaryColor +
           ";color:#fff;font-size:26px;",
@@ -394,19 +649,19 @@
         style:
           "position:fixed;" +
           pos +
-          "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
-          "border:1px solid rgba(0,0,0,.06);" +
+          "width:360px;max-width:92vw;height:480px;max-height:72vh;margin-bottom:78px;" +
+          "background:#fff;border-radius:22px;box-shadow:0 20px 50px rgba(15,23,42,.18);" +
+          "border:1px solid rgba(15,23,42,.08);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
         buildHeader(config),
         transcriptEl,
-        el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
+        el("div", { style: "padding:12px;border-top:1px solid #e2e8f0;" }, [callBtn, statusEl]),
         config.showBranding
           ? el(
               "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
+              { style: "text-align:center;font-size:11px;color:#94a3b8;padding:0 0 8px;" },
               ["Powered by AIbooking.dk"]
             )
           : el("div", {}, []),
@@ -416,23 +671,40 @@
     document.body.appendChild(panel);
     document.body.appendChild(launcher);
 
-    function addTranscriptLine(text, role) {
+    function addTranscriptLine(text, role, skipPersist) {
       var bubble = el(
         "div",
         {
           style:
-            "max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.4;" +
+            "max-width:80%;padding:8px 12px;border-radius:16px;font-size:14px;line-height:1.4;" +
             (role === "user"
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
-              : "align-self:flex-start;background:#f1f1f1;color:#222;"),
+              : "align-self:flex-start;background:#f8fafc;color:#1e293b;border:1px solid #e2e8f0;"),
         },
-        [text]
+        []
       );
+      appendMessageContent(bubble, text, config.primaryColor);
       transcriptEl.appendChild(bubble);
       transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      if (!skipPersist) appendToHistory(role, text);
     }
 
-    var rtc = { pc: null, dc: null, micStream: null, audioEl: null, startedAt: null, active: false };
+    // Replays this visitor's stored transcript from earlier visits (see
+    // appendToHistory above) before today's live transcript starts.
+    (function restoreHistory() {
+      var history = loadHistory();
+      if (!history.length) return;
+      history.forEach(function (entry) {
+        addTranscriptLine(entry.text, entry.role, true);
+      });
+      transcriptEl.appendChild(
+        el("div", { style: "text-align:center;font-size:11px;color:#94a3b8;margin:4px 0;" }, ["— Ny samtale —"])
+      );
+    })();
+
+    // `starting` covers the gap between the button being pressed and the
+    // call being up — see the note on the Vapi UI's own flag below.
+    var rtc = { pc: null, dc: null, micStream: null, audioEl: null, startedAt: null, active: false, starting: false };
 
     function teardownConnection() {
       if (rtc.pc) {
@@ -457,7 +729,8 @@
       rtc.audioEl = null;
     }
 
-    function endCall() {
+    function endCall(unloading) {
+      rtc.starting = false;
       if (!rtc.active) return;
       rtc.active = false;
       var durationSeconds = rtc.startedAt ? (Date.now() - rtc.startedAt) / 1000 : 0;
@@ -468,11 +741,7 @@
       if (state.sessionId) {
         var sessionId = state.sessionId;
         state.sessionId = null;
-        apiFetch("/api/widget/session", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId: sessionId, clientMeasuredDurationSeconds: durationSeconds }),
-        }).catch(function () {});
+        endSession(sessionId, durationSeconds, unloading);
       }
     }
 
@@ -483,7 +752,11 @@
       } catch (e) {
         return;
       }
-      if (payload.type === "response.audio_transcript.done" && payload.transcript) {
+      // GA renamed response.audio_transcript.done → response.output_audio_transcript.done
+      if (
+        (payload.type === "response.output_audio_transcript.done" || payload.type === "response.audio_transcript.done") &&
+        payload.transcript
+      ) {
         addTranscriptLine(payload.transcript, "assistant");
       } else if (
         payload.type === "conversation.item.input_audio_transcription.completed" &&
@@ -491,7 +764,7 @@
       ) {
         addTranscriptLine(payload.transcript, "user");
       } else if (payload.type === "error") {
-        statusEl.textContent = "Der opstod en fejl under samtalen.";
+        statusEl.textContent = CALL_DROPPED_MESSAGE;
       }
     }
 
@@ -532,7 +805,9 @@
           });
         })
         .then(function (offer) {
-          return fetch("https://api.openai.com/v1/realtime?model=" + encodeURIComponent(realtime.model), {
+          // GA Realtime API: the SDP offer goes to /v1/realtime/calls (the beta
+          // /v1/realtime?model= endpoint was retired together with /sessions).
+          return fetch("https://api.openai.com/v1/realtime/calls?model=" + encodeURIComponent(realtime.model), {
             method: "POST",
             body: offer.sdp,
             headers: {
@@ -549,6 +824,7 @@
           return rtc.pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
         })
         .then(function () {
+          rtc.starting = false;
           rtc.active = true;
           rtc.startedAt = Date.now();
           statusEl.textContent = "Forbundet — I taler nu sammen";
@@ -557,6 +833,8 @@
     }
 
     function startCall() {
+      if (rtc.starting || rtc.active) return;
+      rtc.starting = true;
       statusEl.textContent = "Forbinder...";
       apiFetch("/api/widget/session", {
         method: "POST",
@@ -570,11 +848,9 @@
         })
         .catch(function (err) {
           console.error("[aibooking] Realtime widget failed to start:", err);
+          rtc.starting = false;
           teardownConnection();
-          statusEl.textContent =
-            err.status === 402
-              ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
+          statusEl.textContent = customerCallMessage(err);
         });
     }
 
@@ -583,14 +859,11 @@
       else startCall();
     });
 
-    window.addEventListener("beforeunload", function () {
-      if (rtc.active) endCall();
+    window.addEventListener("pagehide", function () {
+      if (rtc.active) endCall(true);
     });
 
-    launcher.addEventListener("click", function () {
-      state.open = !state.open;
-      panel.style.display = state.open ? "flex" : "none";
-    });
+    registerLauncher(launcher, panel);
   }
 
   // "Vapi model" widgets are also speech-to-speech, but the call itself is
@@ -659,7 +932,7 @@
 
     var statusEl = el(
       "div",
-      { style: "font-size:13px;color:#666;text-align:center;padding:4px 0 10px;" },
+      { style: "font-size:13px;color:#475569;text-align:center;padding:4px 0 10px;" },
       ["Klik på mikrofonen for at starte samtalen"]
     );
 
@@ -667,7 +940,7 @@
       "button",
       {
         style:
-          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;" +
+          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;box-shadow:0 8px 22px rgba(15,23,42,.2);" +
           "background:" +
           config.primaryColor +
           ";color:#fff;font-size:26px;",
@@ -682,19 +955,19 @@
         style:
           "position:fixed;" +
           pos +
-          "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
-          "border:1px solid rgba(0,0,0,.06);" +
+          "width:360px;max-width:92vw;height:480px;max-height:72vh;margin-bottom:78px;" +
+          "background:#fff;border-radius:22px;box-shadow:0 20px 50px rgba(15,23,42,.18);" +
+          "border:1px solid rgba(15,23,42,.08);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
         buildHeader(config),
         transcriptEl,
-        el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
+        el("div", { style: "padding:12px;border-top:1px solid #e2e8f0;" }, [callBtn, statusEl]),
         config.showBranding
           ? el(
               "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
+              { style: "text-align:center;font-size:11px;color:#94a3b8;padding:0 0 8px;" },
               ["Powered by AIbooking.dk"]
             )
           : el("div", {}, []),
@@ -704,29 +977,51 @@
     document.body.appendChild(panel);
     document.body.appendChild(launcher);
 
-    function addTranscriptLine(text, role) {
+    function addTranscriptLine(text, role, skipPersist) {
       var bubble = el(
         "div",
         {
           style:
-            "max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.4;" +
+            "max-width:80%;padding:8px 12px;border-radius:16px;font-size:14px;line-height:1.4;" +
             (role === "user"
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
-              : "align-self:flex-start;background:#f1f1f1;color:#222;"),
+              : "align-self:flex-start;background:#f8fafc;color:#1e293b;border:1px solid #e2e8f0;"),
         },
-        [text]
+        []
       );
+      appendMessageContent(bubble, text, config.primaryColor);
       transcriptEl.appendChild(bubble);
       transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      if (!skipPersist) appendToHistory(role, text);
     }
 
-    var call = { client: null, active: false, startedAt: null };
+    // Replays this visitor's stored transcript from earlier visits (see
+    // appendToHistory above) before today's live transcript starts.
+    (function restoreHistory() {
+      var history = loadHistory();
+      if (!history.length) return;
+      history.forEach(function (entry) {
+        addTranscriptLine(entry.text, entry.role, true);
+      });
+      transcriptEl.appendChild(
+        el("div", { style: "text-align:center;font-size:11px;color:#94a3b8;margin:4px 0;" }, ["— Ny samtale —"])
+      );
+    })();
+
+    // `starting` covers the gap between the button being pressed and Vapi
+    // reporting the call up. It used to be unguarded: a second tap during
+    // "Forbinder..." — a double tap on a phone is enough — opened a second
+    // session and a second conversation row, and the call then matched two
+    // conversations instead of one, so the webhook refused to attach the
+    // transcript and recording to either (see linkConversationToCall).
+    var call = { client: null, active: false, starting: false, startedAt: null };
 
     // All end-of-call bookkeeping (duration, billing PATCH, UI reset) lives
     // here and only here — the call button just tells the SDK to stop,
     // whether the user hangs up or the assistant/Vapi ends the call first,
     // both paths converge on the SDK's own "call-end" event.
-    function handleCallEnd() {
+    function handleCallEnd(unloading) {
+      call.starting = false;
       if (!call.active) return;
       call.active = false;
       var durationSeconds = call.startedAt ? (Date.now() - call.startedAt) / 1000 : 0;
@@ -736,11 +1031,7 @@
       if (state.sessionId) {
         var sessionId = state.sessionId;
         state.sessionId = null;
-        apiFetch("/api/widget/session", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId: sessionId, clientMeasuredDurationSeconds: durationSeconds }),
-        }).catch(function () {});
+        endSession(sessionId, durationSeconds, unloading);
       }
     }
 
@@ -751,6 +1042,8 @@
     }
 
     function startCall() {
+      if (call.starting || call.active) return;
+      call.starting = true;
       statusEl.textContent = "Forbinder...";
       apiFetch("/api/widget/session", {
         method: "POST",
@@ -768,25 +1061,28 @@
               hideDefaultVapiButton();
               call.client = vapiSDK.run({ apiKey: data.vapi.publicKey, assistant: data.vapi.assistantId, config: {} });
               call.client.on("call-start", function () {
+                call.starting = false;
                 call.active = true;
                 call.startedAt = Date.now();
                 statusEl.textContent = "Forbundet — I taler nu sammen";
                 callBtn.textContent = "⏹";
               });
-              call.client.on("call-end", handleCallEnd);
+              // Wrapped, not passed directly: the SDK hands its listeners an
+              // event object, which would land in handleCallEnd's
+              // `unloading` parameter and send the billing call as an
+              // unload beacon while the page is very much still alive.
+              call.client.on("call-end", function () {
+                handleCallEnd();
+              });
               call.client.on("message", handleMessage);
               call.client.on("error", function (e) {
                 // Vapi's error event shape isn't fixed (varies by failure
                 // source — mic permissions, ICE negotiation, the assistant
-                // itself) — surface whatever text it gives us instead of a
-                // dead-end generic message, and always log the raw object so
-                // it's visible in devtools even when no readable text exists.
+                // itself) — log the raw object for devtools and show the
+                // customer a friendly line (see customerCallMessage).
                 console.error("Vapi call error:", e);
-                var detail =
-                  (e && (e.message || e.errorMsg || (e.error && e.error.message))) || null;
-                statusEl.textContent = detail
-                  ? "Fejl: " + detail
-                  : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
+                call.starting = false;
+                statusEl.textContent = call.active ? CALL_DROPPED_MESSAGE : customerCallMessage(e);
               });
             }
             call.client.start(data.vapi.assistantId);
@@ -799,10 +1095,8 @@
           // diagnosable from the browser console instead of just the one
           // generic status line every failure used to collapse into.
           console.error("[aibooking] Vapi widget failed to start:", err);
-          statusEl.textContent =
-            err.status === 402
-              ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
+          call.starting = false;
+          statusEl.textContent = customerCallMessage(err);
         });
     }
 
@@ -811,14 +1105,21 @@
       else startCall();
     });
 
-    window.addEventListener("beforeunload", function () {
-      if (call.active && call.client) call.client.stop();
+    // Bill the call ourselves before asking the SDK to stop: the SDK's own
+    // "call-end" event is what normally triggers handleCallEnd, and it has
+    // no chance to fire once the page is unloading. Flipping call.active
+    // here also makes that late event a no-op if it does arrive.
+    window.addEventListener("pagehide", function () {
+      if (!call.active) return;
+      handleCallEnd(true);
+      if (call.client) {
+        try {
+          call.client.stop();
+        } catch (e) {}
+      }
     });
 
-    launcher.addEventListener("click", function () {
-      state.open = !state.open;
-      panel.style.display = state.open ? "flex" : "none";
-    });
+    registerLauncher(launcher, panel);
   }
 
   // "Twilio Relay" widgets are also speech-to-speech, but the call is
@@ -868,7 +1169,7 @@
 
     var statusEl = el(
       "div",
-      { style: "flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#666;text-align:center;padding:12px;" },
+      { style: "flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#475569;text-align:center;padding:12px;" },
       ["Klik på mikrofonen for at starte samtalen"]
     );
 
@@ -876,7 +1177,7 @@
       "button",
       {
         style:
-          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;" +
+          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;box-shadow:0 8px 22px rgba(15,23,42,.2);" +
           "background:" +
           config.primaryColor +
           ";color:#fff;font-size:26px;",
@@ -891,19 +1192,19 @@
         style:
           "position:fixed;" +
           pos +
-          "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
-          "border:1px solid rgba(0,0,0,.06);" +
+          "width:360px;max-width:92vw;height:480px;max-height:72vh;margin-bottom:78px;" +
+          "background:#fff;border-radius:22px;box-shadow:0 20px 50px rgba(15,23,42,.18);" +
+          "border:1px solid rgba(15,23,42,.08);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
         buildHeader(config),
         statusEl,
-        el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn]),
+        el("div", { style: "padding:12px;border-top:1px solid #e2e8f0;" }, [callBtn]),
         config.showBranding
           ? el(
               "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
+              { style: "text-align:center;font-size:11px;color:#94a3b8;padding:0 0 8px;" },
               ["Powered by AIbooking.dk"]
             )
           : el("div", {}, []),
@@ -913,13 +1214,14 @@
     document.body.appendChild(panel);
     document.body.appendChild(launcher);
 
-    var call = { device: null, activeCall: null, active: false };
+    var call = { device: null, activeCall: null, active: false, starting: false };
 
     // Billing is handled entirely server-side (relay-server measures the
     // real ConversationRelay connection duration and reports it to
     // /api/internal/conversation-relay/end when the call ends) — unlike the
     // realtime/Vapi UIs above, this handler never PATCHes /api/widget/session.
     function handleCallEnd() {
+      call.starting = false;
       if (!call.active) return;
       call.active = false;
       call.activeCall = null;
@@ -928,6 +1230,8 @@
     }
 
     function startCall() {
+      if (call.starting || call.active) return;
+      call.starting = true;
       statusEl.textContent = "Forbinder...";
       apiFetch("/api/widget/relay-token", {
         method: "POST",
@@ -942,8 +1246,9 @@
           return loadTwilioSdk().then(function (Twilio) {
             if (!call.device) {
               call.device = new Twilio.Device(data.token);
-              call.device.on("error", function () {
-                statusEl.textContent = "Der opstod en fejl under samtalen.";
+              call.device.on("error", function (e) {
+                console.error("Twilio device error:", e);
+                statusEl.textContent = call.active ? CALL_DROPPED_MESSAGE : customerCallMessage(e);
               });
             } else {
               call.device.updateToken(data.token);
@@ -956,21 +1261,22 @@
         .then(function (twilioCall) {
           call.activeCall = twilioCall;
           twilioCall.on("accept", function () {
+            call.starting = false;
             call.active = true;
             statusEl.textContent = "Forbundet — I taler nu sammen";
             callBtn.textContent = "⏹";
           });
           twilioCall.on("disconnect", handleCallEnd);
-          twilioCall.on("error", function () {
-            statusEl.textContent = "Der opstod en fejl under samtalen.";
+          twilioCall.on("error", function (e) {
+            console.error("Twilio call error:", e);
+            call.starting = false;
+            statusEl.textContent = call.active ? CALL_DROPPED_MESSAGE : customerCallMessage(e);
           });
         })
         .catch(function (err) {
           console.error("[aibooking] Twilio Relay widget failed to start:", err);
-          statusEl.textContent =
-            err.status === 402
-              ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (err && err.message ? err.message : "ukendt fejl") + "). Prøv igen.";
+          call.starting = false;
+          statusEl.textContent = customerCallMessage(err);
         });
     }
 
@@ -983,10 +1289,7 @@
       if (call.active && call.activeCall) call.activeCall.disconnect();
     });
 
-    launcher.addEventListener("click", function () {
-      state.open = !state.open;
-      panel.style.display = state.open ? "flex" : "none";
-    });
+    registerLauncher(launcher, panel);
   }
 
   fetch(apiBase + "/api/widget/config?publicId=" + encodeURIComponent(publicId))

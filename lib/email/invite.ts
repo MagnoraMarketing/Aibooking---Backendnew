@@ -1,10 +1,11 @@
 import "server-only";
+import { getPublicAppUrl } from "@/lib/app-url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendEmail } from "./client";
 import { buildInviteEmailHtml } from "./templates/invite";
 
 function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return getPublicAppUrl();
 }
 
 export interface SendCustomerInviteEmailParams {

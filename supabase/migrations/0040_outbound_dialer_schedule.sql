@@ -1,0 +1,35 @@
+-- Wakes the outbound dialer once a minute.
+--
+-- Not a Vercel Cron: this project is on a plan whose crons only run daily,
+-- and a dialer that wakes once a day is not a dialer. pg_cron and pg_net are
+-- already available in Postgres, cost nothing, and keep the schedule next to
+-- the queue it drives (see 0039_outbound_campaign_settings.sql).
+create extension if not exists pg_cron with schema pg_catalog;
+create extension if not exists pg_net with schema extensions;
+
+-- The job itself is NOT created here.
+--
+-- It has to carry OUTBOUND_DIALER_SECRET in a header, and this repository is
+-- public — a secret committed to it is a secret published. So the schedule is
+-- created once against the database directly:
+--
+--   select cron.schedule(
+--     'outbound-dialer',
+--     '* * * * *',
+--     $$select net.http_post(
+--        url := 'https://<production-domain>/api/internal/outbound-dialer',
+--        headers := jsonb_build_object(
+--          'Content-Type', 'application/json',
+--          'x-internal-secret', '<OUTBOUND_DIALER_SECRET>'
+--        ),
+--        timeout_milliseconds := 55000
+--      )$$
+--   );
+--
+-- The same value goes in Vercel as OUTBOUND_DIALER_SECRET. Until both sides
+-- have it, the route answers 401 and campaigns queue without dialling —
+-- which is the safe direction to fail in.
+--
+-- To see whether it is running:
+--   select * from cron.job;
+--   select * from cron.job_run_details order by start_time desc limit 20;

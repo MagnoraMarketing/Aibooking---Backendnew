@@ -2,7 +2,8 @@ import type { Namespace } from "./types";
 
 // app/signup/page.tsx and app/login/page.tsx — rendered before any
 // authenticated profile.language exists, so these use the
-// Accept-Language-detected / NEXT_LOCALE cookie locale (see middleware.ts).
+// NEXT_LOCALE cookie locale — Danish unless the person chose otherwise
+// (see middleware.ts).
 export const auth: Namespace = {
   "signup.tagline": {
     da: "Opret jeres konto",
@@ -28,7 +29,31 @@ export const auth: Namespace = {
     pt: "Idioma preferido",
     de: "Bevorzugte Sprache",
   },
-  "signup.email": { da: "Email", en: "Email", es: "Correo electrónico", fr: "E-mail", pt: "E-mail", de: "E-Mail" },
+  "signup.email": { da: "E-mail", en: "Email", es: "Correo electrónico", fr: "E-mail", pt: "E-mail", de: "E-Mail" },
+  "signup.phone": {
+    da: "Telefon (valgfrit)",
+    en: "Phone (optional)",
+    es: "Teléfono (opcional)",
+    fr: "Téléphone (facultatif)",
+    pt: "Telefone (opcional)",
+    de: "Telefon (optional)",
+  },
+  "signup.phonePlaceholder": {
+    da: "+45 12 34 56 78",
+    en: "+45 12 34 56 78",
+    es: "+45 12 34 56 78",
+    fr: "+45 12 34 56 78",
+    pt: "+45 12 34 56 78",
+    de: "+45 12 34 56 78",
+  },
+  "signup.phoneHelp": {
+    da: "Så kan vi ringe og hjælpe jer godt i gang.",
+    en: "So we can call and help you get started.",
+    es: "Así podemos llamarle y ayudarle a empezar.",
+    fr: "Pour que nous puissions vous appeler et vous aider à démarrer.",
+    pt: "Assim podemos ligar e ajudá-lo a começar.",
+    de: "Damit wir Sie anrufen und beim Start helfen können.",
+  },
   "signup.password": {
     da: "Adgangskode",
     en: "Password",
@@ -101,6 +126,71 @@ export const auth: Namespace = {
     fr: "Le compte a peut-être été créé, mais un problème est survenu : {detail}",
     pt: "A conta pode ter sido criada, mas algo deu errado: {detail}",
     de: "Das Konto wurde möglicherweise erstellt, aber es ist etwas schiefgelaufen: {detail}",
+  },
+  "app.title": {
+    da: "Hent appen på mobilen",
+    en: "Get the app on your phone",
+    es: "Descargue la app en su móvil",
+    fr: "Installez l'app sur votre mobile",
+    pt: "Instale a app no seu telemóvel",
+    de: "Holen Sie sich die App aufs Handy",
+  },
+  "app.scanHint": {
+    da: "Scan koden med telefonens kamera, og føj AIbooking til hjemmeskærmen.",
+    en: "Scan the code with your phone's camera and add AIbooking to your home screen.",
+    es: "Escanee el código con la cámara del móvil y añada AIbooking a la pantalla de inicio.",
+    fr: "Scannez le code avec l'appareil photo de votre mobile et ajoutez AIbooking à l'écran d'accueil.",
+    pt: "Digitalize o código com a câmara do telemóvel e adicione o AIbooking ao ecrã principal.",
+    de: "Scannen Sie den Code mit der Handykamera und legen Sie AIbooking auf den Startbildschirm.",
+  },
+  "app.mobileHint": {
+    da: "Føj AIbooking til hjemmeskærmen, så har du opkald og bookinger lige ved hånden.",
+    en: "Add AIbooking to your home screen to keep calls and bookings at hand.",
+    es: "Añada AIbooking a la pantalla de inicio para tener llamadas y reservas a mano.",
+    fr: "Ajoutez AIbooking à l'écran d'accueil pour garder appels et réservations à portée de main.",
+    pt: "Adicione o AIbooking ao ecrã principal para ter chamadas e marcações sempre à mão.",
+    de: "Legen Sie AIbooking auf den Startbildschirm, um Anrufe und Buchungen griffbereit zu haben.",
+  },
+  "app.install": { da: "Hent app", en: "Get the app", es: "Obtener la app", fr: "Installer l'app", pt: "Obter a app", de: "App holen" },
+  "app.iosHelp": {
+    da: "Tryk på Del-ikonet i Safari, og vælg »Føj til hjemmeskærm«.",
+    en: "Tap the Share icon in Safari and choose “Add to Home Screen”.",
+    es: "Toque el icono Compartir en Safari y elija «Añadir a pantalla de inicio».",
+    fr: "Touchez l'icône Partager dans Safari et choisissez « Sur l'écran d'accueil ».",
+    pt: "Toque no ícone Partilhar no Safari e escolha «Adicionar ao ecrã principal».",
+    de: "Tippen Sie in Safari auf das Teilen-Symbol und wählen Sie „Zum Home-Bildschirm“.",
+  },
+  "completeSignup.title": {
+    da: "Opret din AIbooking-konto",
+    en: "Create your AIbooking account",
+    es: "Cree su cuenta de AIbooking",
+    fr: "Créez votre compte AIbooking",
+    pt: "Crie a sua conta AIbooking",
+    de: "Erstellen Sie Ihr AIbooking-Konto",
+  },
+  "completeSignup.intro": {
+    da: "Du er logget ind som {email}. Login'et findes allerede (fx til Nordcall), men har endnu ingen AIbooking-konto. AIbooking og Nordcall er separate konti, så udfyld firmanavnet for at oprette din AIbooking-konto.",
+    en: "You're signed in as {email}. This login already exists (e.g. for Nordcall) but has no AIbooking account yet. AIbooking and Nordcall are separate accounts, so enter your company name to create your AIbooking account.",
+    es: "Ha iniciado sesión como {email}. Este acceso ya existe (p. ej. para Nordcall), pero aún no tiene cuenta de AIbooking. AIbooking y Nordcall son cuentas separadas: indique el nombre de su empresa para crear su cuenta de AIbooking.",
+    fr: "Vous êtes connecté en tant que {email}. Cet identifiant existe déjà (par ex. pour Nordcall) mais n'a pas encore de compte AIbooking. AIbooking et Nordcall sont des comptes distincts : saisissez le nom de votre entreprise pour créer votre compte AIbooking.",
+    pt: "Tem sessão iniciada como {email}. Este acesso já existe (p. ex. para o Nordcall), mas ainda não tem conta AIbooking. AIbooking e Nordcall são contas separadas: indique o nome da empresa para criar a sua conta AIbooking.",
+    de: "Sie sind als {email} angemeldet. Dieser Login existiert bereits (z. B. für Nordcall), hat aber noch kein AIbooking-Konto. AIbooking und Nordcall sind getrennte Konten – geben Sie Ihren Firmennamen ein, um Ihr AIbooking-Konto zu erstellen.",
+  },
+  "completeSignup.submit": {
+    da: "Opret AIbooking-konto",
+    en: "Create AIbooking account",
+    es: "Crear cuenta de AIbooking",
+    fr: "Créer le compte AIbooking",
+    pt: "Criar conta AIbooking",
+    de: "AIbooking-Konto erstellen",
+  },
+  "completeSignup.otherLogin": {
+    da: "Log ind med en anden konto",
+    en: "Sign in with another account",
+    es: "Iniciar sesión con otra cuenta",
+    fr: "Se connecter avec un autre compte",
+    pt: "Entrar com outra conta",
+    de: "Mit einem anderen Konto anmelden",
   },
   "login.tagline": {
     da: "Log ind på din konto",

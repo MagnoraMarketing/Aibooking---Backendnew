@@ -1,63 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { WidgetWithExtras } from "../agent-configurator";
 import { useTranslation } from "@/components/i18n/language-provider";
-
-type Translate = (key: string, vars?: Record<string, string | number>) => string;
-
-// Widget-controlled text (business_name, welcome_message) is interpolated
-// into the preview's raw HTML below — escape it so a stray "<" or "&" can't
-// break the markup (this iframe is srcDoc'd with allow-same-origin, so it
-// shares the dashboard's own origin).
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-// A stand-in "customer homepage" carrying the widget's *actual* embed
-// snippet, so Test Agent shows exactly what a visitor would see once this
-// is pasted onto their real site — not just the bare widget on a blank page.
-function buildPreviewHtml(widget: WidgetWithExtras, t: Translate): string {
-  const businessName = escapeHtml(widget.business_name ?? widget.name);
-  const welcomeMessage = escapeHtml(widget.welcome_message ?? t("agent.testAgent.defaultWelcomeMessage"));
-
-  return `<!doctype html>
-<html lang="da">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-  body { margin: 0; font-family: system-ui, sans-serif; color: #0f172a; }
-  header { padding: 56px 24px; text-align: center; background: ${widget.secondary_color}1a; }
-  header h1 { margin: 0 0 8px; font-size: 28px; }
-  header p { margin: 0; color: #475569; }
-  main { max-width: 720px; margin: 0 auto; padding: 32px 24px 140px; line-height: 1.6; color: #334155; }
-  .placeholder-block { height: 160px; border-radius: 12px; background: #e2e8f0; margin: 24px 0; }
-</style>
-</head>
-<body>
-  <header>
-    <h1>${businessName}</h1>
-    <p>${welcomeMessage}</p>
-  </header>
-  <main>
-    <h2>${escapeHtml(t("agent.testAgent.previewHeading"))}</h2>
-    <p>
-      ${escapeHtml(t("agent.testAgent.previewParagraph"))}
-    </p>
-    <div class="placeholder-block"></div>
-    <p>
-      ${escapeHtml(t("agent.testAgent.previewFooterParagraph"))}
-    </p>
-  </main>
-  ${widget.embedSnippet}
-</body>
-</html>`;
-}
 
 // widget.js fails silently by design in production (a console.error, no
 // visible UI) so a broken embed never wrecks a customer's real site — but
@@ -100,11 +45,42 @@ function useWidgetConfigCheck(publicId: string) {
   return { status, errorMessage };
 }
 
+// The origin the embed snippet points at, when that isn't this dashboard's
+// own. Resolved in an effect rather than during render: window doesn't exist
+// server-side, and a mismatch that only appears after hydration would
+// otherwise make the markup differ between the two.
+function useMismatchedEmbedOrigin(embedSnippet: string): string | null {
+  const [mismatch, setMismatch] = useState<string | null>(null);
+
+  useEffect(() => {
+    const src = /src="([^"]*)\/widget\.js"/.exec(embedSnippet)?.[1];
+    if (!src) return;
+    try {
+      const embedOrigin = new URL(src, window.location.origin).origin;
+      setMismatch(embedOrigin === window.location.origin ? null : embedOrigin);
+    } catch {
+      setMismatch(null);
+    }
+  }, [embedSnippet]);
+
+  return mismatch;
+}
+
 export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
   const { t } = useTranslation();
   const [showCode, setShowCode] = useState(false);
-  const previewHtml = useMemo(() => buildPreviewHtml(widget, t), [widget, t]);
+  const mismatchedOrigin = useMismatchedEmbedOrigin(widget.embedSnippet);
   const configCheck = useWidgetConfigCheck(widget.public_id);
+
+  // A real same-origin URL, not an iframe srcdoc: a srcdoc document's URL is
+  // `about:srcdoc`, which has no origin, and the widget's realtime stack
+  // (Vapi -> Daily) ends up calling postMessage with the literal string
+  // "null" as its target origin — which throws, leaving the customer looking
+  // at a dead microphone button. See app/widget/[publicId]/preview/route.ts.
+  //
+  // updated_at busts the frame whenever the widget is saved, so the preview
+  // shows the agent as it is now rather than as it was when the tab opened.
+  const previewUrl = `/widget/${encodeURIComponent(widget.public_id)}/preview?v=${encodeURIComponent(widget.updated_at)}`;
 
   if (widget.status !== "active") {
     return (
@@ -126,12 +102,22 @@ export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
         </div>
       ) : null}
 
+      {mismatchedOrigin ? (
+        <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="font-medium">{t("agent.testAgent.embedOriginWarningTitle")}</p>
+          <p className="mt-1">{t("agent.testAgent.embedOriginWarningBody", { origin: mismatchedOrigin })}</p>
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {/* No sandbox attribute: this is our own page on our own origin, and
+            sandboxing it would need allow-same-origin to keep that origin
+            anyway — which is not a boundary, just another way to reintroduce
+            the "null" origin this preview exists to avoid. */}
         <iframe
-          srcDoc={previewHtml}
+          src={previewUrl}
           title={t("agent.testAgent.iframeTitle")}
-          className="h-[560px] w-full border-0"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          className="h-[680px] w-full border-0"
           allow="microphone; autoplay"
         />
       </div>
@@ -139,7 +125,9 @@ export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-slate-500">
           {t("agent.testAgent.description")}{" "}
-          <a href={widget.shareUrl} target="_blank" rel="noreferrer" className="font-medium text-brand-600">
+          {/* The same simulated page the frame shows, which is what the
+              sentence before this link describes — not the bare share page. */}
+          <a href={previewUrl} target="_blank" rel="noreferrer" className="font-medium text-brand-600">
             {t("agent.testAgent.openInNewWindow")}
           </a>
         </p>
@@ -152,11 +140,35 @@ export function TestAgentTab({ widget }: { widget: WidgetWithExtras }) {
         </button>
       </div>
 
-      {showCode ? (
-        <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
-          <code>{previewHtml}</code>
-        </pre>
-      ) : null}
+      {showCode ? <PreviewHtml url={previewUrl} loadingLabel={t("common.loading")} /> : null}
     </div>
+  );
+}
+
+// "Vis HTML" shows the page as actually served, fetched from the same URL the
+// frame loads, rather than a second copy of the markup built here — the two
+// drifting apart is exactly how a preview stops being a preview.
+function PreviewHtml({ url, loadingLabel }: { url: string; loadingLabel: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(url)
+      .then((res) => res.text())
+      .then((text) => {
+        if (!cancelled) setHtml(text);
+      })
+      .catch(() => {
+        if (!cancelled) setHtml(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  return (
+    <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
+      <code>{html ?? loadingLabel}</code>
+    </pre>
   );
 }

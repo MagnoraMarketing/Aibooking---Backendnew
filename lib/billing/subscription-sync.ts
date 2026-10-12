@@ -2,6 +2,8 @@ import "server-only";
 import type Stripe from "stripe";
 import { getAdminClient } from "@/lib/database/admin";
 import { grantCredits, getBalanceSeconds, expireCredits } from "@/lib/credits/ledger";
+import { notifyCustomerPayment } from "@/lib/email/internal-notifications";
+import type { Customer } from "@/types/database";
 
 // Unused minutes carry over, but not forever — cap how many months' worth
 // of included_minutes a balance can accumulate to before expiring the
@@ -15,13 +17,26 @@ const ROLLOVER_MONTHS_CAP = 3;
 // respect to a given Stripe event (see /api/webhooks/stripe for the
 // dedup check via the stripe_events table).
 
-export async function syncSubscriptionFromStripe(subscription: Stripe.Subscription): Promise<void> {
+export interface SyncedSubscription {
+  customerId: string;
+  status: Stripe.Subscription.Status;
+}
+
+export async function syncSubscriptionFromStripe(
+  subscription: Stripe.Subscription,
+  // Set by the webhook when the subscription came from a package-launch
+  // Payment Link (lib/billing/package-launch-offer.ts) instead of our own
+  // createCheckoutSession — a Payment Link can't set per-customer
+  // subscription metadata, so the customer/package pairing rides on the
+  // Checkout Session's client_reference_id instead and is passed in here.
+  explicitRef?: { customerId: string; packageId: string }
+): Promise<SyncedSubscription | null> {
   const supabase = getAdminClient();
 
-  const customerId = subscription.metadata?.aibooking_customer_id;
-  if (!customerId) return; // not a subscription created by this platform
+  const customerId = explicitRef?.customerId ?? subscription.metadata?.aibooking_customer_id;
+  if (!customerId) return null; // not a subscription created by this platform
 
-  let packageId = subscription.metadata?.aibooking_package_id ?? null;
+  let packageId = explicitRef?.packageId ?? subscription.metadata?.aibooking_package_id ?? null;
 
   if (!packageId) {
     const priceId = subscription.items.data[0]?.price?.id;
@@ -42,6 +57,8 @@ export async function syncSubscriptionFromStripe(subscription: Stripe.Subscripti
   const stripeCustomerId =
     typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
 
+  const period = getSubscriptionPeriod(subscription);
+
   const { error } = await supabase.from("subscriptions").upsert(
     {
       customer_id: customerId,
@@ -49,8 +66,8 @@ export async function syncSubscriptionFromStripe(subscription: Stripe.Subscripti
       stripe_subscription_id: subscription.id,
       stripe_customer_id: stripeCustomerId,
       status: subscription.status,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      current_period_start: new Date(period.start * 1000).toISOString(),
+      current_period_end: new Date(period.end * 1000).toISOString(),
       cancel_at_period_end: subscription.cancel_at_period_end,
     },
     { onConflict: "stripe_subscription_id" }
@@ -69,6 +86,26 @@ export async function syncSubscriptionFromStripe(subscription: Stripe.Subscripti
       .eq("id", customerId)
       .is("intro_offer_used_at", null);
   }
+
+  return { customerId, status: subscription.status };
+}
+
+// customer.subscription.* webhook payloads come in the webhook endpoint's
+// API version, not our SDK's. From 2025-03-31 ("basil") on, the billing
+// period lives on each subscription item instead of the subscription itself,
+// so the top-level fields are undefined there — and new Date(NaN)
+// .toISOString() throws, failing the webhook on every retry. Fall back to the
+// first item's period.
+export function getSubscriptionPeriod(subscription: Stripe.Subscription): { start: number; end: number } {
+  const item = subscription.items?.data?.[0] as
+    | { current_period_start?: number; current_period_end?: number }
+    | undefined;
+  const start = subscription.current_period_start ?? item?.current_period_start;
+  const end = subscription.current_period_end ?? item?.current_period_end;
+  if (typeof start !== "number" || typeof end !== "number") {
+    throw new Error(`Stripe subscription ${subscription.id} has no current billing period`);
+  }
+  return { start, end };
 }
 
 export async function markSubscriptionCanceled(subscription: Stripe.Subscription): Promise<void> {
@@ -85,6 +122,14 @@ export async function markSubscriptionCanceled(subscription: Stripe.Subscription
 export async function grantCreditsForPaidInvoice(params: {
   stripeSubscriptionId: string;
   stripeEventId: string;
+  // Straight off the Stripe invoice, so the notification quotes what was
+  // actually charged instead of the package's list price. Optional: an
+  // invoice we can't read an amount from still credits minutes normally.
+  amountPaid?: number | null;
+  currency?: string | null;
+  // Stripe's billing_reason — "subscription_create" is a customer's first
+  // invoice on a subscription, everything else is a renewal or a top-up.
+  billingReason?: string | null;
 }): Promise<void> {
   const supabase = getAdminClient();
 
@@ -115,6 +160,26 @@ export async function grantCreditsForPaidInvoice(params: {
     stripeEventId: params.stripeEventId,
   });
 
+  // Tells the platform inbox a customer paid — a first invoice is the one
+  // worth ringing about, so it's labelled as such (see
+  // lib/email/internal-notifications.ts). Never throws: the webhook must not
+  // 500 and be retried, re-running everything above, over an email.
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("name, email, phone")
+    .eq("id", subscription.customer_id)
+    .maybeSingle<Pick<Customer, "name" | "email" | "phone">>();
+
+  if (customer) {
+    await notifyCustomerPayment({
+      customer,
+      productLabel: pkg.package_name,
+      amountLabel: formatStripeAmount(params.amountPaid, params.currency),
+      isFirstPayment: params.billingReason === "subscription_create",
+      minutesGranted: pkg.included_minutes,
+    });
+  }
+
   // Rollover cap: if this renewal pushed the balance past
   // ROLLOVER_MONTHS_CAP worth of included_minutes, expire the excess.
   // Runs after granting (not before) so the credits just paid for this
@@ -128,4 +193,16 @@ export async function grantCreditsForPaidInvoice(params: {
       description: `Ubrugte credits udløbet (gemmes maks. ${ROLLOVER_MONTHS_CAP} måneder)`,
     });
   }
+}
+
+// Stripe reports amounts in the currency's smallest unit (øre for DKK), so
+// this is the one place that division happens — never re-derived at a call
+// site. Returns undefined when there's nothing trustworthy to show, which
+// simply leaves the amount row out of the notification.
+function formatStripeAmount(amount: number | null | undefined, currency: string | null | undefined): string | undefined {
+  if (typeof amount !== "number" || !currency) return undefined;
+  return new Intl.NumberFormat("da-DK", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+  }).format(amount / 100);
 }

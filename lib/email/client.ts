@@ -7,6 +7,11 @@ import { requireCredentialEnv } from "@/lib/security/env";
 // hardcoded platform defaults elsewhere in this codebase don't either.
 export const PLATFORM_EMAIL_FROM = "AIbooking.dk <mail@aibooking.dk>";
 
+// Where the platform's own notifications land — new signups, payments (see
+// lib/email/internal-notifications.ts). All contact for AIbooking.dk goes to
+// this one address, so it is the same inbox mail is sent *from*.
+export const PLATFORM_NOTIFICATION_TO = "mail@aibooking.dk";
+
 function getApiKey(): string {
   return requireCredentialEnv(
     "RESEND_API_KEY",

@@ -1,11 +1,14 @@
 import { requireMasterAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { AdminBookingSetupTable, type AdminBookingSetupRow } from "@/components/admin/booking-setup-table";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales";
+import { translate } from "@/lib/i18n/dictionaries";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminBookingSetupPage() {
-  await requireMasterAdminForPage();
+  const ctx = await requireMasterAdminForPage();
+  const locale = isLocale(ctx.profile.language) ? ctx.profile.language : DEFAULT_LOCALE;
   const supabase = getAdminClient();
 
   const { data } = await supabase
@@ -38,9 +41,9 @@ export default async function AdminBookingSetupPage() {
       typeof (row.request_details as { notes?: unknown } | null)?.notes === "string"
         ? ((row.request_details as { notes: string }).notes)
         : null,
-    customerName: row.customers?.name ?? "Ukendt kunde",
+    customerName: row.customers?.name ?? translate(locale, "adminPages.shared.unknownCustomer"),
     customerEmail: row.customers?.email ?? "",
-    widgetName: row.widgets?.name ?? "Ukendt agent",
+    widgetName: row.widgets?.name ?? translate(locale, "adminPages.shared.unknownAgent"),
     bookingEnabled: row.widgets?.booking_enabled ?? false,
     calendarConnected: connected.has(row.widget_id),
     startedAt: row.started_at,

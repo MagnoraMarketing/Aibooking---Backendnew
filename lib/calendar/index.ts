@@ -41,6 +41,17 @@ export {
   type CalcomBookingResult,
   type CalcomBooking,
 } from "./calcom";
+export {
+  bookingFailureAdvice,
+  bookingFailureKind,
+  checkBookingDetails,
+  looksLikeEmail,
+  looksLikeName,
+  normalizeDictatedEmail,
+  MALFORMED_EMAIL_ADVICE,
+  type BookingFailureKind,
+  type BookingDetailsInput,
+} from "./booking-failure";
 export { buildCalcomAuthUrl, exchangeCalcomCode, refreshCalcomToken } from "./calcom-oauth";
 export { buildOAuthState, parseOAuthState, cookieNameForProvider, hashOAuthState } from "./oauth-state";
 export { getCalcomTokens, type CalcomTokens } from "./calcom-token";

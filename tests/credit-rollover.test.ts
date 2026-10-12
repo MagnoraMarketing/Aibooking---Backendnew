@@ -15,6 +15,10 @@ function nextId(): string {
   return `id-${idCounter}`;
 }
 
+vi.mock("@/lib/email/internal-notifications", () => ({
+  notifyCustomerPayment: vi.fn(async () => {}),
+}));
+
 vi.mock("@/lib/database/admin", () => ({
   getAdminClient: () => ({
     from: (table: string) => {
@@ -45,6 +49,16 @@ vi.mock("@/lib/database/admin", () => ({
                 return { data: account ? { balance_seconds: account.balance_seconds } : null, error: null };
               },
             }),
+          }),
+        };
+      }
+      if (table === "customers") {
+        // Only read to address the "kunden har betalt"-notification
+        // (lib/email/internal-notifications.ts, mocked out below) — the
+        // rollover maths under test doesn't depend on it.
+        return {
+          select: () => ({
+            eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
           }),
         };
       }

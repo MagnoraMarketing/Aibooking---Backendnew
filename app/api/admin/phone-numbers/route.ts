@@ -16,7 +16,9 @@ export const GET = withErrorHandling(async () => {
 
   const { data, error } = await supabase
     .from("phone_numbers")
-    .select(`${PHONE_NUMBER_CLIENT_COLUMNS}, customers(name, email), widgets(name)`)
+    .select(
+      `${PHONE_NUMBER_CLIENT_COLUMNS}, customers(name, email), widgets(id, name, wapi_agents(wapi_agent_id, name))`
+    )
     .order("created_at", { ascending: false });
 
   if (error) throw error;

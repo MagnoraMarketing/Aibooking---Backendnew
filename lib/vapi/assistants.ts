@@ -1,5 +1,14 @@
 import "server-only";
-import { getVapiVoiceTemplateAssistantId, type VapiVoiceGender } from "@/lib/settings/platform";
+import { getVapiVoiceTemplateAssistantId } from "@/lib/settings/platform";
+import { DEFAULT_VOICE_GENDER, FALLBACK_VOICE_BY_GENDER, type VapiVoiceGender } from "./voice-gender";
+import { getPublicAppUrl, isPubliclyReachableAppUrl } from "@/lib/app-url";
+import {
+  toolWaitText,
+  toolFailedText,
+  withNoBookingDirective,
+  withBookingFlowDirective,
+  withEndCallDirective,
+} from "@/lib/i18n/agent-content";
 import { vapiFetch } from "./client";
 
 export type { VapiVoiceGender };
@@ -9,44 +18,94 @@ export interface VapiAssistantParams {
   systemPrompt: string;
   firstMessage: string;
   // "male"/"female" picks up the voice from the matching admin-configured
-  // template assistant (see resolveVoiceConfig below); null/undefined falls
-  // back to the platform's original fixed voice.
+  // template assistant (see resolveTemplate below); null/undefined falls
+  // back to the platform's original fixed voice and model.
   voiceGender?: VapiVoiceGender | null;
+  // Vapi's own call limits. Omitted rather than sent as null when unset, so
+  // an assistant keeps whatever Vapi defaults to instead of being handed a
+  // value we invented.
+  silenceTimeoutSeconds?: number | null;
+  maxDurationSeconds?: number | null;
+  // The widget's configured language (widgets.language). Decides what the
+  // assistant says out loud while a tool runs — see withSpokenToolMessages.
+  language?: string | null;
 }
 
-// Fixed to a fast/cheap Claude model rather than getSummarizationModelName
-// (tuned for background summarization quality, not per-turn voice latency)
-// — every Vapi widget agent uses this, regardless of the customer's own
-// choices, since a realtime voice call has no room for a slower model.
-const VAPI_ASSISTANT_MODEL = "claude-haiku-4-5-20251001";
+// The model the widget agent runs on is not a customer choice: it is
+// whatever the master admin has configured on the Vapi template assistant
+// (see resolveTemplate below), exactly like the voice. This constant is only
+// the floor for when no template is configured, or its model block can't be
+// read — a fast/cheap Claude model rather than getSummarizationModelName
+// (tuned for background summarization quality, not per-turn voice latency),
+// since a realtime voice call has no room for a slower model.
+const FALLBACK_MODEL_PROVIDER = "anthropic";
+const FALLBACK_MODEL_NAME = "claude-haiku-4-5-20251001";
 
-async function resolveModelName(): Promise<string> {
-  return VAPI_ASSISTANT_MODEL;
+interface VapiTemplateAssistant {
+  voice?: Record<string, unknown>;
+  model?: Record<string, unknown>;
 }
 
-const FALLBACK_VOICE = { provider: "vapi", version: 2, voiceId: "Elliot" };
-
-// Clones the `voice` block from a master-admin-configured "template"
-// assistant (one for "male", one for "female") rather than storing voice
-// settings ourselves — the admin builds/tunes each template directly in
-// Vapi's own dashboard, and we just mirror whatever it's currently set to.
-// Best-effort: no template configured yet, or Vapi is unreachable, falls
-// back to the platform's original fixed voice rather than failing the
-// caller's create/update.
-async function resolveVoiceConfig(voiceGender: VapiVoiceGender | null | undefined): Promise<Record<string, unknown>> {
-  if (!voiceGender) return FALLBACK_VOICE;
-
-  const templateAssistantId = await getVapiVoiceTemplateAssistantId(voiceGender);
-  if (!templateAssistantId) return FALLBACK_VOICE;
+// Reads the master-admin-configured "template" assistant (one for "male",
+// one for "female") that widget assistants are cloned from, rather than
+// storing voice/model settings ourselves — the admin builds and tunes each
+// template directly in Vapi's own dashboard, and we mirror whatever it is
+// currently set to. Fetched once per assistant build: both resolveVoiceConfig
+// and resolveModelConfig read the same response.
+async function resolveTemplate(gender: VapiVoiceGender): Promise<VapiTemplateAssistant | null> {
+  const templateAssistantId = await getVapiVoiceTemplateAssistantId(gender);
+  if (!templateAssistantId) {
+    console.error(
+      `No Vapi ${gender} voice template configured — using the built-in ${gender} fallback voice and model.`
+    );
+    return null;
+  }
 
   try {
     const response = await vapiFetch(`/assistant/${encodeURIComponent(templateAssistantId)}`, { method: "GET" });
-    const data = (await response.json()) as { voice?: Record<string, unknown> };
-    return data.voice ?? FALLBACK_VOICE;
+    return (await response.json()) as VapiTemplateAssistant;
   } catch (err) {
-    console.error(`Failed to read Vapi ${voiceGender} voice template (${templateAssistantId}):`, err);
-    return FALLBACK_VOICE;
+    console.error(`Failed to read Vapi ${gender} voice template (${templateAssistantId}):`, err);
+    return null;
   }
+}
+
+// Every failure path here falls back to a voice OF THE REQUESTED GENDER,
+// never to one fixed voice: a customer who picked "Dame" and got a male
+// voice back because a template was unset is a worse outcome than a
+// slightly different female voice, and one they can't diagnose or fix from
+// the dashboard.
+function resolveVoiceConfig(template: VapiTemplateAssistant | null, gender: VapiVoiceGender): Record<string, unknown> {
+  const fallback = FALLBACK_VOICE_BY_GENDER[gender];
+  if (!template) return fallback;
+
+  if (!template.voice) {
+    console.error(`Vapi ${gender} voice template has no voice block — using the fallback voice.`);
+    return fallback;
+  }
+  return template.voice;
+}
+
+// Takes only the engine (provider + model name, and the generation knobs the
+// admin tuned) from the template. The system prompt and the tools are built
+// per widget below and must never come from the template — cloning its
+// `messages` would replace every customer's prompt with the admin's.
+function resolveModelConfig(template: VapiTemplateAssistant | null, gender: VapiVoiceGender): Record<string, unknown> {
+  const fallback = { provider: FALLBACK_MODEL_PROVIDER, model: FALLBACK_MODEL_NAME };
+  if (!template) return fallback;
+
+  const model = template.model;
+  if (!model || typeof model.provider !== "string" || typeof model.model !== "string") {
+    console.error(`Vapi ${gender} voice template has no usable model block — using ${FALLBACK_MODEL_NAME}.`);
+    return fallback;
+  }
+
+  return {
+    provider: model.provider,
+    model: model.model,
+    ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
+    ...(typeof model.maxTokens === "number" ? { maxTokens: model.maxTokens } : {}),
+  };
 }
 
 // Without this, Vapi has nowhere to send call events (transcripts,
@@ -58,9 +117,27 @@ async function resolveVoiceConfig(voiceGender: VapiVoiceGender | null | undefine
 // every delivery fail signature verification instead of never being sent.
 function webhookConfig(): { serverUrl: string; serverUrlSecret: string } | Record<string, never> {
   const secret = process.env.VAPI_WEBHOOK_SECRET;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (!secret || !appUrl) return {};
-  return { serverUrl: `${appUrl}/api/webhooks/vapi`, serverUrlSecret: secret };
+  if (!secret) {
+    console.warn(
+      "[vapi] VAPI_WEBHOOK_SECRET is not set — assistants are created without a serverUrl, so call events, " +
+        "per-call billing and the booking tools will never reach us."
+    );
+    return {};
+  }
+
+  // Vapi has to reach this URL from its own servers, so a localhost fallback
+  // is worse than none: the assistant would be created with a serverUrl that
+  // silently never resolves. getPublicAppUrl covers the common case of
+  // NEXT_PUBLIC_APP_URL simply not being set on a Vercel deployment.
+  if (!isPubliclyReachableAppUrl()) {
+    console.warn(
+      `[vapi] ${getPublicAppUrl()} is not publicly reachable — assistants are created without a serverUrl, so ` +
+        "call events, per-call billing and the booking tools will never reach us. Set NEXT_PUBLIC_APP_URL."
+    );
+    return {};
+  }
+
+  return { serverUrl: `${getPublicAppUrl()}/api/webhooks/vapi`, serverUrlSecret: secret };
 }
 
 // The tools a booking-enabled assistant may call mid-call. They're declared
@@ -103,10 +180,24 @@ function buildBookingTools() {
               type: "string",
               description: "Starttidspunkt i ISO 8601 med tidszone, fx 2026-03-15T14:00:00+01:00.",
             },
-            customer_name: { type: "string", description: "Kundens fulde navn." },
-            customer_email: { type: "string", description: "Kundens email til bekræftelsen." },
+            customer_name: { type: "string", description: "Kundens fulde navn, som kunden selv har oplyst det." },
+            customer_email: {
+              type: "string",
+              // Read back and confirmed, because an address heard wrong is
+              // the one booking failure the caller can fix on the spot —
+              // and the one that otherwise ends the call with nothing.
+              description:
+                "Kundens e-mailadresse, som bekræftelsen sendes til. Læs adressen op for kunden og få den bekræftet, før du booker.",
+            },
+            // Enforced server-side (checkBookingDetails): a booking without
+            // it is refused and the agent is told to read the address back.
+            email_confirmed: {
+              type: "boolean",
+              description:
+                "true, når du har læst e-mailadressen op for kunden og kunden har sagt, at den er korrekt. Bookingen afvises ellers.",
+            },
           },
-          required: ["start_time", "customer_name", "customer_email"],
+          required: ["start_time", "customer_name", "customer_email", "email_confirmed"],
         },
       },
     },
@@ -172,26 +263,120 @@ function buildBookingTools() {
   ];
 }
 
-// Transcriber is still fixed (Soniox STT RT v5) — voice now comes from
-// resolveVoiceConfig, cloned from whichever male/female template the
-// customer's widget is set to (see VapiAssistantParams.voiceGender).
+// Vapi's built-in hang-up tool, on every assistant: when the customer says
+// goodbye, the agent says goodbye back and calls it (see END_CALL_DIRECTIVE
+// in lib/i18n/agent-content.ts). The function is named explicitly so the
+// prompt and the tool always agree on what to call. An empty `messages`
+// keeps withSpokenToolMessages from putting "Lige et øjeblik." in front of
+// the hang-up.
+export function buildEndCallTool() {
+  return {
+    type: "endCall",
+    messages: [],
+    function: {
+      name: "endCall",
+      description:
+        "Afslut opkaldet. Brug det, når kunden har sagt farvel eller beder om at afslutte samtalen — efter du har sagt en kort afskedshilsen.",
+      parameters: { type: "object", properties: {} },
+    },
+  };
+}
+
+// Vapi speaks a filler the instant a tool fires, before the model has said
+// anything — and a tool that carries no `messages` of its own gets Vapi's
+// built-in ones, which are English whatever language the agent is speaking.
+// That is where "Hold on a sec." came from in the middle of a Danish call.
+//
+// Attached here, to every tool in the payload, rather than in each tool
+// builder: booking tools and Shopify tools are assembled in different modules
+// (lib/vapi/assistants.ts and lib/shopify/tool-definitions.ts), and a filler
+// in the wrong language is exactly the kind of thing that gets forgotten when
+// the next tool is added somewhere else. A builder that sets its own
+// `messages` keeps them.
+function withSpokenToolMessages(tools: unknown[], language: string | null | undefined): unknown[] {
+  return tools.map((tool) => {
+    const record = (tool ?? {}) as Record<string, unknown>;
+    if (Array.isArray(record.messages)) return tool;
+
+    return {
+      ...record,
+      messages: [
+        { type: "request-start", content: toolWaitText(language) },
+        { type: "request-failed", content: toolFailedText(language) },
+      ],
+    };
+  });
+}
+
+// Once the agent has asked for an email address, it waits for a full second
+// of silence before answering. People dictate addresses in bursts ("anna …
+// punktum … hansen"), and the default endpointing jumps in at the first
+// pause — the agent then reads back half an address. The rule only matches
+// right after the agent's own question, so every other turn keeps its normal
+// snappy timing. Matched against the assistant's last message; written with
+// explicit case alternatives rather than regexOptions to keep the payload to
+// the fields Vapi documents for every rule type.
+export const EMAIL_PAUSE_RULE = {
+  type: "assistant",
+  regex: "[Mm]ail|[Cc]orreo|[Cc]ourriel",
+  timeoutSeconds: 1,
+} as const;
+
+// If Vapi ever rejects the endpointing plan, the prompt and tools must still
+// reach the assistant (same reasoning as isVoiceRejection below).
+function isStartSpeakingPlanRejection(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /startSpeakingPlan|customEndpointingRules/i.test(message);
+}
+
+// Transcriber is still fixed (Soniox STT RT v5) — voice and model both come
+// from whichever male/female template the customer's widget is set to (see
+// VapiAssistantParams.voiceGender), read in a single fetch.
 // Booking tools are attached only for a widget whose calendar is connected
 // and whose booking_enabled gate is on (see lib/vapi/sync.ts).
 async function buildAssistantBody(
   params: VapiAssistantParams,
-  modelName: string,
-  includeBookingTools: boolean = false
+  includeBookingTools: boolean = false,
+  extraTools: unknown[] = []
 ) {
+  const gender = params.voiceGender ?? DEFAULT_VOICE_GENDER;
+  const template = await resolveTemplate(gender);
+
+  // An agent with no booking tools is told so, in its own language. The
+  // customer's prompt describes a receptionist who takes appointments; only
+  // the tool list knows whether it can — and without this the agent invents
+  // the booking rather than admitting it cannot make one. See
+  // NO_BOOKING_DIRECTIVE in lib/i18n/agent-content.ts.
+  //
+  // An agent that can book gets the platform's booking flow instead (fast
+  // offer, email read back and confirmed, explicit yes before booking) — see
+  // BOOKING_FLOW_DIRECTIVE.
+  //
+  // Every agent is also told to hang up once the customer says goodbye — see
+  // buildEndCallTool.
+  const systemPrompt = withEndCallDirective(
+    includeBookingTools
+      ? withBookingFlowDirective(params.systemPrompt, params.language)
+      : withNoBookingDirective(params.systemPrompt, params.language),
+    params.language
+  );
+
   const model: Record<string, unknown> = {
-    provider: "anthropic",
-    model: modelName,
-    messages: [{ role: "system", content: params.systemPrompt }],
+    ...resolveModelConfig(template, gender),
+    messages: [{ role: "system", content: systemPrompt }],
   };
 
-  // Sent as an empty list when booking is off, not omitted — a PATCH that
+  // Sent as an empty list when nothing is enabled, not omitted — a PATCH that
   // leaves the key out would let tools linger on an assistant whose booking
-  // was switched back off.
-  model.tools = includeBookingTools ? buildBookingTools() : [];
+  // (or webshop) was switched back off.
+  //
+  // `extraTools` is how the Shopify integration adds its own tools without
+  // this module having to know anything about webshops; lib/vapi/sync.ts
+  // decides which ones a given widget gets.
+  model.tools = withSpokenToolMessages(
+    [...(includeBookingTools ? buildBookingTools() : []), ...extraTools, buildEndCallTool()],
+    params.language
+  );
 
   return {
     name: params.name,
@@ -206,32 +391,165 @@ async function buildAssistantBody(
       provider: "soniox",
       model: "stt-rt-v5",
     },
-    voice: await resolveVoiceConfig(params.voiceGender),
+    voice: resolveVoiceConfig(template, gender),
+    // Always sent (not only with booking tools), so a PATCH never leaves a
+    // stale plan behind — the rule only ever lengthens the pause after the
+    // agent asked for an email.
+    startSpeakingPlan: { customEndpointingRules: [EMAIL_PAUSE_RULE] },
+    ...(typeof params.silenceTimeoutSeconds === "number"
+      ? { silenceTimeoutSeconds: params.silenceTimeoutSeconds }
+      : {}),
+    ...(typeof params.maxDurationSeconds === "number" ? { maxDurationSeconds: params.maxDurationSeconds } : {}),
     ...webhookConfig(),
   };
 }
 
+// A raw assistant as Vapi's list/get endpoints return it — used only by the
+// admin "Wapi Agents" catalog (lib/vapi/agent-sync.ts), never by the
+// call-answering path, which only ever needs the id (see
+// VapiAssistantParams above). Every field is read defensively since Vapi's
+// response shape for a hand-built assistant (created directly in their
+// dashboard, not by createVapiAssistant) can omit any of them.
+export interface VapiAssistantSummary {
+  id: string;
+  name: string | null;
+  voiceProvider: string | null;
+  voiceId: string | null;
+  modelProvider: string | null;
+  modelName: string | null;
+  language: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+function toAssistantSummary(raw: Record<string, unknown>): VapiAssistantSummary | null {
+  const id = raw.id;
+  if (typeof id !== "string") return null;
+
+  const voice = (raw.voice ?? {}) as Record<string, unknown>;
+  const model = (raw.model ?? {}) as Record<string, unknown>;
+  const transcriber = (raw.transcriber ?? {}) as Record<string, unknown>;
+
+  return {
+    id,
+    name: typeof raw.name === "string" ? raw.name : null,
+    voiceProvider: typeof voice.provider === "string" ? voice.provider : null,
+    voiceId: typeof voice.voiceId === "string" ? voice.voiceId : null,
+    modelProvider: typeof model.provider === "string" ? model.provider : null,
+    modelName: typeof model.model === "string" ? model.model : null,
+    language: typeof transcriber.language === "string" ? transcriber.language : null,
+    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : null,
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : null,
+  };
+}
+
+// GET /assistant — every assistant in the platform's Vapi account. Backs the
+// admin "Wapi Agent" selector/sync (see lib/vapi/agent-sync.ts) — Vapi has no
+// separate "list templates vs. customer assistants" endpoint, so this is
+// every assistant the account owns, voice templates and per-widget
+// assistants alike.
+export async function listVapiAssistants(): Promise<VapiAssistantSummary[]> {
+  const response = await vapiFetch("/assistant", { method: "GET" });
+  const data = (await response.json()) as unknown;
+  if (!Array.isArray(data)) return [];
+
+  const summaries: VapiAssistantSummary[] = [];
+  for (const row of data) {
+    const summary = toAssistantSummary((row ?? {}) as Record<string, unknown>);
+    if (summary) summaries.push(summary);
+  }
+  return summaries;
+}
+
+// GET /assistant/{id} — a single assistant's current config, for the "View"
+// / per-row "Refresh" action on the admin Wapi Agents page and for a manually
+// typed agent id the sync hasn't seen yet.
+export async function getVapiAssistantDetails(assistantId: string): Promise<VapiAssistantSummary | null> {
+  const response = await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, { method: "GET" });
+  const data = (await response.json()) as Record<string, unknown>;
+  return toAssistantSummary(data);
+}
+
 export async function createVapiAssistant(
   params: VapiAssistantParams,
-  includeBookingTools = false
+  includeBookingTools = false,
+  extraTools: unknown[] = []
 ): Promise<{ id: string }> {
-  const modelName = await resolveModelName();
-  const response = await vapiFetch("/assistant", {
-    method: "POST",
-    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools)),
-  });
+  const body = await buildAssistantBody(params, includeBookingTools, extraTools);
+  let response: Response;
+  try {
+    response = await vapiFetch("/assistant", { method: "POST", body: JSON.stringify(body) });
+  } catch (err) {
+    if (!isStartSpeakingPlanRejection(err)) throw err;
+    const { startSpeakingPlan: rejectedPlan, ...withoutPlan } = body;
+    console.error(
+      `[vapi] New assistant: startSpeakingPlan rejected (${JSON.stringify(rejectedPlan)}). Retrying without it.`,
+      err
+    );
+    response = await vapiFetch("/assistant", { method: "POST", body: JSON.stringify(withoutPlan) });
+  }
   const data = (await response.json()) as { id: string };
   return { id: data.id };
+}
+
+// DELETE /assistant/{id}. Only ever called on an assistant this request just
+// created for an agent that then failed to save — cleaning up so a failed
+// "Create agent" never leaves an orphaned assistant behind in Vapi. Never
+// used on an agent that exists: agents are paused, not deleted, and keep
+// their assistant.
+export async function deleteVapiAssistant(assistantId: string): Promise<void> {
+  await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, { method: "DELETE" });
+}
+
+// Vapi retires voices, and it refuses the whole PATCH when one is named:
+//
+//   "The Lily voice is part of a legacy voice set that is being phased out,
+//    and assistants cannot be updated to use this voice."
+//
+// That took the rest of the update down with it — the system prompt, the
+// knowledge base and the Shopify/booking tools all travel in the same PATCH,
+// so a stale voice name silently stopped every one of them from reaching the
+// assistant. The voice is the least important thing in that payload.
+function isVoiceRejection(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /voice/i.test(message) && /(400|not supported|phased out|legacy)/i.test(message);
 }
 
 export async function updateVapiAssistant(
   assistantId: string,
   params: VapiAssistantParams,
-  includeBookingTools = false
+  includeBookingTools = false,
+  extraTools: unknown[] = []
 ): Promise<void> {
-  const modelName = await resolveModelName();
-  await vapiFetch(`/assistant/${encodeURIComponent(assistantId)}`, {
-    method: "PATCH",
-    body: JSON.stringify(await buildAssistantBody(params, modelName, includeBookingTools)),
-  });
+  const body = await buildAssistantBody(params, includeBookingTools, extraTools);
+  const path = `/assistant/${encodeURIComponent(assistantId)}`;
+
+  try {
+    await vapiFetch(path, { method: "PATCH", body: JSON.stringify(body) });
+  } catch (err) {
+    if (isStartSpeakingPlanRejection(err)) {
+      const { startSpeakingPlan: rejectedPlan, ...withoutPlan } = body;
+      console.error(
+        `[vapi] Assistant ${assistantId}: startSpeakingPlan rejected (${JSON.stringify(rejectedPlan)}). ` +
+          "Retrying without it so the prompt, knowledge base and tools still sync.",
+        err
+      );
+      await vapiFetch(path, { method: "PATCH", body: JSON.stringify(withoutPlan) });
+      return;
+    }
+    if (!isVoiceRejection(err)) throw err;
+
+    // Retry without the voice: the assistant keeps whatever voice it already
+    // had, and everything else in the update still lands. Loud, because the
+    // configured voice is now wrong and someone has to pick another one.
+    const { voice: rejectedVoice, ...withoutVoice } = body;
+    console.error(
+      `[vapi] Assistant ${assistantId}: voice rejected (${JSON.stringify(rejectedVoice)}). ` +
+        "Retrying without it so the prompt, knowledge base and tools still sync. " +
+        "Configure the voice templates, or set VAPI_FALLBACK_VOICE_FEMALE / VAPI_FALLBACK_VOICE_MALE " +
+        "to a voice Vapi still supports.",
+      err
+    );
+    await vapiFetch(path, { method: "PATCH", body: JSON.stringify(withoutVoice) });
+  }
 }

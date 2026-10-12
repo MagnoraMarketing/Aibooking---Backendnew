@@ -1,5 +1,7 @@
 import "server-only";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { ApiError } from "@/types/errors";
+import { requireCredentialEnv } from "./env";
 
 // Encrypts sensitive third-party credentials at rest — currently just the
 // Cal.com API key (calendar_connections.calcom_api_key; see
@@ -15,14 +17,24 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 
+// Via requireCredentialEnv rather than a bare throw: a plain Error reaches
+// the browser as "Something went wrong" (errorResponse masks non-ApiError
+// throws, deliberately, so internals never leak), and that is what a
+// deployment missing this variable actually looked like — a customer pasting
+// a perfectly good Cal.com key, getting an opaque failure, and no way to tell
+// it apart from a rejected key. It also catches the line breaks an
+// `openssl rand -base64 32` value picks up when it is pasted into Vercel.
 function getEncryptionKey(): Buffer {
-  const raw = process.env.CALENDAR_CREDENTIALS_ENCRYPTION_KEY;
-  if (!raw) {
-    throw new Error("Missing required environment variable: CALENDAR_CREDENTIALS_ENCRYPTION_KEY");
-  }
+  const raw = requireCredentialEnv(
+    "CALENDAR_CREDENTIALS_ENCRYPTION_KEY",
+    "Kalenderintegrationen er ikke konfigureret på dette miljø endnu (mangler CALENDAR_CREDENTIALS_ENCRYPTION_KEY i miljøvariablerne)."
+  );
+
   const key = Buffer.from(raw, "base64");
   if (key.length !== 32) {
-    throw new Error("CALENDAR_CREDENTIALS_ENCRYPTION_KEY must decode to exactly 32 bytes (base64-encoded)");
+    throw ApiError.internal(
+      "CALENDAR_CREDENTIALS_ENCRYPTION_KEY er sat forkert: værdien skal afkode til præcis 32 bytes (base64), fx fra `openssl rand -base64 32`."
+    );
   }
   return key;
 }

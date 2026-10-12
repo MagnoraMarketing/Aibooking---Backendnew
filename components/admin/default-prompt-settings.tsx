@@ -1,19 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "@/components/i18n/language-provider";
 
 interface DefaultPromptSettingsProps {
   initialPrompt: string;
 }
 
 export function DefaultPromptSettings({ initialPrompt }: DefaultPromptSettingsProps) {
+  const { t } = useTranslation();
   const [prompt, setPrompt] = useState(initialPrompt);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   async function handleSave() {
     if (!prompt.trim()) {
-      setMessage({ type: "error", text: "Prompt kan ikke være tom." });
+      setMessage({ type: "error", text: t("adminPages.defaultPrompt.errorEmpty") });
       return;
     }
 
@@ -28,14 +30,14 @@ export function DefaultPromptSettings({ initialPrompt }: DefaultPromptSettingsPr
       });
 
       if (!res.ok) {
-        throw new Error("Kunne ikke gemme prompt");
+        throw new Error(t("adminPages.defaultPrompt.errorSaveFailed"));
       }
 
-      setMessage({ type: "success", text: "Standard prompt gemt." });
+      setMessage({ type: "success", text: t("adminPages.defaultPrompt.saved") });
     } catch (err) {
       setMessage({
         type: "error",
-        text: err instanceof Error ? err.message : "Noget gik galt.",
+        text: err instanceof Error ? err.message : t("common.unknownError"),
       });
     } finally {
       setSaving(false);
@@ -45,18 +47,18 @@ export function DefaultPromptSettings({ initialPrompt }: DefaultPromptSettingsPr
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Standard System Prompt</label>
-        <p className="text-sm text-gray-600 mb-3">
-          Denne prompt bruges som standard når nye agenter oprettes. Kunder kan tilpasse den for hver agent.
-        </p>
+        <label className="block text-sm font-medium text-gray-700 mb-2">{t("adminPages.defaultPrompt.label")}</label>
+        <p className="text-sm text-gray-600 mb-3">{t("adminPages.defaultPrompt.description")}</p>
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           rows={8}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-          placeholder="Skriv standard prompt her..."
+          placeholder={t("adminPages.defaultPrompt.placeholder")}
         />
-        <p className="text-xs text-gray-500 mt-2">{prompt.length} / 8000 tegn</p>
+        <p className="text-xs text-gray-500 mt-2">
+          {t("adminPages.defaultPrompt.charCount", { count: prompt.length })}
+        </p>
       </div>
 
       {message && (
@@ -74,7 +76,7 @@ export function DefaultPromptSettings({ initialPrompt }: DefaultPromptSettingsPr
         disabled={saving}
         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {saving ? "Gemmer..." : "Gem"}
+        {saving ? t("common.saving") : t("common.save")}
       </button>
     </div>
   );

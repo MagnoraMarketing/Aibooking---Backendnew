@@ -5,6 +5,13 @@ import { useSearchParams } from "next/navigation";
 import type { Package, Subscription } from "@/types/database";
 import { useTranslation } from "@/components/i18n/language-provider";
 
+interface TransactionRow {
+  id: string;
+  description: string | null;
+  amountSeconds: number;
+  createdAt: string;
+}
+
 interface BillingManagerProps {
   hasStripeCustomer: boolean;
   subscription: Subscription | null;
@@ -14,6 +21,7 @@ interface BillingManagerProps {
   isWithinTrial: boolean;
   trialDaysRemaining: number;
   trialMinutes: number;
+  transactions: TransactionRow[];
 }
 
 function formatCurrency(amount: number, currency: string): string {
@@ -31,6 +39,10 @@ const SUBSCRIPTION_STATUS_KEYS: Record<string, string> = {
   paused: "dashboardPages.billing.status.paused",
 };
 
+function formatMinutes(seconds: number): string {
+  return (Math.round((seconds / 60) * 10) / 10).toFixed(1);
+}
+
 export function BillingManager({
   hasStripeCustomer,
   subscription,
@@ -40,17 +52,28 @@ export function BillingManager({
   isWithinTrial,
   trialDaysRemaining,
   trialMinutes,
+  transactions,
 }: BillingManagerProps) {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
   const checkoutResult = searchParams.get("checkout");
   const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
+  const [includeSetup, setIncludeSetup] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const balanceMinutes = Math.round((balanceSeconds / 60) * 100) / 100;
   const isActiveSubscription = subscription?.status === "active" || subscription?.status === "trialing";
   const showTrialBanner = isWithinTrial && !isActiveSubscription;
+  const paymentFailed = subscription?.status === "past_due" || subscription?.status === "unpaid";
+
+  // Rollover (see subscription-sync.ts) can leave the balance above the
+  // package's included_minutes, in which case the bar simply reads as a
+  // fresh, untouched pool rather than showing a nonsensical >100% used.
+  const includedMinutes = currentPackage?.included_minutes ?? 0;
+  const remainingOfCycle = Math.max(0, Math.min(balanceMinutes, includedMinutes));
+  const usedOfCycle = Math.max(0, includedMinutes - remainingOfCycle);
+  const usedPercent = includedMinutes > 0 ? Math.min(100, Math.round((usedOfCycle / includedMinutes) * 100)) : 0;
 
   async function handleCheckout(packageId: string) {
     setCheckingOutId(packageId);
@@ -59,7 +82,7 @@ export function BillingManager({
     const res = await fetch("/api/billing/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ packageId }),
+      body: JSON.stringify({ packageId, includeSetup }),
     });
 
     if (!res.ok) {
@@ -69,8 +92,16 @@ export function BillingManager({
       return;
     }
 
-    const { url } = await res.json();
-    window.location.href = url;
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+      return;
+    }
+
+    // A package switch (existing subscription updated in place) has no
+    // checkout URL to redirect to — just reflect the new state.
+    setCheckingOutId(null);
+    window.location.reload();
   }
 
   async function handlePortal() {
@@ -122,6 +153,20 @@ export function BillingManager({
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
+      {paymentFailed ? (
+        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <p>{t("dashboardPages.billing.paymentFailedMessage")}</p>
+          <button
+            type="button"
+            onClick={handlePortal}
+            disabled={openingPortal}
+            className="mt-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+          >
+            {t("dashboardPages.billing.updateCard")}
+          </button>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -140,6 +185,32 @@ export function BillingManager({
                 <p className="mt-2 text-xs font-medium text-slate-500">
                   {t("dashboardPages.billing.statusLabel", {
                     status: t(SUBSCRIPTION_STATUS_KEYS[subscription.status] ?? "") || subscription.status,
+                  })}
+                </p>
+              ) : null}
+
+              {includedMinutes > 0 ? (
+                <div className="mt-4">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full rounded-full ${usedPercent >= 90 ? "bg-amber-500" : "bg-brand-500"}`}
+                      style={{ width: `${usedPercent}%` }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    {t("dashboardPages.billing.minutesUsedOfIncluded", {
+                      used: usedOfCycle.toFixed(0),
+                      included: includedMinutes,
+                    })}
+                  </p>
+                </div>
+              ) : null}
+
+              {isActiveSubscription && subscription?.status !== "past_due" ? (
+                <p className="mt-3 text-xs text-slate-500">
+                  {t("dashboardPages.billing.autoRechargeNote", {
+                    minutes: currentPackage.included_minutes,
+                    price: formatCurrency(currentPackage.monthly_price, currentPackage.currency),
                   })}
                 </p>
               ) : null}
@@ -172,7 +243,18 @@ export function BillingManager({
       ) : null}
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">{t("dashboardPages.billing.packagesHeading")}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-900">{t("dashboardPages.billing.packagesHeading")}</h2>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={includeSetup}
+              onChange={(e) => setIncludeSetup(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            {t("dashboardPages.billing.includeSetupLabel")}
+          </label>
+        </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {availablePackages.map((pkg) => {
             const isCurrent = currentPackage?.id === pkg.id && isActiveSubscription;
@@ -210,11 +292,41 @@ export function BillingManager({
                     ? t("dashboardPages.billing.currentPlanButton")
                     : checkingOutId === pkg.id
                       ? t("dashboardPages.shared.openingCheckout")
-                      : t("dashboardPages.billing.orderPackage")}
+                      : isActiveSubscription
+                        ? t("dashboardPages.billing.switchToPackage")
+                        : t("dashboardPages.billing.orderPackage")}
                 </button>
               </div>
             );
           })}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-slate-900">{t("dashboardPages.billing.paymentHistoryHeading")}</h2>
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full text-left text-sm">
+            <tbody className="divide-y divide-slate-100">
+              {transactions.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-6 text-center text-slate-500">{t("dashboardPages.billing.noTransactionsYet")}</td>
+                </tr>
+              ) : (
+                transactions.map((txn) => (
+                  <tr key={txn.id}>
+                    <td className="px-4 py-3 text-slate-700">{txn.description ?? "—"}</td>
+                    <td className="px-4 py-3 text-right font-medium text-slate-900">
+                      {txn.amountSeconds >= 0 ? "+" : ""}
+                      {formatMinutes(txn.amountSeconds)} {t("adminPages.shared.minutesUnit")}
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-slate-500">
+                      {new Date(txn.createdAt).toLocaleDateString("da-DK")}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

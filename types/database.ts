@@ -28,12 +28,27 @@ export interface Customer {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   status: CustomerStatus;
   stripe_customer_id: string | null;
   intro_offer_used_at: string | null;
+  widget_launch_paid_at: string | null;
+  // Free-text reference set by Master Admin on creation (see
+  // lib/customers/onboarding.ts) — typically who sold the customer.
+  // Always null for self-signups.
+  reference: string | null;
+  // Reserved account that owns AIbooking's own "AIbooking website" widgets
+  // (see 0043_admin_wapi_control_center.sql) — never a real tenant, so
+  // customer-facing lists/stats exclude it the same way status='deleted' is.
+  is_platform_owned: boolean;
+  // "samarbejde" = partnership/demo customer, never billed — see
+  // lib/customers/customer-type.ts and 0049_customer_type_samarbejde.sql.
+  customer_type: CustomerType;
   created_at: string;
   updated_at: string;
 }
+
+export type CustomerType = "standard" | "samarbejde";
 
 export interface Package {
   id: string;
@@ -114,15 +129,33 @@ export interface VoiceModel {
   updated_at: string;
 }
 
+// What an agent is, stated rather than inferred from its LLM model — see
+// 0036_agent_type.sql. "widget" answers on the customer's website, "phone"
+// takes calls on a number (Inbound/Outbound/Dialer). Both run on Vapi.
+export type AgentType = "widget" | "phone";
+
+// Which site a widget/agent is deployed on — "aibooking_website" is
+// AIbooking's own agent (owned by the reserved is_platform_owned customer,
+// see 0043_admin_wapi_control_center.sql), "customer_website" is every
+// normal tenant widget. Purely descriptive: it changes nothing about how the
+// agent runs.
+export type WidgetDeploymentType = "customer_website" | "aibooking_website";
+
 export interface Widget {
   id: string;
   customer_id: string;
   public_id: string;
   name: string;
+  agent_type: AgentType;
   status: WidgetStatus;
   business_name: string | null;
   llm_model_id: string | null;
   voice_model_id: string | null;
+  // Display-only FK to the cached Vapi assistant this agent is connected to
+  // — the assistant that actually answers calls is
+  // widget_settings.extra.vapiAssistantId (see 0043's header comment).
+  wapi_agent_id: string | null;
+  deployment_type: WidgetDeploymentType;
   language: string;
   system_prompt: string | null;
   welcome_message: string | null;
@@ -136,6 +169,21 @@ export interface Widget {
   show_branding: boolean;
   max_response_chars: number;
   booking_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Local cache of a Vapi assistant ("Wapi Agent" in the admin UI) — refreshed
+// by lib/vapi/agent-sync.ts's syncWapiAgents(). See 0043_admin_wapi_control_center.sql.
+export interface WapiAgent {
+  id: string;
+  wapi_agent_id: string;
+  name: string | null;
+  status: string | null;
+  language: string | null;
+  voice: string | null;
+  metadata: Record<string, unknown>;
+  last_synced_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -257,7 +305,10 @@ export interface PhoneNumber {
   id: string;
   customer_id: string;
   widget_id: string;
-  vapi_phone_number_id: string;
+  // Null until the number exists in Vapi — a Twilio number bought before
+  // inbound moved to Vapi never gets one (the column is nullable; this type
+  // said otherwise).
+  vapi_phone_number_id: string | null;
   phone_number: string;
   label: string | null;
   source: PhoneNumberSource;
@@ -302,6 +353,36 @@ export interface CalendarConnection {
   calcom_event_type_id: string | null;
   calcom_timezone: string | null;
   default_duration_minutes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Shopify / webshop integration (0035_shopify_integration.sql). One row per
+// widget, holding two independent halves: the public storefront crawl
+// (shop_url, catalog, crawl_*) and the private Admin API install (shop_domain,
+// access_token, status). See lib/shopify for why they stay apart.
+export type ShopifyConnectionStatus = "not_connected" | "connected" | "error" | "reauth_required";
+export type ShopifyCrawlStatus = "pending" | "running" | "ok" | "error";
+
+export interface ShopifyConnectionRow {
+  id: string;
+  customer_id: string;
+  widget_id: string;
+  shop_url: string | null;
+  catalog: unknown;
+  currency: string | null;
+  crawl_status: ShopifyCrawlStatus;
+  crawl_error: string | null;
+  crawled_product_count: number;
+  crawled_page_count: number;
+  last_sync_at: string | null;
+  shop_domain: string | null;
+  /** AES-256-GCM ciphertext. Never selected into a client-facing response. */
+  access_token: string | null;
+  scopes: string | null;
+  status: ShopifyConnectionStatus;
+  status_error: string | null;
+  connected_at: string | null;
   created_at: string;
   updated_at: string;
 }

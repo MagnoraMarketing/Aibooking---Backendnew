@@ -12,6 +12,11 @@ export const createCustomerSchema = z.object({
   voiceModelId: z.string().uuid().optional(),
   businessName: z.string().trim().max(200).optional(),
   sendInvitation: z.boolean().optional().default(true),
+  // Who sold this customer, e.g. a salesperson's name — shown in the client
+  // portal so Master Admin can see who to attribute a customer to.
+  reference: z.string().trim().max(200).optional(),
+  // "samarbejde" = partnership/demo customer, never billed.
+  customerType: z.enum(["standard", "samarbejde"]).optional().default("standard"),
 });
 
 // ---------------------------------------------------------------------------
@@ -20,7 +25,20 @@ export const createCustomerSchema = z.object({
 export const signupSchema = z.object({
   companyName: z.string().trim().min(1).max(200),
   email: z.string().trim().email().max(320),
+  // Optional: it only exists so someone can ring a new customer and welcome
+  // them (see lib/email/internal-notifications.ts). Deliberately unvalidated
+  // beyond a length cap — country prefixes, spaces and parentheses are all
+  // legitimate, and a rejected signup costs far more than a messy number.
+  phone: z.string().trim().max(40).optional(),
   password: z.string().min(8).max(200),
+  language: z.enum(LOCALES).default("da"),
+});
+
+// /account-incomplete: a signed-in login without an AIbooking account (e.g.
+// a Nordcall user) creates its own. Email and password come from the session.
+export const completeSignupSchema = z.object({
+  companyName: z.string().trim().min(1).max(200),
+  phone: z.string().trim().max(40).optional(),
   language: z.enum(LOCALES).default("da"),
 });
 
@@ -36,6 +54,8 @@ export const updateCustomerSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   email: z.string().trim().email().max(320).optional(),
   status: z.enum(["active", "inactive", "deleted"]).optional(),
+  reference: z.string().trim().max(200).optional().nullable(),
+  customer_type: z.enum(["standard", "samarbejde"]).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -125,9 +145,60 @@ export const widgetUpdateSchema = z.object({
   maxResponseChars: z.number().int().min(50).max(2000).optional(),
 });
 
+// Asking Vapi for an inbound number (app/api/customer/phone-numbers/vapi).
+// The area code is optional and US-only — Vapi picks one itself when it is
+// left out, which is what the dashboard does.
+export const vapiNumberInputSchema = z.object({
+  widgetId: z.string().uuid(),
+  label: z.string().trim().max(100).optional(),
+  areaCode: z
+    .string()
+    .trim()
+    .regex(/^\d{3}$/, "Områdenummeret skal være tre cifre")
+    .optional(),
+  // A number already in the platform's Vapi account, chosen from
+  // /api/customer/phone-numbers/vapi/available. Given one, the route attaches
+  // it rather than asking Vapi for a new one — which is the difference
+  // between free and needing a card on file.
+  vapiPhoneNumberId: z.string().trim().min(1).max(100).optional(),
+});
+
 export const createWidgetSchema = widgetUpdateSchema.extend({
   name: z.string().trim().min(1).max(200).default("Main widget"),
+  // What the agent is, sent by the creation wizard. Defaults to "widget"
+  // because that is what every caller that predates the field creates (see
+  // 0036_agent_type.sql).
+  agentType: z.enum(["widget", "phone"]).default("widget"),
 });
+
+// ---------------------------------------------------------------------------
+// Admin Control Center: connecting a widget/inbound agent to a cached Wapi
+// (Vapi) agent and/or an existing phone number, and where it's deployed —
+// shared by the admin widgets and admin inbound routes (see
+// lib/admin/widget-service.ts and 0043_admin_wapi_control_center.sql).
+// ---------------------------------------------------------------------------
+export const wapiAgentConnectionSchema = z
+  .object({
+    deploymentType: z.enum(["customer_website", "aibooking_website"]),
+    // A row already in the local wapi_agents cache (the searchable
+    // dropdown's normal path).
+    wapiAgentId: z.string().uuid().nullable(),
+    // The manual-entry fallback (spec: "Wapi Agent ID" typed by hand when
+    // the agent isn't in the synced list yet) — a raw Vapi assistant id.
+    wapiAgentExternalId: z.string().trim().min(1).max(200).nullable(),
+    // An existing phone_numbers row (already in the platform's Vapi
+    // account, unclaimed) to attach to this agent.
+    phoneNumberId: z.string().uuid().nullable(),
+    // Connects this agent's calendar straight from the admin creation/edit
+    // modal, instead of making the customer paste the key themselves later
+    // (see lib/admin/widget-service.ts's connectAdminCalcom). Cal.com shows
+    // an API key exactly once, so this is only sent when an admin is
+    // actually setting/replacing it — omitted (not null) leaves an existing
+    // connection untouched.
+    calcomApiKey: z.string().trim().min(1).max(500).nullable(),
+    calcomEventTypeId: z.coerce.number().int().positive().nullable(),
+  })
+  .partial();
 
 // Free-form widget preferences that don't have a dedicated widgets column —
 // stored in widget_settings.extra (jsonb) and merged in on PATCH, never
@@ -149,13 +220,105 @@ export const widgetExtraSettingsSchema = z
     // assistant is a separate resource in Vapi, unlike the shared
     // llm_models row that just marks the widget as using Vapi at all.
     vapiAssistantId: z.string().trim().min(1).max(200).nullable(),
+    // A second assistant, for outbound campaign calls only. Placing a call
+    // is not the same conversation as answering one, so an agent may keep a
+    // separate persona for it — written by hand in Vapi's own dashboard and
+    // never synced over by us (see lib/vapi/assistant-owner.ts). Unset means
+    // campaigns use the assistant that answers the phone.
+    vapiOutboundAssistantId: z.string().trim().min(1).max(200).nullable(),
     // Which admin-configured Vapi voice template ("Mand"/"Dame") the
     // widget's own assistant clones its voice from — see
     // resolveVoiceConfig in lib/vapi/assistants.ts. The raw template ids
     // themselves are never sent to the customer-facing UI.
     voiceGender: z.enum(["male", "female"]).nullable(),
+    // Call limits handed straight to the Vapi assistant. Bounds are Vapi's
+    // own: below them the API rejects the assistant update, so validating
+    // here turns a failed background sync into a form error the customer can
+    // see and fix.
+    silenceTimeoutSeconds: z.number().int().min(10).max(3600).nullable(),
+    maxDurationSeconds: z.number().int().min(10).max(43200).nullable(),
+    // What the customer typed into Prompt Lab's "om virksomheden" fields,
+    // kept so the generated prompt can be regenerated or adjusted later
+    // instead of the answers being thrown away the moment the draft lands
+    // in the textarea (see agent-tabs/prompt-lab.tsx).
+    promptInputs: z
+      .object({
+        businessDescription: z.string().trim().max(2000),
+        keyServices: z.string().trim().max(2000),
+        openingHours: z.string().trim().max(2000),
+        otherNotes: z.string().trim().max(2000),
+      })
+      .partial()
+      .nullable(),
+    // Picked in the wizard's first step ("Navn & type"), before there's
+    // anything else to go on — steers how the "Generér prompt" meta-
+    // instruction is written (see metaSystemPrompt in
+    // app/api/customer/widgets/[id]/generate-prompt/route.ts). Purely
+    // advisory for the prompt text: booking/Shopify *tools* are still gated
+    // by an actually-connected calendar/webshop (see
+    // syncWidgetToVapiAssistant in lib/vapi/sync.ts), not by this choice.
+    agentPurposes: z.array(z.enum(["booking", "shopify", "qa"])).nullable(),
+    purposeNotes: z.string().trim().max(2000).nullable(),
   })
   .partial();
+
+// What a customer may change in widget_settings.extra. The Vapi assistant
+// ids are left out: they are the isolation boundary between customers (see
+// lib/vapi/assistant-owner.ts), so a customer pointing their agent at
+// someone else's assistant would overwrite that assistant on the next sync
+// and take over its calls. Each customer agent gets its own assistant
+// created for it (POST /api/customer/widgets); linking any other one is an
+// admin's job. Unknown keys are stripped, so a stale client that still
+// sends them just has them ignored.
+export const customerWidgetExtraSettingsSchema = widgetExtraSettingsSchema.omit({
+  vapiAssistantId: true,
+  vapiOutboundAssistantId: true,
+});
+
+// .extend({...x.shape}) rather than .merge(x): with the zod version this
+// project resolves to, .merge()'s inferred output type widened an
+// already-`.default()`-backed required field (name) back to optional —
+// .extend() with a plain shape object doesn't go through that path.
+// ---------------------------------------------------------------------------
+// Uber Direct delivery for one agent (see lib/uber-direct/connection.ts).
+// ---------------------------------------------------------------------------
+// What an admin or customer sends to set it up. Secrets are only sent when
+// they are being set or replaced — omitted keeps the stored one.
+export const uberDirectInputSchema = z.object({
+  enabled: z.boolean(),
+  customerId: z.string().trim().min(1).max(200),
+  clientId: z.string().trim().min(1).max(200),
+  clientSecret: z.string().trim().min(1).max(500).optional(),
+  webhookSigningKey: z.string().trim().min(1).max(500).optional(),
+  pickup: z.object({
+    name: z.string().trim().min(1).max(200),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^\+[1-9]\d{6,14}$/, "Telefonnummeret skal være i internationalt format, fx +4512345678"),
+    street: z.string().trim().min(1).max(300),
+    postalCode: z.string().trim().min(1).max(20),
+    city: z.string().trim().min(1).max(100),
+    country: z.string().trim().length(2).default("DK"),
+    notes: z.string().trim().max(500).optional(),
+  }),
+});
+
+export const createAdminWidgetSchema = createWidgetSchema.extend({
+  // Required for deploymentType "customer_website"; ignored (and resolved
+  // server-side to the reserved internal customer) for "aibooking_website"
+  // — see lib/admin/aibooking-customer.ts.
+  customerId: z.string().uuid().optional(),
+  ...wapiAgentConnectionSchema.shape,
+  uberDirect: uberDirectInputSchema.optional(),
+});
+
+export const updateAdminWidgetSchema = widgetUpdateSchema.extend({
+  extra: widgetExtraSettingsSchema.optional(),
+  ...wapiAgentConnectionSchema.shape,
+  // null removes the agent's Uber Direct setup; omitted leaves it alone.
+  uberDirect: uberDirectInputSchema.nullable().optional(),
+});
 
 // ---------------------------------------------------------------------------
 // Admin: Vapi voice templates ("Mand"/"Dame") — see
@@ -164,6 +327,14 @@ export const widgetExtraSettingsSchema = z
 export const vapiVoiceTemplatesInputSchema = z.object({
   maleAssistantId: z.string().trim().min(1).max(200).nullable().optional(),
   femaleAssistantId: z.string().trim().min(1).max(200).nullable().optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Admin: Vapi prompt-drafting fallback assistant — see
+// lib/settings/platform.ts's getVapiPromptDraftingAssistantId.
+// ---------------------------------------------------------------------------
+export const vapiPromptDraftingAssistantInputSchema = z.object({
+  assistantId: z.string().trim().min(1).max(200).nullable(),
 });
 
 // ---------------------------------------------------------------------------
@@ -227,19 +398,66 @@ export const importPhoneNumberInputSchema = z.object({
 // Capped at 100 contacts per campaign for v1 — launch fires one Vapi call
 // per contact concurrently within a single request, and this keeps that
 // bounded well under typical serverless function time limits.
-export const outboundCampaignInputSchema = z.object({
+// What a campaign may be told to do, beyond who to ring. Bounds match the
+// database's own checks (0039_outbound_campaign_settings.sql) so a bad value
+// is a form error rather than a constraint violation.
+export const outboundCampaignSettingsSchema = z.object({
+  // What this campaign is about, added to the agent's prompt for its calls
+  // only — the agent that answers the phone is untouched.
+  agentInstruction: z.string().trim().max(2000).nullable().optional(),
+  callWindowStart: z
+    .string()
+    .trim()
+    .regex(/^\d{2}:\d{2}$/, "Skal være et klokkeslæt, fx 09:00")
+    .optional(),
+  callWindowEnd: z
+    .string()
+    .trim()
+    .regex(/^\d{2}:\d{2}$/, "Skal være et klokkeslæt, fx 17:00")
+    .optional(),
+  // ISO weekdays, Monday = 1.
+  callDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
+  callTimezone: z.string().trim().min(1).max(60).optional(),
+  maxConcurrentCalls: z.number().int().min(1).max(10).optional(),
+  maxAttempts: z.number().int().min(1).max(5).optional(),
+  retryAfterMinutes: z.number().int().min(5).max(1440).optional(),
+});
+
+const campaignContactsSchema = z
+  .array(
+    z.object({
+      phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
+      name: z.string().trim().max(200).optional(),
+      // A third column in the pasted list. Most lists will not have one, and
+      // the agent never sees it — it is there so whoever reads the results
+      // knows who "Jens Jensen" was.
+      company: z.string().trim().max(200).optional(),
+    })
+  )
+  .min(1)
+  .max(100);
+
+export const outboundCampaignInputSchema = outboundCampaignSettingsSchema.extend({
   widgetId: z.string().uuid(),
   phoneNumberId: z.string().uuid(),
   name: z.string().trim().min(1).max(200),
-  contacts: z
-    .array(
-      z.object({
-        phoneNumber: z.string().trim().regex(E164_REGEX, "Skal være i E.164-format, fx +4512345678"),
-        name: z.string().trim().max(200).optional(),
-      })
-    )
-    .min(1)
-    .max(100),
+  contacts: campaignContactsSchema,
+});
+
+// Pausing or resuming a running campaign (see the campaign's status route).
+export const campaignStatusActionSchema = z.object({
+  action: z.enum(["pause", "resume"]),
+});
+
+// Editing a campaign that has not been launched yet. Everything is optional
+// — the form saves what changed — and a contact list, when sent, replaces
+// the old one wholesale, which is what "rediger listen" means to the person
+// looking at a textarea of numbers.
+export const outboundCampaignUpdateSchema = outboundCampaignSettingsSchema.extend({
+  widgetId: z.string().uuid().optional(),
+  phoneNumberId: z.string().uuid().optional(),
+  name: z.string().trim().min(1).max(200).optional(),
+  contacts: campaignContactsSchema.optional(),
 });
 
 export const widgetMessageSchema = z.object({
@@ -275,11 +493,21 @@ export const calendarOAuthConnectQuerySchema = z.object({
   widgetId: z.string().uuid(),
 });
 
-export const calcomConnectInputSchema = z.object({
-  widgetId: z.string().uuid(),
-  apiKey: z.string().trim().min(1).max(500),
-  eventTypeId: z.number().int().positive().optional(),
-});
+// Either a freshly pasted key, or another of the customer's agents whose
+// Cal.com connection this one should share. Cal.com shows an API key exactly
+// once, so a customer who connected their widget weeks ago cannot paste the
+// same key again for their phone agent — the copy path is the only way to
+// put two agents on one calendar without issuing a second key.
+export const calcomConnectInputSchema = z
+  .object({
+    widgetId: z.string().uuid(),
+    apiKey: z.string().trim().min(1).max(500).optional(),
+    fromConnectionId: z.string().uuid().optional(),
+    eventTypeId: z.number().int().positive().optional(),
+  })
+  .refine((body) => !!body.apiKey !== !!body.fromConnectionId, {
+    message: "Angiv enten en API-nøgle eller en kalender at genbruge — ikke begge.",
+  });
 
 // Switching which Event Type an already-connected Cal.com account books
 // against — see app/api/customer/calendar/[id]/route.ts's PATCH.
@@ -292,6 +520,13 @@ export const calcomUpdateEventTypeSchema = z.object({
 // app/api/customer/calendar/[id]/route.ts's PATCH.
 export const calendarUpdateDurationSchema = z.object({
   durationMinutes: z.number().int().min(5).max(480),
+});
+
+// Admin Control Center: "Hent event-typer" in the widget/inbound creation
+// modal (app/api/admin/calendar/calcom/event-types/route.ts) — proves a
+// pasted key works and lists what it can book against, read-only.
+export const calcomEventTypesLookupSchema = z.object({
+  apiKey: z.string().trim().min(1).max(500),
 });
 
 // Cal.com OAuth booking request
@@ -364,7 +599,19 @@ export const leadUpdateSchema = z.object({
 // ---------------------------------------------------------------------------
 export const checkoutRequestSchema = z.object({
   packageId: z.string().uuid().optional(),
+  // Setup/onboarding is an optional one-time add-on (spec: "Der skal være
+  // mulighed for at købe en valgfri opsætning") — never included unless the
+  // customer explicitly checks it at checkout.
+  includeSetup: z.boolean().optional().default(false),
 });
+
+// Nordcall Outbound add-on (see lib/billing/nordcall-outbound.ts): start the
+// free trial or check out one of the two fixed monthly plans. The price is
+// never taken from the request, only the plan key.
+export const nordcallOutboundRequestSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("trial") }),
+  z.object({ action: z.literal("checkout"), plan: z.enum(["minutes_1000", "minutes_2000"]) }),
+]);
 
 // ---------------------------------------------------------------------------
 // Booking setup (see 0030_optional_booking.sql) — the customer asks for
@@ -383,3 +630,61 @@ export const updateBookingSetupRequestSchema = z.object({
   notes: z.string().trim().max(2000).optional(),
   assignedTo: z.string().uuid().nullish(),
 });
+
+// ---------------------------------------------------------------------------
+// Shopify / webshop integration (see 0035_shopify_integration.sql and
+// lib/shopify). One input, and it is not a credential: which shop the customer
+// wants to authorize. The access token is never an input — it only ever
+// arrives from Shopify's own token endpoint, server-side.
+// ---------------------------------------------------------------------------
+// Connecting a shop by pasting a custom-app Admin API token, for merchants
+// whose platform has no Shopify app configured — the same shape Cal.com uses.
+// The token is verified against Shopify before anything is stored, and is
+// encrypted at rest; it is never read back out to the browser.
+export const shopifyManualConnectSchema = z.object({
+  shop: z.string().trim().min(1).max(255),
+  accessToken: z.string().trim().min(10).max(500),
+});
+
+export const shopifyConnectQuerySchema = z.object({
+  widgetId: z.string().uuid(),
+  // Validated again as a real *.myshopify.com domain in lib/shopify/domain.ts
+  // before it is ever put in a URL or sent a token — this bound is only here
+  // to keep an absurd value out of the parser.
+  shop: z.string().trim().min(1).max(255),
+});
+
+// ---------------------------------------------------------------------------
+// Admin: Aibooking.dk Dashboard agents (0048_aibooking_dashboard_agents.sql).
+// Vapi assistant ids are UUIDs; anything else is a paste mistake.
+// ---------------------------------------------------------------------------
+export const dashboardAgentChannelSchema = z.enum(["widget", "inbound", "outbound"]);
+
+export const createDashboardAgentSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  channel: dashboardAgentChannelSchema,
+  vapiAssistantId: z.string().trim().uuid(),
+});
+
+export const updateDashboardAgentSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    channel: dashboardAgentChannelSchema,
+    vapiAssistantId: z.string().trim().uuid(),
+    isActive: z.boolean(),
+    sortOrder: z.number().int().min(0).max(1000),
+  })
+  .partial();
+
+// The settings of one of the platform's own Vapi assistants the admin edits
+// from the Aibooking.dk Dashboard (lib/aibooking-dashboard/assistant-config.ts).
+export const updateDashboardAssistantSchema = z
+  .object({
+    firstMessage: z.string().max(1000),
+    systemPrompt: z.string().max(60_000),
+    endCallOnGoodbye: z.boolean(),
+    endCallMessage: z.string().max(500),
+    silenceTimeoutSeconds: z.number().int().min(10).max(3600).nullable(),
+    maxDurationSeconds: z.number().int().min(10).max(43_200).nullable(),
+  })
+  .partial();

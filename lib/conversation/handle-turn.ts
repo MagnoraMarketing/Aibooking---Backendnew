@@ -14,7 +14,11 @@ import { recordLLMUsage, recordTTSUsage, appendTurnUsage, estimateSpeechDuration
 import { getSummarizationModelName } from "@/lib/settings/platform";
 import { decryptSecret } from "@/lib/security";
 import { getOAuthCalendarSession, refreshGoogleToken, refreshOutlookToken } from "@/lib/calendar";
-import { generateReplyWithCalendarTools, type CalendarToolContext } from "./calendar-tools";
+import { generateReplyWithTools, type ShopifyToolLoopContext, type DeliveryToolLoopContext } from "./tool-loop";
+import { loadUberDirectConfig } from "@/lib/uber-direct/connection";
+import type { CalendarToolContext } from "./calendar-tools";
+import { resolveShopifyCapabilities } from "@/lib/shopify/agent-tools";
+import { withBookingFlowDirective } from "@/lib/i18n/agent-content";
 
 // Fixed for Google/Outlook connections — see lib/vapi/booking-tools.ts's
 // module comment for why (neither OAuth exchange gives us a reliable IANA
@@ -151,27 +155,41 @@ export async function generateConversationReplyText(params: GenerateReplyTextPar
     { role: "user", content: params.userMessage },
   ];
 
-  // Only Anthropic-provider widgets can run the tool-use booking loop (see
+  // Only Anthropic-provider widgets can run the tool-use loop (see
   // calendar-tools.ts's module comment for why this stays out of the
-  // generic LLMProvider interface) — a connected Cal.com calendar on any
-  // other provider just doesn't get tool access, same as no connection.
-  const calendarContext =
-    llmProvider.name === "anthropic" ? await resolveCalendarToolContext(params) : null;
+  // generic LLMProvider interface) — a connected Cal.com calendar or Shopify
+  // webshop on any other provider just doesn't get tool access, same as no
+  // connection at all.
+  const isAnthropic = llmProvider.name === "anthropic";
+  const [calendarContext, shopifyContext, deliveryContext] = await Promise.all([
+    isAnthropic ? resolveCalendarToolContext(params) : Promise.resolve(null),
+    isAnthropic ? resolveShopifyToolContext(params.widget.id) : Promise.resolve(null),
+    isAnthropic ? resolveDeliveryToolContext(params.widget.id, params.customerId) : Promise.resolve(null),
+  ]);
 
-  const generation = calendarContext
-    ? await generateReplyWithCalendarTools({
-        model: params.llmModel.model_name,
-        systemPrompt,
-        messages: messagesForLLM,
-        maxTokens: params.llmModel.max_tokens,
-        calendar: calendarContext,
-      })
-    : await llmProvider.generateReply({
-        model: params.llmModel.model_name,
-        systemPrompt,
-        messages: messagesForLLM,
-        maxTokens: params.llmModel.max_tokens,
-      });
+  // One loop for both: a webshop agent that also books has a single
+  // conversation, and the tools it may use are decided per widget, not per
+  // feature.
+  const generation =
+    calendarContext || shopifyContext || deliveryContext
+      ? await generateReplyWithTools({
+          model: params.llmModel.model_name,
+          // Same booking flow as the voice agents (see BOOKING_FLOW_DIRECTIVE).
+          systemPrompt: calendarContext
+            ? withBookingFlowDirective(systemPrompt, params.widget.language)
+            : systemPrompt,
+          messages: messagesForLLM,
+          maxTokens: params.llmModel.max_tokens,
+          calendar: calendarContext,
+          shopify: shopifyContext,
+          delivery: deliveryContext,
+        })
+      : await llmProvider.generateReply({
+          model: params.llmModel.model_name,
+          systemPrompt,
+          messages: messagesForLLM,
+          maxTokens: params.llmModel.max_tokens,
+        });
 
   const replyText = generation.content.slice(0, params.widget.max_response_chars);
 
@@ -320,4 +338,32 @@ export async function resolveCalendarToolContext(
   }
 
   return null;
+}
+
+// Null when this widget has no webshop the agent could answer from — no
+// crawled catalogue and no completed Shopify install. Mirrors
+// resolveCalendarToolContext above: the gate lives here, so an agent can never
+// be handed a tool for a shop that isn't connected.
+//
+// Best-effort by design: a database hiccup while resolving webshop
+// capabilities must not take the customer's whole conversation turn down with
+// it, so it degrades to "no webshop tools" and the turn still answers.
+async function resolveShopifyToolContext(widgetId: string): Promise<ShopifyToolLoopContext | null> {
+  try {
+    const capabilities = await resolveShopifyCapabilities(widgetId);
+    if (!capabilities.products && !capabilities.orders) return null;
+    return { widgetId, capabilities };
+  } catch (err) {
+    console.error("Failed to resolve Shopify tool context:", err);
+    return null;
+  }
+}
+
+async function resolveDeliveryToolContext(widgetId: string, customerId: string): Promise<DeliveryToolLoopContext | null> {
+  try {
+    return (await loadUberDirectConfig(widgetId)) ? { widgetId, customerId } : null;
+  } catch (err) {
+    console.error("Failed to resolve Uber Direct tool context:", err);
+    return null;
+  }
 }

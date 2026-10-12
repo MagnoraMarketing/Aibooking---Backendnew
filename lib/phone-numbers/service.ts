@@ -42,7 +42,14 @@ export async function provisionPurchasedNumber(phoneNumberRowId: string): Promis
     const { data: llmModel } = widget?.llm_model_id
       ? await supabase.from("llm_models").select("provider").eq("id", widget.llm_model_id).maybeSingle()
       : { data: null };
-    const isTwilioDirect = llmModel?.provider === "anthropic";
+
+    // An inbound number always answers through a Vapi assistant. The direct
+    // Twilio/TwiML pipeline is still how an older Anthropic agent places
+    // OUTBOUND calls (see the outbound campaign launch route), but pointing
+    // an inbound number at it means a caller reaches a pipeline with no Vapi
+    // assistant behind it — which is exactly what this platform stopped
+    // offering when widget agents moved to Vapi.
+    const isTwilioDirect = row.direction !== "inbound" && llmModel?.provider === "anthropic";
 
     const credentials = await getOrCreateSubaccount(row.customer_id);
     const purchased = await purchaseTwilioNumber(credentials, row.phone_number);
@@ -70,7 +77,9 @@ export async function provisionPurchasedNumber(phoneNumberRowId: string): Promis
         .maybeSingle();
       const assistantId = (settings?.extra as Record<string, unknown> | null)?.vapiAssistantId;
       if (typeof assistantId !== "string") {
-        throw new Error("Agenten har ikke en Vapi-assistent endnu");
+        throw new Error(
+          "Agenten har ikke en Vapi-assistent endnu, så den kan ikke tage imod opkald. Åbn agenten og gem den én gang, så oprettes assistenten."
+        );
       }
 
       const imported = await importTwilioPhoneNumber({

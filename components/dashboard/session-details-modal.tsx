@@ -4,10 +4,49 @@ import { useEffect, useMemo, useState } from "react";
 import type { ConversationMessage } from "@/types/database";
 import { useTranslation } from "@/components/i18n/language-provider";
 
+// A voice call's turns. They do not come from conversation_messages —
+// nothing on our side is on the line to write them — but from the
+// end-of-call-report Vapi sends when the call ends.
+interface TranscriptLine {
+  role: "user" | "assistant";
+  text: string;
+  secondsFromStart: number | null;
+}
+
+// What a phone call was: who was rung, when, for how long and how it ended.
+// Only an outbound campaign call sends this — an inbound conversation has a
+// conversation row of its own carrying the same facts, and its endpoint
+// leaves the field out entirely.
+interface CallFacts {
+  contactName: string | null;
+  company: string | null;
+  phoneNumber: string;
+  status: string;
+  attempts: number;
+  startedAt: string | null;
+  durationSeconds: number;
+  endedReason: string | null;
+  failureReason: string | null;
+  vapiCallId: string | null;
+}
+
 interface SessionDetailsData {
   widgetName: string | null;
   messages: ConversationMessage[];
+  transcript: TranscriptLine[];
+  recordingUrl: string | null;
   summary: string | null;
+  call?: CallFacts | null;
+}
+
+function formatOffset(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  return minutes > 0 ? `${minutes} min ${seconds % 60} sek` : `${seconds} sek`;
 }
 
 function formatDate(iso: string): string {
@@ -22,7 +61,17 @@ function formatDate(iso: string): string {
 
 type TabKey = "transcription" | "summary" | "recording" | "analysis";
 
-export function SessionDetailsModal({ conversationId, onClose }: { conversationId: string; onClose: () => void }) {
+// Opened for a widget or phone conversation by its id, or — for an outbound
+// campaign contact, which has no conversation row — by the endpoint that
+// answers in the same shape. Same tabs, same transcript, same recording
+// player either way: the data is the same end-of-call-report.
+interface SessionDetailsModalProps {
+  conversationId?: string;
+  source?: string;
+  onClose: () => void;
+}
+
+export function SessionDetailsModal({ conversationId, source, onClose }: SessionDetailsModalProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>("transcription");
   const [data, setData] = useState<SessionDetailsData | null>(null);
@@ -49,12 +98,14 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
     [t]
   );
 
+  const endpoint = source ?? `/api/customer/conversations/${conversationId}/messages`;
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    fetch(`/api/customer/conversations/${conversationId}/messages`)
+    fetch(endpoint)
       .then((res) => {
         if (!res.ok) throw new Error(t("dashboardPages.session-details-modal.loadError"));
         return res.json();
@@ -72,7 +123,7 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
     return () => {
       cancelled = true;
     };
-  }, [conversationId, t]);
+  }, [endpoint, t]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -108,6 +159,71 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
           </button>
         </div>
 
+        {data?.call ? (
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 border-b border-slate-200 bg-slate-50 px-6 py-4 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="text-xs font-medium text-slate-400">{t("dashboardPages.outbound.colName")}</dt>
+              <dd className="text-slate-800">
+                {data.call.contactName || data.call.phoneNumber}
+                {data.call.company ? <span className="text-slate-500"> · {data.call.company}</span> : null}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-slate-400">{t("dashboardPages.outbound.colPhone")}</dt>
+              <dd className="text-slate-800">{data.call.phoneNumber}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-slate-400">
+                {t("dashboardPages.session-details-modal.callTime")}
+              </dt>
+              <dd className="text-slate-800">
+                {data.call.startedAt ? formatDate(data.call.startedAt) : t("dashboardPages.outbound.notCalledYet")}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-slate-400">
+                {t("dashboardPages.session-details-modal.callDuration")}
+              </dt>
+              <dd className="text-slate-800">{formatDuration(data.call.durationSeconds)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-slate-400">
+                {t("dashboardPages.session-details-modal.callStatus")}
+              </dt>
+              <dd className="text-slate-800">
+                {t(`dashboardPages.outbound.contactStatus.${data.call.status}`)}
+                {data.call.attempts > 1
+                  ? ` · ${t("dashboardPages.outbound.attemptsValue", { count: data.call.attempts })}`
+                  : ""}
+              </dd>
+            </div>
+            {data.call.endedReason ? (
+              <div>
+                <dt className="text-xs font-medium text-slate-400">
+                  {t("dashboardPages.session-details-modal.callResult")}
+                </dt>
+                <dd className="text-slate-800">{data.call.endedReason}</dd>
+              </div>
+            ) : null}
+            {data.call.failureReason ? (
+              <div className="col-span-2 sm:col-span-3">
+                <dt className="text-xs font-medium text-slate-400">
+                  {t("dashboardPages.session-details-modal.callFailureReason")}
+                </dt>
+                <dd className="text-red-700">{data.call.failureReason}</dd>
+              </div>
+            ) : null}
+            {data.call.vapiCallId ? (
+              <div className="col-span-2 sm:col-span-3">
+                <dt className="text-xs font-medium text-slate-400">
+                  {t("dashboardPages.session-details-modal.callId")}
+                </dt>
+                <dd className="font-mono text-xs text-slate-500">{data.call.vapiCallId}</dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : null}
+
         <div className="flex gap-1 border-b border-slate-200 px-4 pt-3">
           {TABS.map((tab) => (
             <button
@@ -132,9 +248,7 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
           {!loading && !error && data ? (
             <>
               {activeTab === "transcription" ? (
-                data.messages.length === 0 ? (
-                  <p className="text-sm text-slate-500">{t("dashboardPages.shared.noMessagesForConversation")}</p>
-                ) : (
+                data.messages.length > 0 ? (
                   <div className="space-y-4">
                     {data.messages
                       .filter((m) => m.role !== "system")
@@ -147,6 +261,20 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
                         </div>
                       ))}
                   </div>
+                ) : data.transcript.length > 0 ? (
+                  <div className="space-y-4">
+                    {data.transcript.map((line, index) => (
+                      <div key={index}>
+                        <p className="text-xs font-medium text-slate-400">
+                          {ROLE_LABEL[line.role] ?? line.role}
+                          {line.secondsFromStart !== null ? ` · ${formatOffset(line.secondsFromStart)}` : ""}
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{line.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">{t("dashboardPages.shared.noMessagesForConversation")}</p>
                 )
               ) : null}
 
@@ -159,7 +287,21 @@ export function SessionDetailsModal({ conversationId, onClose }: { conversationI
               ) : null}
 
               {activeTab === "recording" ? (
-                <p className="text-sm text-slate-500">{t("dashboardPages.session-details-modal.noRecording")}</p>
+                data.recordingUrl ? (
+                  <div className="space-y-2">
+                    {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                    <audio controls preload="none" src={data.recordingUrl} className="w-full" />
+                    <a
+                      href={`${data.recordingUrl}?download=1`}
+                      download
+                      className="inline-block text-sm font-medium text-brand-600 hover:underline"
+                    >
+                      {t("dashboardPages.session-details-modal.downloadRecording")}
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">{t("dashboardPages.session-details-modal.noRecording")}</p>
+                )
               ) : null}
 
               {activeTab === "analysis" ? (

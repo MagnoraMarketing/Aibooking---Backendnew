@@ -1,9 +1,15 @@
 import { requireCustomerAdminForPage } from "@/lib/auth";
+import { OUTBOUND_ENABLED } from "@/lib/features";
 import { getAdminClient } from "@/lib/database/admin";
 import { OutboundManager } from "@/components/dashboard/outbound-manager";
 import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
+import { campaignStatsFor, EMPTY_STATS, type CampaignStats } from "@/lib/outbound/stats";
+import type { CampaignStatus } from "@/lib/outbound/status";
 import type { Widget } from "@/types/database";
 import type { PhoneNumberRow } from "@/app/dashboard/inbound/page";
+import { NordcallOutboundManager } from "@/components/dashboard/nordcall-outbound-manager";
+import { redirect } from "next/navigation";
+import { NORDCALL_PLANS, getNordcallAppUrl, getNordcallOutboundStatus, hasNordcallAccess } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -12,18 +18,60 @@ export interface CampaignRow {
   widget_id: string;
   phone_number_id: string;
   name: string;
-  status: "draft" | "launched";
+  status: CampaignStatus;
   created_at: string;
   launched_at: string | null;
+  paused_at: string | null;
+  finished_at: string | null;
   outbound_campaign_contacts: { count: number }[];
+  // What the campaign amounts to: called, pending, outcomes, minutes, last
+  // call. Counted from the contacts and the calls themselves rather than
+  // stored on the campaign, so it cannot drift (see lib/outbound/stats.ts).
+  stats: CampaignStats;
+  // Settings (see 0039_outbound_campaign_settings.sql). Present on every
+  // campaign — the columns have defaults — so the edit form always has
+  // something to show.
+  agent_instruction: string | null;
+  call_window_start: string;
+  call_window_end: string;
+  call_days: number[];
+  call_timezone: string;
+  max_concurrent_calls: number;
+  max_attempts: number;
+  retry_after_minutes: number;
 }
 
-export default async function OutboundPage() {
+export default async function OutboundPage({ searchParams }: { searchParams: { checkout?: string; plans?: string } }) {
   const ctx = await requireCustomerAdminForPage();
+
+  // The AI campaign dialer is not finished yet (see lib/features); until it
+  // is, Outbound is where customers add Nordcall, the sales dialer for their
+  // own sellers, as a paid add-on.
+  if (!OUTBOUND_ENABLED) {
+    const status = await getNordcallOutboundStatus(ctx.userId);
+    const checkout = searchParams.checkout === "success" || searchParams.checkout === "cancelled" ? searchParams.checkout : null;
+    // With a running trial or plan, Outbound opens Nordcall itself. The
+    // purchase page stays reachable with ?plans=1 (and right after checkout).
+    if (hasNordcallAccess(status) && !checkout && searchParams.plans !== "1") redirect(getNordcallAppUrl());
+    return (
+      <NordcallOutboundManager
+        status={status}
+        plans={(Object.keys(NORDCALL_PLANS) as (keyof typeof NORDCALL_PLANS)[]).map((key) => ({
+          key,
+          minutes: NORDCALL_PLANS[key].minutes,
+          monthlyPriceDkk: NORDCALL_PLANS[key].monthlyPriceDkk,
+        }))}
+        nordcallUrl={getNordcallAppUrl()}
+        checkout={checkout}
+      />
+    );
+  }
+
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;
 
-  const [{ data: widgets }, { data: phoneNumbers }, { data: campaigns }, { data: allLlmModels }] = await Promise.all([
+  const [{ data: widgets }, { data: phoneNumbers }, { data: campaigns }, { data: twilioDirectModels }] =
+    await Promise.all([
     supabase
       .from("widgets")
       .select("*")
@@ -42,20 +90,35 @@ export default async function OutboundPage() {
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false })
       .returns<CampaignRow[]>(),
-    supabase.from("llm_models").select("id, provider"),
+    // Which models dial Twilio directly rather than through Vapi — the split
+    // lib/widgets/provider.ts makes server-side for the routes. The picker
+    // needs it too, so it never offers a number the agent cannot dial from.
+    supabase.from("llm_models").select("id").eq("provider", "anthropic").returns<{ id: string }[]>(),
   ]);
 
   // Telefon (Inbound/Outbound) agents only — same split as the Inbound page
   // (see agent-creation-wizard.tsx). Widget Agents aren't relevant to
   // outbound calling campaigns.
-  const providerByModelId = new Map((allLlmModels ?? []).map((m) => [m.id, m.provider]));
-  const phoneAgents = (widgets ?? []).filter((w) => w.llm_model_id && providerByModelId.get(w.llm_model_id) === "anthropic");
+  const phoneAgents = (widgets ?? []).filter((w) => w.agent_type === "phone");
+
+  // One pair of queries for every campaign on the page, not a pair each.
+  const stats = await campaignStatsFor((campaigns ?? []).map((campaign) => campaign.id), supabase);
+  const campaignsWithStats = (campaigns ?? []).map((campaign) => ({
+    ...campaign,
+    stats: stats[campaign.id] ?? EMPTY_STATS,
+  }));
+
+  const twilioDirectModelIds = new Set((twilioDirectModels ?? []).map((model) => model.id));
+  const twilioDirectWidgetIds = phoneAgents
+    .filter((widget) => widget.llm_model_id && twilioDirectModelIds.has(widget.llm_model_id))
+    .map((widget) => widget.id);
 
   return (
     <OutboundManager
       widgets={phoneAgents}
       phoneNumbers={phoneNumbers ?? []}
-      initialCampaigns={campaigns ?? []}
+      initialCampaigns={campaignsWithStats}
+      twilioDirectWidgetIds={twilioDirectWidgetIds}
     />
   );
 }

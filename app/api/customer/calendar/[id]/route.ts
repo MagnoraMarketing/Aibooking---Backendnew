@@ -12,6 +12,7 @@ import {
   calendarUpdateDurationSchema,
 } from "@/lib/security";
 import { fetchCalcomEventTypes } from "@/lib/calendar";
+import { syncWidgetToVapiAssistant } from "@/lib/vapi";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -45,8 +46,14 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     }
 
     const apiKey = decryptSecret(connection.calcom_api_key);
-    const eventTypes = await fetchCalcomEventTypes(apiKey);
-    if (!eventTypes.some((eventType) => eventType.id === body.eventTypeId)) {
+
+    // Validate against the list only when there IS a list. When Cal.com reports
+    // none (a team-scoped key, say), the dashboard falls back to letting the
+    // customer type the id — and validating an id against an empty list rejects
+    // every possible answer, which is the one case where being strict locks the
+    // customer out of the setting they came here to fix.
+    const eventTypes = await fetchCalcomEventTypes(apiKey).catch(() => [] as Awaited<ReturnType<typeof fetchCalcomEventTypes>>);
+    if (eventTypes.length > 0 && !eventTypes.some((eventType) => eventType.id === body.eventTypeId)) {
       throw ApiError.badRequest("Den valgte event-type findes ikke på jeres Cal.com-konto.");
     }
 
@@ -94,7 +101,7 @@ export const DELETE = withErrorHandling(async (_request, { params }) => {
 
   const { data: connection, error: lookupError } = await supabase
     .from("calendar_connections")
-    .select("id, customer_id, provider")
+    .select("id, customer_id, widget_id, provider")
     .eq("id", connectionId)
     .maybeSingle();
   if (lookupError) throw lookupError;
@@ -102,6 +109,39 @@ export const DELETE = withErrorHandling(async (_request, { params }) => {
 
   const { error } = await supabase.from("calendar_connections").delete().eq("id", connectionId);
   if (error) throw error;
+
+  // The mirror of connecting: Cal.com, Google and Outlook are all booking
+  // backends, so removing the last one an agent has must take the booking
+  // gate down with it and re-sync the Vapi assistant — otherwise the agent
+  // keeps offering to book and every attempt fails at the tool call, which
+  // reads worse to a caller than not offering at all. Another calendar still
+  // connected to the same agent keeps booking on.
+  const remaining = connection.widget_id
+    ? await supabase
+        .from("calendar_connections")
+        .select("id", { count: "exact", head: true })
+        .eq("widget_id", connection.widget_id)
+        .eq("status", "connected")
+        .in("provider", ["calcom", "google", "outlook"])
+    : { count: 0 };
+
+  if (connection.widget_id && (remaining.count ?? 0) === 0) {
+    const { data: disabledWidget } = await supabase
+      .from("widgets")
+      .update({ booking_enabled: false })
+      .eq("id", connection.widget_id)
+      .select("*")
+      .single();
+
+    if (disabledWidget) {
+      const { data: settings } = await supabase
+        .from("widget_settings")
+        .select("extra")
+        .eq("widget_id", connection.widget_id)
+        .maybeSingle();
+      await syncWidgetToVapiAssistant(disabledWidget, (settings?.extra as Record<string, unknown> | null) ?? {});
+    }
+  }
 
   await writeAuditLog({
     actorId: ctx.userId,

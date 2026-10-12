@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling } from "@/lib/security";
+import { loadStoredCallReport } from "@/lib/vapi/stored-call-report";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -40,10 +41,20 @@ export const GET = withErrorHandling(async (_request, { params }) => {
 
   if (messagesError) throw messagesError;
 
+  // Everything the details modal shows for a voice conversation comes from
+  // the call's end-of-call-report — see lib/vapi/call-report.ts.
+  const call = await loadStoredCallReport(supabase, conversation.vapi_call_id);
+
   return NextResponse.json({
     conversation,
     widgetName: widget?.name ?? null,
     messages,
-    summary: summaries?.[0]?.summary ?? null,
+    // A voice conversation has no rows in conversation_messages — nothing on
+    // our side is on the line to write them. Its turns come from the
+    // end-of-call-report instead.
+    transcript: call?.transcript ?? [],
+    // Played through our own route: Vapi's link needs the private key.
+    recordingUrl: call?.recordingUrl ? `/api/customer/conversations/${params.id}/recording` : null,
+    summary: summaries?.[0]?.summary ?? call?.summary ?? null,
   });
 });
