@@ -6,6 +6,11 @@ import {
   type BookingDetailsInput,
   fetchCalcomAvailability,
   createCalcomBooking,
+  fetchGoogleFreeBusy,
+  createGoogleBooking,
+  fetchOutlookFreeBusy,
+  createOutlookBooking,
+  generateBusinessHourSlots,
 } from "@/lib/calendar";
 import { getAdminClient } from "@/lib/database/admin";
 
@@ -65,7 +70,8 @@ export const CALENDAR_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-export interface CalendarToolContext {
+interface CalcomToolContext {
+  provider: "calcom";
   apiKey: string;
   eventTypeId: number;
   timezone: string;
@@ -73,6 +79,24 @@ export interface CalendarToolContext {
   widgetId: string;
   conversationId: string;
 }
+
+interface OAuthToolContext {
+  provider: "google" | "outlook";
+  accessToken: string;
+  calendarId: string;
+  scheduleEmail: string | null;
+  durationMinutes: number;
+  timezone: string;
+  customerId: string;
+  widgetId: string;
+  conversationId: string;
+}
+
+// Cal.com (event types, its own timezone) or Google/Outlook (a fixed
+// duration, fixed to Europe/Copenhagen — see lib/vapi/booking-tools.ts's
+// module comment for why). Built by resolveCalendarToolContext in
+// handle-turn.ts, which tries calcom first, then google, then outlook.
+export type CalendarToolContext = CalcomToolContext | OAuthToolContext;
 
 const AVAILABILITY_WINDOW_DAYS = 7;
 
@@ -88,18 +112,50 @@ export async function executeCalendarTool(name: string, rawInput: unknown, ctx: 
 
 async function executeCheckAvailability(input: { date?: string }, ctx: CalendarToolContext): Promise<string> {
   const startTime = input.date ? `${input.date}T00:00:00.000Z` : new Date().toISOString();
-  const endTime = new Date(new Date(startTime).getTime() + AVAILABILITY_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const start = new Date(startTime);
+  const end = new Date(start.getTime() + AVAILABILITY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
   try {
-    const slots = await fetchCalcomAvailability({
-      apiKey: ctx.apiKey,
-      eventTypeId: ctx.eventTypeId,
-      startTime,
-      endTime,
-      timezone: ctx.timezone,
-    });
-    if (slots.length === 0) return "Ingen ledige tider fundet i den periode. Prøv en anden dato.";
-    const times = slots.slice(0, 8).map((slot) => slot.time);
+    let times: string[];
+
+    if (ctx.provider === "calcom") {
+      const slots = await fetchCalcomAvailability({
+        apiKey: ctx.apiKey,
+        eventTypeId: ctx.eventTypeId,
+        startTime,
+        endTime: end.toISOString(),
+        timezone: ctx.timezone,
+      });
+      times = slots.slice(0, 8).map((slot) => slot.time);
+    } else {
+      // Google/Outlook have no event types: free/busy for the window, cut
+      // into slots of the connection's meeting length within business hours.
+      const busy =
+        ctx.provider === "google"
+          ? await fetchGoogleFreeBusy({
+              accessToken: ctx.accessToken,
+              calendarId: ctx.calendarId,
+              startTime,
+              endTime: end.toISOString(),
+            })
+          : await fetchOutlookFreeBusy({
+              accessToken: ctx.accessToken,
+              scheduleEmail: ctx.scheduleEmail!,
+              startTime,
+              endTime: end.toISOString(),
+            });
+
+      times = generateBusinessHourSlots({
+        windowStart: start,
+        windowEnd: end,
+        timezone: ctx.timezone,
+        durationMinutes: ctx.durationMinutes,
+        busy,
+        maxSlots: 8,
+      });
+    }
+
+    if (times.length === 0) return "Ingen ledige tider fundet i den periode. Prøv en anden dato.";
     return `Ledige tider (${ctx.timezone}): ${times.join(", ")}`;
   } catch (err) {
     return `Kunne ikke hente ledige tider lige nu: ${err instanceof Error ? err.message : "ukendt fejl"}`;
@@ -114,14 +170,49 @@ async function executeBookMeeting(input: BookingDetailsInput, ctx: CalendarToolC
   const supabase = getAdminClient();
 
   try {
-    const booking = await createCalcomBooking({
-      apiKey: ctx.apiKey,
-      eventTypeId: ctx.eventTypeId,
-      start: startTime,
-      timezone: ctx.timezone,
-      name: customerName,
-      email: customerEmail,
-    });
+    if (ctx.provider === "calcom") {
+      const booking = await createCalcomBooking({
+        apiKey: ctx.apiKey,
+        eventTypeId: ctx.eventTypeId,
+        start: startTime,
+        timezone: ctx.timezone,
+        name: customerName,
+        email: customerEmail,
+      });
+
+      await supabase.from("appointments").insert({
+        customer_id: ctx.customerId,
+        widget_id: ctx.widgetId,
+        conversation_id: ctx.conversationId,
+        customer_name: customerName,
+        appointment_time: startTime,
+        status: "booked",
+      });
+
+      return `Møde booket. Bekræftelses-id: ${booking.uid}. Tidspunkt: ${startTime} (${ctx.timezone}).`;
+    }
+
+    const booking =
+      ctx.provider === "google"
+        ? await createGoogleBooking({
+            accessToken: ctx.accessToken,
+            calendarId: ctx.calendarId,
+            widgetId: ctx.widgetId,
+            start: startTime,
+            durationMinutes: ctx.durationMinutes,
+            timezone: ctx.timezone,
+            name: customerName,
+            email: customerEmail,
+          })
+        : await createOutlookBooking({
+            accessToken: ctx.accessToken,
+            widgetId: ctx.widgetId,
+            start: startTime,
+            durationMinutes: ctx.durationMinutes,
+            timezone: ctx.timezone,
+            name: customerName,
+            email: customerEmail,
+          });
 
     await supabase.from("appointments").insert({
       customer_id: ctx.customerId,
@@ -130,9 +221,11 @@ async function executeBookMeeting(input: BookingDetailsInput, ctx: CalendarToolC
       customer_name: customerName,
       appointment_time: startTime,
       status: "booked",
+      calendar_provider: ctx.provider,
+      external_event_id: booking.id,
     });
 
-    return `Møde booket. Bekræftelses-id: ${booking.uid}. Tidspunkt: ${startTime} (${ctx.timezone}).`;
+    return `Møde booket. Tidspunkt: ${startTime} (${ctx.timezone}).`;
   } catch (err) {
     await supabase.from("appointments").insert({
       customer_id: ctx.customerId,

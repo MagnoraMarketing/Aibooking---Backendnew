@@ -47,21 +47,25 @@ export const GET = withErrorHandling(async (request) => {
   }
 
   // Google only sends a refresh_token on the very first consent for a given
-  // account+scopes — a later reconnect can omit it, so keep the existing
-  // (already-encrypted) column value as-is rather than overwriting it with
-  // null. Only a freshly-issued token, still plaintext from Google, needs
-  // encrypting here.
-  let refreshToken = tokenResult.refreshToken ? encryptSecret(tokenResult.refreshToken) : null;
-  if (!refreshToken) {
+  // account+scopes — a later reconnect can omit it, so keep the existing one
+  // rather than overwriting it with null. That existing value is already
+  // ciphertext (see below), so it's carried through as-is rather than
+  // encrypted again.
+  let refreshTokenCiphertext: string | null = tokenResult.refreshToken ? encryptSecret(tokenResult.refreshToken) : null;
+  if (!refreshTokenCiphertext) {
     const { data: existing } = await supabase
       .from("calendar_connections")
       .select("refresh_token")
       .eq("widget_id", widget.id)
       .eq("provider", "google")
       .maybeSingle();
-    refreshToken = existing?.refresh_token ?? null;
+    refreshTokenCiphertext = existing?.refresh_token ?? null;
   }
 
+  // access_token/refresh_token are encrypted at rest with the same
+  // AES-256-GCM scheme calendar_connections.calcom_api_key already uses
+  // (lib/security/crypto.ts) — every read site (lib/calendar/oauth-token.ts)
+  // decrypts just-in-time.
   const { error } = await supabase.from("calendar_connections").upsert(
     {
       customer_id: widget.customer_id,
@@ -70,11 +74,8 @@ export const GET = withErrorHandling(async (request) => {
       status: "connected",
       external_account_email: tokenResult.accountEmail,
       calendar_id: tokenResult.calendarId,
-      // Encrypted at rest with the same AES-256-GCM helper already used for
-      // Cal.com/Shopify credentials (lib/security/crypto.ts) — every read
-      // site must decryptSecret() before calling Google's API.
       access_token: encryptSecret(tokenResult.accessToken),
-      refresh_token: refreshToken,
+      refresh_token: refreshTokenCiphertext,
       token_expires_at: tokenResult.expiresAt,
     },
     { onConflict: "widget_id,provider" }

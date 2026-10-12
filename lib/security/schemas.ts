@@ -515,6 +515,13 @@ export const calcomUpdateEventTypeSchema = z.object({
   eventTypeId: z.number().int().positive(),
 });
 
+// Google/Outlook connections have no event-type concept — the customer
+// picks a fixed meeting length instead. See
+// app/api/customer/calendar/[id]/route.ts's PATCH.
+export const calendarUpdateDurationSchema = z.object({
+  durationMinutes: z.number().int().min(5).max(480),
+});
+
 // Admin Control Center: "Hent event-typer" in the widget/inbound creation
 // modal (app/api/admin/calendar/calcom/event-types/route.ts) — proves a
 // pasted key works and lists what it can book against, read-only.
