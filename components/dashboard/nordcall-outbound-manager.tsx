@@ -52,10 +52,18 @@ export function NordcallOutboundManager({ status, plans, nordcallUrl, checkout }
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">{t("nordcallOutbound.eyebrow")}</p>
-        <h1 className="mt-1 text-2xl font-bold text-slate-900">{t("nordcallOutbound.title")}</h1>
-        <p className="mt-2 max-w-2xl text-slate-600">{t("nordcallOutbound.intro")}</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">{t("nordcallOutbound.eyebrow")}</p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-900">{t("nordcallOutbound.title")}</h1>
+          <p className="mt-2 max-w-2xl text-slate-600">{t("nordcallOutbound.intro")}</p>
+        </div>
+        {/* Always a way into the dialer itself, also before a plan is picked
+            (sellers log in there; the plan only sets the minutes). */}
+        <a href={nordcallUrl} target="_blank" rel="noreferrer"
+          className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800">
+          {t("nordcallOutbound.openNordcall")}
+        </a>
       </div>
 
       {checkout === "success" ? (
@@ -81,10 +89,6 @@ export function NordcallOutboundManager({ status, plans, nordcallUrl, checkout }
                 </span>
               ) : null}
             </div>
-            <a href={nordcallUrl} target="_blank" rel="noreferrer"
-              className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800">
-              {t("nordcallOutbound.openNordcall")}
-            </a>
           </div>
           {!unlimited ? (
             <div className="mt-5">
