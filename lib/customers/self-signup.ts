@@ -17,8 +17,12 @@ export interface SelfSignupParams {
   companyName: string;
   email: string;
   phone?: string;
-  password: string;
   language: string;
+  // Either a password for a brand-new login, or the id of a login that
+  // already exists in the shared auth project (e.g. someone who signed up
+  // for Nordcall first) and now gets its own, separate AIbooking account.
+  password?: string;
+  existingUserId?: string;
 }
 
 export interface SelfSignupResult {
@@ -60,9 +64,20 @@ async function resolveSignupLLMModel(): Promise<LLMModel> {
 export async function selfSignupCustomer(params: SelfSignupParams): Promise<SelfSignupResult> {
   const supabase = getAdminClient();
 
-  const { data: existingProfile } = await supabase.auth.admin.listUsers();
-  if (existingProfile.users.some((u) => u.email?.toLowerCase() === params.email.toLowerCase())) {
-    throw ApiError.badRequest("En konto med denne email findes allerede");
+  if (params.existingUserId) {
+    const { data: existing } = await supabase.from("profiles").select("id").eq("id", params.existingUserId).maybeSingle();
+    if (existing) throw ApiError.badRequest("Der findes allerede en AIbooking-konto til dette login");
+  } else {
+    if (!params.password) throw ApiError.badRequest("Adgangskode mangler");
+    // The auth project is shared with Nordcall, so the email may already have
+    // a login there. That login can still get its own AIbooking account: it
+    // just has to sign in first (see app/account-incomplete).
+    const { data: existingProfile } = await supabase.auth.admin.listUsers();
+    if (existingProfile.users.some((u) => u.email?.toLowerCase() === params.email.toLowerCase())) {
+      throw ApiError.badRequest(
+        "Denne e-mail har allerede et login (fx til Nordcall). Log ind med samme e-mail og adgangskode, så kan du oprette din AIbooking-konto."
+      );
+    }
   }
 
   const pkg = await getDefaultOrSpecified<Package>("packages", undefined);
@@ -146,19 +161,23 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
 
   await supabase.from("widget_settings").insert({ widget_id: widget.id, extra });
 
-  const { data: created, error: authError } = await supabase.auth.admin.createUser({
-    email: params.email,
-    password: params.password,
-    email_confirm: true,
-    user_metadata: { full_name: params.companyName },
-  });
+  let userId = params.existingUserId;
+  if (!userId) {
+    const { data: created, error: authError } = await supabase.auth.admin.createUser({
+      email: params.email,
+      password: params.password,
+      email_confirm: true,
+      user_metadata: { full_name: params.companyName },
+    });
 
-  if (authError || !created?.user) {
-    throw new Error(`Failed to create account: ${authError?.message}`);
+    if (authError || !created?.user) {
+      throw new Error(`Failed to create account: ${authError?.message}`);
+    }
+    userId = created.user.id;
   }
 
   const { error: profileError } = await supabase.from("profiles").insert({
-    id: created.user.id,
+    id: userId,
     role: "CUSTOMER_ADMIN",
     customer_id: customer.id,
     full_name: params.companyName,
@@ -169,5 +188,5 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
     throw new Error(`Failed to create profile: ${profileError.message}`);
   }
 
-  return { customer: customer as Customer, widget: widget as Widget, userId: created.user.id };
+  return { customer: customer as Customer, widget: widget as Widget, userId };
 }
