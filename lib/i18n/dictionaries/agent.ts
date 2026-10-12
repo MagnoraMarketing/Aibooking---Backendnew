@@ -3250,6 +3250,30 @@ export const agent: Namespace = {
     de: "Lieferung",
   },
 
+  "webshop.deliveryLinkTitle": {
+    da: "Leverer I mad eller varer?",
+    en: "Do you deliver food or goods?",
+    es: "¿Entrega comida o productos?",
+    fr: "Vous livrez des repas ou des produits ?",
+    pt: "Entrega comida ou produtos?",
+    de: "Liefern Sie Essen oder Waren?",
+  },
+  "webshop.deliveryLinkText": {
+    da: "Lad agenten bestille et bud med Just Eat eller Uber Direct under fanen Levering.",
+    en: "Let the agent book a courier with Just Eat or Uber Direct on the Delivery tab.",
+    es: "Deje que el agente pida un mensajero con Just Eat o Uber Direct en la pestaña Entrega.",
+    fr: "Laissez l'agent commander un coursier Just Eat ou Uber Direct dans l'onglet Livraison.",
+    pt: "Deixe o agente pedir um estafeta com a Just Eat ou a Uber Direct no separador Entrega.",
+    de: "Lassen Sie den Agenten im Tab Lieferung einen Kurier mit Just Eat oder Uber Direct bestellen.",
+  },
+  "webshop.deliveryLinkCta": {
+    da: "Gå til Levering →",
+    en: "Go to Delivery →",
+    es: "Ir a Entrega →",
+    fr: "Aller à Livraison →",
+    pt: "Ir para Entrega →",
+    de: "Zu Lieferung →",
+  },
   "delivery.title": {
     da: "Levering",
     en: "Delivery",

@@ -123,6 +123,10 @@ export default async function IntegrationsPage() {
         widgets={widgets ?? []}
         initialConnections={connections}
         eventTypesByConnection={eventTypesByConnection}
+        oauthAvailable={{
+          google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+          outlook: Boolean(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET),
+        }}
       />
     </div>
   );
