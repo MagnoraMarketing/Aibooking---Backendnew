@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "@/components/i18n/language-provider";
+import {
+  UberDirectFields,
+  EMPTY_UBER_DIRECT,
+  formStateFromSummary,
+  uberDirectPayload,
+  type UberDirectFormState,
+  type UberDirectSummaryView,
+} from "@/components/uber-direct/uber-direct-fields";
 import { WapiAgentSelector, type WapiAgentSelection } from "@/components/admin/wapi-agent-selector";
 import type { Customer, WidgetDeploymentType } from "@/types/database";
 
@@ -62,6 +70,10 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
   const [calcomFetching, setCalcomFetching] = useState(false);
   const [calcomFetchError, setCalcomFetchError] = useState<string | null>(null);
 
+  const [uberDirect, setUberDirect] = useState<UberDirectFormState>(EMPTY_UBER_DIRECT);
+  const [uberSummary, setUberSummary] = useState<UberDirectSummaryView | null>(null);
+  const [uberWebhookUrl, setUberWebhookUrl] = useState<string | null>(null);
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [availableNumbers, setAvailableNumbers] = useState<AvailablePhoneNumber[]>([]);
   const [saving, setSaving] = useState(false);
@@ -79,6 +91,19 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
       })
       .catch(() => {});
   }, [isEdit]);
+
+  // Editing: load the agent's current Uber Direct setup (never its secrets).
+  useEffect(() => {
+    if (!initial?.id) return;
+    fetch(`/api/admin/widgets/${initial.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setUberSummary(data?.uberDirect ?? null);
+        setUberWebhookUrl(data?.uberDirectWebhookUrl ?? null);
+        setUberDirect(formStateFromSummary(data?.uberDirect));
+      })
+      .catch(() => {});
+  }, [initial?.id]);
 
   useEffect(() => {
     fetch("/api/admin/customers")
@@ -137,6 +162,20 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
       return;
     }
 
+    // Uber Direct: sent only when switched on (complete) or switched off
+    // after having been set up (removes it).
+    let uberDirectBody: Record<string, unknown> | null | undefined;
+    if (uberDirect.enabled) {
+      const payload = uberDirectPayload(uberDirect, Boolean(uberSummary?.hasClientSecret));
+      if (!payload) {
+        setError(t("agent.uberDirect.incomplete"));
+        return;
+      }
+      uberDirectBody = payload;
+    } else if (uberSummary) {
+      uberDirectBody = null;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -150,6 +189,7 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
       wapiAgentId: agentSelection.wapiAgentId,
       wapiAgentExternalId: agentSelection.wapiAgentExternalId,
       phoneNumberId: phoneNumberId || undefined,
+      ...(uberDirectBody !== undefined ? { uberDirect: uberDirectBody } : {}),
     };
     if (calcomApiKey.trim()) {
       body.calcomApiKey = calcomApiKey.trim();
@@ -351,6 +391,18 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="mb-1 text-sm font-medium text-slate-700">🚚 {t("agent.uberDirect.title")}</p>
+            <p className="mb-3 text-xs text-slate-500">{t("agent.uberDirect.intro")}</p>
+            <UberDirectFields
+              value={uberDirect}
+              onChange={setUberDirect}
+              hasClientSecret={uberSummary?.hasClientSecret}
+              hasWebhookSigningKey={uberSummary?.hasWebhookSigningKey}
+              webhookUrl={uberWebhookUrl}
+            />
           </div>
 
           <div className="rounded-lg border border-brand-200 bg-brand-50/40 p-3 space-y-3">

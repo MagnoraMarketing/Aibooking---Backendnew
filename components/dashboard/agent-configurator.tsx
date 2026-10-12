@@ -15,6 +15,7 @@ import { EmbedCodeTab } from "./agent-tabs/embed-code";
 import { KnowledgeBaseTab } from "./agent-tabs/knowledge-base-tab";
 import { BookingTab } from "./agent-tabs/booking-tab";
 import { WebshopTab } from "./agent-tabs/webshop-tab";
+import { DeliveryTab } from "./agent-tabs/delivery-tab";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
 
 // The "om virksomheden" answers behind a generated system prompt. Saved
@@ -63,7 +64,7 @@ export interface WidgetWithExtras extends Widget {
 
 export type SavePatch = (patch: Record<string, unknown>) => Promise<boolean>;
 
-type TabKey = "prompt" | "settings" | "knowledge" | "booking" | "webshop" | "customize" | "test" | "embed" | "phone";
+type TabKey = "prompt" | "settings" | "knowledge" | "booking" | "webshop" | "delivery" | "customize" | "test" | "embed" | "phone";
 
 // Which tabs make sense depends on what the agent is for — chosen once at
 // creation (see agent-creation-wizard.tsx's Voice Widget / Telefon type
@@ -84,6 +85,9 @@ function tabsFor(
     // Next to Booking on purpose: both are "connect the system you already run"
     // integrations, and a shop owner looking for one will look where the other is.
     { key: "webshop", label: t("agent.configurator.tab.webshop") },
+    // Delivery belongs to the same "connect what you already run" group, and
+    // applies to widget and phone agents alike.
+    { key: "delivery", label: t("agent.configurator.tab.delivery") },
   ];
   if (!isPhoneType) tabs.push({ key: "customize", label: t("agent.configurator.tab.customizeWidget") });
   tabs.push({ key: "test", label: t("agent.configurator.tab.testAgent") });
@@ -182,6 +186,7 @@ export function AgentConfigurator({
       ) : null}
       {activeTab === "booking" ? <BookingTab widget={widget} /> : null}
       {activeTab === "webshop" ? <WebshopTab widget={widget} /> : null}
+      {activeTab === "delivery" ? <DeliveryTab widget={widget} /> : null}
       {activeTab === "knowledge" ? (
         <KnowledgeBaseTab
           widget={widget}

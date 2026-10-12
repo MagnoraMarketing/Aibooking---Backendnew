@@ -4,6 +4,12 @@ import { getAnthropicClient, type LLMMessage } from "@/lib/llm";
 import { buildShopifyAnthropicTools } from "@/lib/shopify/tool-definitions";
 import { executeShopifyTool, isShopifyToolName, type ShopifyCapabilities } from "@/lib/shopify/agent-tools";
 import { CALENDAR_TOOLS, executeCalendarTool, type CalendarToolContext } from "./calendar-tools";
+import {
+  buildUberAnthropicTools,
+  executeUberDirectTool,
+  isUberToolName,
+  UBER_TOOL_GUIDANCE,
+} from "@/lib/uber-direct/agent-tools";
 
 // The tool-use loop for the chat/relay pipeline. Runs the same single-turn
 // shape as AnthropicProvider.generateReply, but with tools enabled and a loop
@@ -22,6 +28,12 @@ export interface ShopifyToolLoopContext {
   capabilities: ShopifyCapabilities;
 }
 
+// Uber Direct delivery tools, for an agent with a complete setup.
+export interface DeliveryToolLoopContext {
+  widgetId: string;
+  customerId: string;
+}
+
 export interface ToolLoopResult {
   content: string;
   inputTokens: number;
@@ -34,11 +46,13 @@ const FALLBACK_REPLY =
 
 function buildTools(
   calendar: CalendarToolContext | null,
-  shopify: ShopifyToolLoopContext | null
+  shopify: ShopifyToolLoopContext | null,
+  delivery: DeliveryToolLoopContext | null
 ): Anthropic.Tool[] {
   const tools: Anthropic.Tool[] = [];
   if (calendar) tools.push(...CALENDAR_TOOLS);
   if (shopify) tools.push(...(buildShopifyAnthropicTools(shopify.capabilities) as Anthropic.Tool[]));
+  if (delivery) tools.push(...(buildUberAnthropicTools() as Anthropic.Tool[]));
   return tools;
 }
 
@@ -47,7 +61,8 @@ function buildTools(
 // about a calendar it hasn't got is how you get it offering to book.
 function buildToolGuidance(
   calendar: CalendarToolContext | null,
-  shopify: ShopifyToolLoopContext | null
+  shopify: ShopifyToolLoopContext | null,
+  delivery: DeliveryToolLoopContext | null
 ): string {
   const today = new Date().toISOString().slice(0, 10);
   const parts: string[] = [`Dagens dato er ${today}.`];
@@ -77,6 +92,8 @@ function buildToolGuidance(
     );
   }
 
+  if (delivery) parts.push(UBER_TOOL_GUIDANCE);
+
   return parts.join(" ");
 }
 
@@ -84,8 +101,13 @@ async function executeTool(
   name: string,
   input: unknown,
   calendar: CalendarToolContext | null,
-  shopify: ShopifyToolLoopContext | null
+  shopify: ShopifyToolLoopContext | null,
+  delivery: DeliveryToolLoopContext | null
 ): Promise<string> {
+  if (isUberToolName(name)) {
+    if (!delivery) return "Levering med Uber er ikke sat op, så det kan du ikke gøre.";
+    return executeUberDirectTool(name, (input ?? {}) as Record<string, unknown>, delivery.widgetId, delivery.customerId);
+  }
   if (isShopifyToolName(name)) {
     if (!shopify) return "Webshoppen er ikke forbundet, så det kan du ikke slå op.";
     return executeShopifyTool(name, (input ?? {}) as Record<string, unknown>, shopify.widgetId);
@@ -101,10 +123,12 @@ export async function generateReplyWithTools(params: {
   maxTokens: number;
   calendar: CalendarToolContext | null;
   shopify: ShopifyToolLoopContext | null;
+  delivery?: DeliveryToolLoopContext | null;
 }): Promise<ToolLoopResult> {
+  const delivery = params.delivery ?? null;
   const client = getAnthropicClient();
-  const tools = buildTools(params.calendar, params.shopify);
-  const systemPrompt = `${params.systemPrompt}\n\n${buildToolGuidance(params.calendar, params.shopify)}`;
+  const tools = buildTools(params.calendar, params.shopify, delivery);
+  const systemPrompt = `${params.systemPrompt}\n\n${buildToolGuidance(params.calendar, params.shopify, delivery)}`;
 
   const conversationMessages: Anthropic.MessageParam[] = params.messages.map((m) => ({
     role: m.role,
@@ -140,7 +164,7 @@ export async function generateReplyWithTools(params: {
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
     for (const block of response.content) {
       if (block.type !== "tool_use") continue;
-      const resultText = await executeTool(block.name, block.input, params.calendar, params.shopify);
+      const resultText = await executeTool(block.name, block.input, params.calendar, params.shopify, delivery);
       toolResults.push({ type: "tool_result", tool_use_id: block.id, content: resultText });
     }
     conversationMessages.push({ role: "user", content: toolResults });
