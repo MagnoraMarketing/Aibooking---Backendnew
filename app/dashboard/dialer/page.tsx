@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { requireCustomerAdminForPage } from "@/lib/auth";
+import { DIALER_ENABLED } from "@/lib/features";
 import { getAdminClient } from "@/lib/database/admin";
 import { DialerManager } from "@/components/dashboard/dialer-manager";
 import { PHONE_NUMBER_CLIENT_COLUMNS } from "@/lib/phone-numbers";
@@ -14,6 +16,9 @@ export interface LeadListRow {
 }
 
 export default async function DialerPage() {
+  // Not finished yet — hidden from customers (see lib/features).
+  if (!DIALER_ENABLED) redirect("/dashboard/inbound");
+
   const ctx = await requireCustomerAdminForPage();
   const supabase = getAdminClient();
   const customerId = ctx.profile.customer_id!;

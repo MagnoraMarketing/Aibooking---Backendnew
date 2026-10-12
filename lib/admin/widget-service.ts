@@ -6,6 +6,7 @@ import { generatePublicWidgetId, buildShareUrl, buildEmbedSnippet, widgetUpdateT
 import { getDefaultSystemPrompt } from "@/lib/settings/platform";
 import { refreshWapiAgent, syncWidgetToVapiAssistant, ensureVapiAssistant, type VapiSyncOutcome } from "@/lib/vapi";
 import { attachAssistantToVapiNumber } from "@/lib/vapi";
+import { assertAssistantNotLinkedElsewhere } from "@/lib/vapi/assistant-owner";
 import { encryptSecret, writeAuditLog } from "@/lib/security";
 import { mergeUberDirectInput } from "@/lib/uber-direct/connection";
 import { fetchCalcomMe, fetchCalcomEventTypes } from "@/lib/calendar";
@@ -258,6 +259,7 @@ export async function createAdminWidget(
   const dbRow = widgetUpdateToDbRow(rest);
 
   const { wapiAgentRowId, vapiAssistantId } = await resolveWapiAgentConnection({ wapiAgentId, wapiAgentExternalId });
+  if (vapiAssistantId) await assertAssistantNotLinkedElsewhere(vapiAssistantId, null);
 
   const llmModelId = rest.llmModelId ?? (vapiAssistantId ? await resolveDefaultVapiLlmModelId() : null);
 
@@ -349,6 +351,7 @@ export async function applyAdminWidgetConnections(
     });
     wapiAgentRowId = resolved.wapiAgentRowId;
     vapiAssistantId = resolved.vapiAssistantId;
+    if (vapiAssistantId) await assertAssistantNotLinkedElsewhere(vapiAssistantId, widget.id);
 
     const { error: widgetError } = await supabase
       .from("widgets")

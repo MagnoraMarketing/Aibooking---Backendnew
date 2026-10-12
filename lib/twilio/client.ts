@@ -26,7 +26,15 @@ export function getPlatformTwilioCredentials(): TwilioCredentials {
 // `path` is everything after /Accounts/{accountSid} — e.g.
 // "/IncomingPhoneNumbers.json". Always authenticates and scopes the request
 // to the given credentials' own account (subaccount or master).
-export async function twilioFetch(path: string, credentials: TwilioCredentials, init: RequestInit = {}): Promise<Response> {
+// `acceptStatuses` lets a caller handle an expected non-2xx itself (e.g. a
+// 404 for a resource that was deleted on Twilio's side) instead of getting
+// it as a thrown error.
+export async function twilioFetch(
+  path: string,
+  credentials: TwilioCredentials,
+  init: RequestInit = {},
+  options: { acceptStatuses?: number[] } = {}
+): Promise<Response> {
   const basicAuth = Buffer.from(`${credentials.accountSid}:${credentials.authToken}`).toString("base64");
 
   const response = await fetch(`${TWILIO_API_BASE}/Accounts/${credentials.accountSid}${path}`, {
@@ -37,7 +45,7 @@ export async function twilioFetch(path: string, credentials: TwilioCredentials, 
     },
   });
 
-  if (!response.ok) {
+  if (!response.ok && !options.acceptStatuses?.includes(response.status)) {
     const errorBody = await response.text().catch(() => "");
     throw ApiError.internal(`Twilio afviste anmodningen (${response.status}): ${errorBody || "ingen detaljer"}`);
   }

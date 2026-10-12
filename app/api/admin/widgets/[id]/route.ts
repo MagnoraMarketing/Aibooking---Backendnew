@@ -6,6 +6,7 @@ import { widgetUpdateToDbRow, buildShareUrl, buildEmbedSnippet } from "@/lib/wid
 import { applyAdminWidgetConnections, pushAdminWidgetToVapi } from "@/lib/admin/widget-service";
 import { mergeUberDirectInput, removeUberDirect, summarizeUberDirect } from "@/lib/uber-direct/connection";
 import { getPublicAppUrl } from "@/lib/app-url";
+import { assertAssistantNotLinkedElsewhere } from "@/lib/vapi/assistant-owner";
 import { ApiError } from "@/types/errors";
 import type { Widget } from "@/types/database";
 
@@ -53,6 +54,11 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
     ...widgetFields
   } = await readJsonBody(request, updateAdminWidgetSchema);
   const supabase = getAdminClient();
+
+  // Checked before anything is written, so a clash leaves the agent as it was.
+  for (const assistantId of [extraUpdate?.vapiAssistantId, extraUpdate?.vapiOutboundAssistantId]) {
+    if (assistantId) await assertAssistantNotLinkedElsewhere(assistantId, params.id ?? null, supabase);
+  }
 
   const widgetRow = widgetUpdateToDbRow(widgetFields);
   if (deploymentType !== undefined) widgetRow.deployment_type = deploymentType;

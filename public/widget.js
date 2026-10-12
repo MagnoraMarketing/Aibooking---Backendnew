@@ -82,6 +82,32 @@
     return null;
   }
 
+  // What the customer reads when a call can't start or breaks off. Never the
+  // raw provider text ("Fejl: Bad Request", "WebRTC handshake … failed",
+  // "se browserkonsollen"): that is meaningless to a shop's visitor and makes
+  // the shop look broken. The real error is always console.error'ed at the
+  // call site, so nothing is lost for debugging. The one failure the visitor
+  // can fix themselves — a blocked or missing microphone — gets its own
+  // instruction; everything else gets one calm "try again" line.
+  function customerCallMessage(err) {
+    if (err && err.status === 402) {
+      return "Assistenten er ikke tilgængelig lige nu. Prøv igen senere, eller kontakt os direkte.";
+    }
+    var name = (err && (err.name || (err.error && err.error.name))) || "";
+    var text = (describeError(err) || "").toLowerCase();
+    if (
+      name === "NotAllowedError" ||
+      name === "PermissionDeniedError" ||
+      name === "NotFoundError" ||
+      /permission|not ?allowed|microphone|mikrofon|getusermedia/.test(text)
+    ) {
+      return "Giv adgang til mikrofonen i din browser, og tryk på knappen igen.";
+    }
+    return "Vi kunne ikke starte samtalen lige nu. Prøv igen om et øjeblik.";
+  }
+
+  var CALL_DROPPED_MESSAGE = "Forbindelsen blev afbrudt. Tryk på knappen for at prøve igen.";
+
   // Ends a usage session — the only thing that bills its minutes against the
   // customer's credit ledger and closes the conversation (see
   // finalizeUsageSession in lib/usage/session.ts).
@@ -299,7 +325,7 @@
         style:
           "background:" +
           config.secondaryColor +
-          ";color:#fff;padding:14px 16px;font-weight:600;display:flex;align-items:center;gap:10px;",
+          ";color:#fff;padding:16px 18px;font-weight:600;display:flex;align-items:center;gap:10px;",
       },
       [avatar, el("span", { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" }, [config.businessName || "AI-assistent"])]
     );
@@ -312,7 +338,7 @@
       "position:fixed;" +
       pos +
       "width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;" +
-      "box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:999999;";
+      "box-shadow:0 10px 28px rgba(15,23,42,.28);z-index:999999;";
 
     if (config.avatarUrl) {
       return el("button", {
@@ -358,7 +384,7 @@
         type: "button",
         title: "Tal i stedet for at skrive",
         style:
-          "border:none;background:#f1f1f1;color:#555;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:15px;",
+          "border:none;background:#f8fafc;color:#475569;border-radius:10px;padding:8px 10px;cursor:pointer;font-size:15px;",
       },
       ["🎤"]
     );
@@ -370,8 +396,8 @@
     };
     recognition.onend = function () {
       listening = false;
-      micBtn.style.background = "#f1f1f1";
-      micBtn.style.color = "#555";
+      micBtn.style.background = "#f8fafc";
+      micBtn.style.color = "#475569";
     };
     recognition.onresult = function (event) {
       var transcript = event.results[0] && event.results[0][0] && event.results[0][0].transcript;
@@ -415,14 +441,14 @@
     var input = el("input", {
       type: "text",
       placeholder: "Skriv en besked...",
-      style: "flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:14px;",
+      style: "flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:14px;",
     });
 
     var sendBtn = el(
       "button",
       {
         style:
-          "border:none;background:" + config.primaryColor + ";color:#fff;border-radius:8px;padding:8px 12px;cursor:pointer;",
+          "border:none;background:" + config.primaryColor + ";color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer;",
       },
       ["Send"]
     );
@@ -440,9 +466,9 @@
         style:
           "position:fixed;" +
           pos +
-          "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
-          "border:1px solid rgba(0,0,0,.06);" +
+          "width:360px;max-width:92vw;height:480px;max-height:72vh;margin-bottom:78px;" +
+          "background:#fff;border-radius:22px;box-shadow:0 20px 50px rgba(15,23,42,.18);" +
+          "border:1px solid rgba(15,23,42,.08);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
@@ -450,13 +476,13 @@
         messagesEl,
         el(
           "div",
-          { style: "display:flex;gap:8px;padding:10px;border-top:1px solid #eee;" },
+          { style: "display:flex;gap:8px;padding:10px;border-top:1px solid #e2e8f0;" },
           micBtn ? [micBtn, input, sendBtn] : [input, sendBtn]
         ),
         config.showBranding
           ? el(
               "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:4px 0 8px;" },
+              { style: "text-align:center;font-size:11px;color:#94a3b8;padding:4px 0 8px;" },
               ["Powered by AIbooking.dk"]
             )
           : el("div", {}, []),
@@ -471,10 +497,10 @@
         "div",
         {
           style:
-            "max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.4;" +
+            "max-width:80%;padding:8px 12px;border-radius:16px;font-size:14px;line-height:1.4;" +
             (role === "user"
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
-              : "align-self:flex-start;background:#f1f1f1;color:#222;"),
+              : "align-self:flex-start;background:#f8fafc;color:#1e293b;border:1px solid #e2e8f0;"),
         },
         []
       );
@@ -495,7 +521,7 @@
         addMessage(entry.text, entry.role, true);
       });
       messagesEl.appendChild(
-        el("div", { style: "text-align:center;font-size:11px;color:#999;margin:4px 0;" }, ["— Ny samtale —"])
+        el("div", { style: "text-align:center;font-size:11px;color:#94a3b8;margin:4px 0;" }, ["— Ny samtale —"])
       );
       return true;
     }
@@ -561,8 +587,8 @@
         .catch(function (err) {
           var message =
             err.status === 402
-              ? "Denne assistent er midlertidigt utilgængelig."
-              : "Der opstod en fejl. Prøv igen om lidt.";
+              ? "Assistenten er ikke tilgængelig lige nu. Prøv igen senere, eller kontakt os direkte."
+              : "Beskeden kunne ikke sendes. Prøv igen om et øjeblik.";
           // Transient client-side notice, not part of the actual
           // conversation — shown once, never saved to history.
           addMessage(message, "assistant", true);
@@ -600,7 +626,7 @@
 
     var statusEl = el(
       "div",
-      { style: "font-size:13px;color:#666;text-align:center;padding:4px 0 10px;" },
+      { style: "font-size:13px;color:#475569;text-align:center;padding:4px 0 10px;" },
       ["Klik på mikrofonen for at starte samtalen"]
     );
 
@@ -608,7 +634,7 @@
       "button",
       {
         style:
-          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;" +
+          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;box-shadow:0 8px 22px rgba(15,23,42,.2);" +
           "background:" +
           config.primaryColor +
           ";color:#fff;font-size:26px;",
@@ -623,19 +649,19 @@
         style:
           "position:fixed;" +
           pos +
-          "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
-          "border:1px solid rgba(0,0,0,.06);" +
+          "width:360px;max-width:92vw;height:480px;max-height:72vh;margin-bottom:78px;" +
+          "background:#fff;border-radius:22px;box-shadow:0 20px 50px rgba(15,23,42,.18);" +
+          "border:1px solid rgba(15,23,42,.08);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
         buildHeader(config),
         transcriptEl,
-        el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
+        el("div", { style: "padding:12px;border-top:1px solid #e2e8f0;" }, [callBtn, statusEl]),
         config.showBranding
           ? el(
               "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
+              { style: "text-align:center;font-size:11px;color:#94a3b8;padding:0 0 8px;" },
               ["Powered by AIbooking.dk"]
             )
           : el("div", {}, []),
@@ -650,10 +676,10 @@
         "div",
         {
           style:
-            "max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.4;" +
+            "max-width:80%;padding:8px 12px;border-radius:16px;font-size:14px;line-height:1.4;" +
             (role === "user"
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
-              : "align-self:flex-start;background:#f1f1f1;color:#222;"),
+              : "align-self:flex-start;background:#f8fafc;color:#1e293b;border:1px solid #e2e8f0;"),
         },
         []
       );
@@ -672,7 +698,7 @@
         addTranscriptLine(entry.text, entry.role, true);
       });
       transcriptEl.appendChild(
-        el("div", { style: "text-align:center;font-size:11px;color:#999;margin:4px 0;" }, ["— Ny samtale —"])
+        el("div", { style: "text-align:center;font-size:11px;color:#94a3b8;margin:4px 0;" }, ["— Ny samtale —"])
       );
     })();
 
@@ -726,7 +752,11 @@
       } catch (e) {
         return;
       }
-      if (payload.type === "response.audio_transcript.done" && payload.transcript) {
+      // GA renamed response.audio_transcript.done → response.output_audio_transcript.done
+      if (
+        (payload.type === "response.output_audio_transcript.done" || payload.type === "response.audio_transcript.done") &&
+        payload.transcript
+      ) {
         addTranscriptLine(payload.transcript, "assistant");
       } else if (
         payload.type === "conversation.item.input_audio_transcription.completed" &&
@@ -734,7 +764,7 @@
       ) {
         addTranscriptLine(payload.transcript, "user");
       } else if (payload.type === "error") {
-        statusEl.textContent = "Der opstod en fejl under samtalen.";
+        statusEl.textContent = CALL_DROPPED_MESSAGE;
       }
     }
 
@@ -775,7 +805,9 @@
           });
         })
         .then(function (offer) {
-          return fetch("https://api.openai.com/v1/realtime?model=" + encodeURIComponent(realtime.model), {
+          // GA Realtime API: the SDP offer goes to /v1/realtime/calls (the beta
+          // /v1/realtime?model= endpoint was retired together with /sessions).
+          return fetch("https://api.openai.com/v1/realtime/calls?model=" + encodeURIComponent(realtime.model), {
             method: "POST",
             body: offer.sdp,
             headers: {
@@ -818,10 +850,7 @@
           console.error("[aibooking] Realtime widget failed to start:", err);
           rtc.starting = false;
           teardownConnection();
-          statusEl.textContent =
-            err.status === 402
-              ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
+          statusEl.textContent = customerCallMessage(err);
         });
     }
 
@@ -903,7 +932,7 @@
 
     var statusEl = el(
       "div",
-      { style: "font-size:13px;color:#666;text-align:center;padding:4px 0 10px;" },
+      { style: "font-size:13px;color:#475569;text-align:center;padding:4px 0 10px;" },
       ["Klik på mikrofonen for at starte samtalen"]
     );
 
@@ -911,7 +940,7 @@
       "button",
       {
         style:
-          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;" +
+          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;box-shadow:0 8px 22px rgba(15,23,42,.2);" +
           "background:" +
           config.primaryColor +
           ";color:#fff;font-size:26px;",
@@ -926,19 +955,19 @@
         style:
           "position:fixed;" +
           pos +
-          "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
-          "border:1px solid rgba(0,0,0,.06);" +
+          "width:360px;max-width:92vw;height:480px;max-height:72vh;margin-bottom:78px;" +
+          "background:#fff;border-radius:22px;box-shadow:0 20px 50px rgba(15,23,42,.18);" +
+          "border:1px solid rgba(15,23,42,.08);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
         buildHeader(config),
         transcriptEl,
-        el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn, statusEl]),
+        el("div", { style: "padding:12px;border-top:1px solid #e2e8f0;" }, [callBtn, statusEl]),
         config.showBranding
           ? el(
               "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
+              { style: "text-align:center;font-size:11px;color:#94a3b8;padding:0 0 8px;" },
               ["Powered by AIbooking.dk"]
             )
           : el("div", {}, []),
@@ -953,10 +982,10 @@
         "div",
         {
           style:
-            "max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.4;" +
+            "max-width:80%;padding:8px 12px;border-radius:16px;font-size:14px;line-height:1.4;" +
             (role === "user"
               ? "align-self:flex-end;background:" + config.primaryColor + ";color:#fff;"
-              : "align-self:flex-start;background:#f1f1f1;color:#222;"),
+              : "align-self:flex-start;background:#f8fafc;color:#1e293b;border:1px solid #e2e8f0;"),
         },
         []
       );
@@ -975,7 +1004,7 @@
         addTranscriptLine(entry.text, entry.role, true);
       });
       transcriptEl.appendChild(
-        el("div", { style: "text-align:center;font-size:11px;color:#999;margin:4px 0;" }, ["— Ny samtale —"])
+        el("div", { style: "text-align:center;font-size:11px;color:#94a3b8;margin:4px 0;" }, ["— Ny samtale —"])
       );
     })();
 
@@ -1049,15 +1078,11 @@
               call.client.on("error", function (e) {
                 // Vapi's error event shape isn't fixed (varies by failure
                 // source — mic permissions, ICE negotiation, the assistant
-                // itself) — surface whatever text it gives us instead of a
-                // dead-end generic message, and always log the raw object so
-                // it's visible in devtools even when no readable text exists.
+                // itself) — log the raw object for devtools and show the
+                // customer a friendly line (see customerCallMessage).
                 console.error("Vapi call error:", e);
                 call.starting = false;
-                var detail = describeError(e);
-                statusEl.textContent = detail
-                  ? "Fejl: " + detail
-                  : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
+                statusEl.textContent = call.active ? CALL_DROPPED_MESSAGE : customerCallMessage(e);
               });
             }
             call.client.start(data.vapi.assistantId);
@@ -1071,10 +1096,7 @@
           // generic status line every failure used to collapse into.
           console.error("[aibooking] Vapi widget failed to start:", err);
           call.starting = false;
-          statusEl.textContent =
-            err.status === 402
-              ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
+          statusEl.textContent = customerCallMessage(err);
         });
     }
 
@@ -1147,7 +1169,7 @@
 
     var statusEl = el(
       "div",
-      { style: "flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#666;text-align:center;padding:12px;" },
+      { style: "flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;color:#475569;text-align:center;padding:12px;" },
       ["Klik på mikrofonen for at starte samtalen"]
     );
 
@@ -1155,7 +1177,7 @@
       "button",
       {
         style:
-          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;" +
+          "width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:block;margin:0 auto;box-shadow:0 8px 22px rgba(15,23,42,.2);" +
           "background:" +
           config.primaryColor +
           ";color:#fff;font-size:26px;",
@@ -1170,19 +1192,19 @@
         style:
           "position:fixed;" +
           pos +
-          "width:340px;max-width:90vw;height:460px;max-height:70vh;margin-bottom:76px;" +
-          "background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);" +
-          "border:1px solid rgba(0,0,0,.06);" +
+          "width:360px;max-width:92vw;height:480px;max-height:72vh;margin-bottom:78px;" +
+          "background:#fff;border-radius:22px;box-shadow:0 20px 50px rgba(15,23,42,.18);" +
+          "border:1px solid rgba(15,23,42,.08);" +
           "display:none;flex-direction:column;overflow:hidden;z-index:999999;font-family:system-ui,sans-serif;",
       },
       [
         buildHeader(config),
         statusEl,
-        el("div", { style: "padding:12px;border-top:1px solid #eee;" }, [callBtn]),
+        el("div", { style: "padding:12px;border-top:1px solid #e2e8f0;" }, [callBtn]),
         config.showBranding
           ? el(
               "div",
-              { style: "text-align:center;font-size:11px;color:#999;padding:0 0 8px;" },
+              { style: "text-align:center;font-size:11px;color:#94a3b8;padding:0 0 8px;" },
               ["Powered by AIbooking.dk"]
             )
           : el("div", {}, []),
@@ -1226,10 +1248,7 @@
               call.device = new Twilio.Device(data.token);
               call.device.on("error", function (e) {
                 console.error("Twilio device error:", e);
-                var detail = describeError(e);
-                statusEl.textContent = detail
-                  ? "Fejl: " + detail
-                  : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
+                statusEl.textContent = call.active ? CALL_DROPPED_MESSAGE : customerCallMessage(e);
               });
             } else {
               call.device.updateToken(data.token);
@@ -1251,19 +1270,13 @@
           twilioCall.on("error", function (e) {
             console.error("Twilio call error:", e);
             call.starting = false;
-            var detail = describeError(e);
-            statusEl.textContent = detail
-              ? "Fejl: " + detail
-              : "Der opstod en fejl under samtalen (se browserkonsollen for detaljer).";
+            statusEl.textContent = call.active ? CALL_DROPPED_MESSAGE : customerCallMessage(e);
           });
         })
         .catch(function (err) {
           console.error("[aibooking] Twilio Relay widget failed to start:", err);
           call.starting = false;
-          statusEl.textContent =
-            err.status === 402
-              ? "Ikke flere minutter tilgængelige lige nu."
-              : "Kunne ikke forbinde (" + (describeError(err) || "ukendt fejl") + "). Prøv igen.";
+          statusEl.textContent = customerCallMessage(err);
         });
     }
 

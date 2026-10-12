@@ -12,6 +12,7 @@ const BILLING_STATUS_DOT: Record<string, string> = {
   paid: "bg-emerald-500",
   trial: "bg-amber-500",
   expired: "bg-red-500",
+  partner: "bg-indigo-500",
 };
 
 export const dynamic = "force-dynamic";
@@ -74,6 +75,7 @@ export default async function AdminCustomerDetailPage({ params }: { params: { id
     subscriptionStatus: subscription?.status ?? null,
     balanceSeconds: creditAccount?.balance_seconds ?? 0,
     widgetLaunchPaidAt: customer.widget_launch_paid_at,
+    customerType: customer.customer_type,
   });
 
   return (
