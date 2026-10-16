@@ -4,6 +4,7 @@ import { getServerClient } from "@/lib/database/server";
 import { resolveAuthContext } from "@/lib/auth/session";
 import { selfSignupCustomer } from "@/lib/customers/self-signup";
 import { notifyNewCustomerSignup } from "@/lib/email/internal-notifications";
+import { sendCustomerWelcomeEmail } from "@/lib/email/welcome";
 import { ApiError } from "@/types/errors";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,15 @@ export const POST = withErrorHandling(async (request) => {
   });
 
   await notifyNewCustomerSignup({ customer: result.customer, language, source: "complete-signup" });
+
+  // Welcome email to the customer with next steps and their embed code.
+  // Never throws (see lib/email/welcome.ts).
+  await sendCustomerWelcomeEmail({
+    email: result.customer.email,
+    companyName: result.customer.name,
+    widget: result.widget,
+    trialMinutes: result.trialMinutes,
+  });
 
   return NextResponse.json({ success: true }, { status: 201 });
 });
