@@ -10,9 +10,9 @@ interface VapiVoiceTemplatesSettingsProps {
 
 // Lets a master admin point "Mand"/"Dame" (the only voice choice customers
 // ever see for a Widget Voice agent) at two hand-configured Vapi assistants
-// — every customer widget on the Vapi model clones its `voice` config from
-// whichever of these two its own agent is set to (see
-// resolveVoiceConfig in lib/vapi/assistants.ts). The ids themselves are
+// — every agent gets an assistant of its own in Vapi, created as a copy of
+// whichever of these two it is set to (see buildAssistantBody in
+// lib/vapi/assistants.ts). The ids themselves are
 // never shown in the customer-facing Settings tab.
 export function VapiVoiceTemplatesSettings({
   initialMaleAssistantId,
@@ -23,10 +23,12 @@ export function VapiVoiceTemplatesSettings({
   const [femaleAssistantId, setFemaleAssistantId] = useState(initialFemaleAssistantId ?? "");
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSave() {
     setSaving(true);
     setStatus("idle");
+    setErrorMessage(null);
     const res = await fetch("/api/admin/settings/vapi-voice-templates", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -36,6 +38,12 @@ export function VapiVoiceTemplatesSettings({
       }),
     });
     setSaving(false);
+    if (!res.ok) {
+      // The server says which template id it refused and why (unknown in
+      // Vapi, or already a customer's own agent).
+      const data = await res.json().catch(() => null);
+      setErrorMessage((data?.error?.message as string | undefined) ?? null);
+    }
     setStatus(res.ok ? "saved" : "error");
   }
 
@@ -86,8 +94,14 @@ export function VapiVoiceTemplatesSettings({
         >
           {saving ? t("common.saving") : t("common.save")}
         </button>
-        {status === "saved" ? <span className="text-sm text-emerald-600">{t("common.saved")}</span> : null}
-        {status === "error" ? <span className="text-sm text-red-600">{t("common.saveFailed")}</span> : null}
+        {status === "saved" ? (
+          <span className="text-sm text-emerald-600">
+            {t("common.saved")} {t("adminPages.vapiVoiceTemplates.resyncHint")}
+          </span>
+        ) : null}
+        {status === "error" ? (
+          <span className="text-sm text-red-600">{errorMessage ?? t("common.saveFailed")}</span>
+        ) : null}
       </div>
     </div>
   );

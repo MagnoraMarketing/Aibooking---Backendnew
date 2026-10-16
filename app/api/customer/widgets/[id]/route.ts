@@ -120,6 +120,7 @@ export const PATCH = withErrorHandling(async (request, { params }) => {
         firstMessage: data.opening_message ?? defaultGreeting(data.language),
         voiceGender,
         language: data.language,
+        widgetId,
       });
       extra = { ...extra, voiceGender, vapiAssistantId: assistant.id };
       await supabase.from("widget_settings").upsert({ widget_id: widgetId, extra });

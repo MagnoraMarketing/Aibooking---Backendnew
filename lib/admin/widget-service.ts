@@ -12,6 +12,7 @@ import { mergeUberDirectInput } from "@/lib/uber-direct/connection";
 import { fetchCalcomMe, fetchCalcomEventTypes } from "@/lib/calendar";
 import type { createAdminWidgetSchema, wapiAgentConnectionSchema } from "@/lib/security/schemas";
 import { ApiError } from "@/types/errors";
+import { DEFAULT_VOICE_GENDER } from "@/lib/vapi/voice-gender";
 import type { Widget } from "@/types/database";
 
 type CreateInput = z.infer<typeof createAdminWidgetSchema>;
@@ -254,6 +255,7 @@ export async function createAdminWidget(
     calcomApiKey,
     calcomEventTypeId,
     uberDirect,
+    voiceGender,
     ...rest
   } = input;
   const dbRow = widgetUpdateToDbRow(rest);
@@ -280,7 +282,13 @@ export async function createAdminWidget(
     .single();
   if (error) throw error;
 
-  const initialExtra: Record<string, unknown> = vapiAssistantId ? { vapiAssistantId } : {};
+  // The Mand/Dame template a new assistant is copied from (ensureVapiAssistant
+  // reads it). An agent linked to an existing, hand-built assistant keeps its
+  // choice too, for the day it is switched back to a platform-built one.
+  const initialExtra: Record<string, unknown> = {
+    voiceGender: voiceGender ?? DEFAULT_VOICE_GENDER,
+    ...(vapiAssistantId ? { vapiAssistantId } : {}),
+  };
   await supabase.from("widget_settings").insert({
     widget_id: widget.id,
     // Set before the Vapi push below, so a new agent is born with its

@@ -29,6 +29,9 @@ export interface VapiAssistantParams {
   // The widget's configured language (widgets.language). Decides what the
   // assistant says out loud while a tool runs — see withSpokenToolMessages.
   language?: string | null;
+  // The agent this assistant belongs to, recorded in the assistant's Vapi
+  // metadata. Unknown while the agent is still being created.
+  widgetId?: string | null;
 }
 
 // The model the widget agent runs on is not a customer choice: it is
@@ -42,16 +45,22 @@ const FALLBACK_MODEL_PROVIDER = "anthropic";
 const FALLBACK_MODEL_NAME = "claude-haiku-4-5-20251001";
 
 interface VapiTemplateAssistant {
+  id?: string;
   voice?: Record<string, unknown>;
   model?: Record<string, unknown>;
+  transcriber?: Record<string, unknown>;
+  startSpeakingPlan?: Record<string, unknown>;
+  serverMessages?: unknown;
+  [key: string]: unknown;
 }
 
 // Reads the master-admin-configured "template" assistant (one for "male",
-// one for "female") that widget assistants are cloned from, rather than
+// one for "female") that every agent's assistant is cloned from, rather than
 // storing voice/model settings ourselves — the admin builds and tunes each
 // template directly in Vapi's own dashboard, and we mirror whatever it is
-// currently set to. Fetched once per assistant build: both resolveVoiceConfig
-// and resolveModelConfig read the same response.
+// currently set to. Fetched once per assistant build: the voice, the model
+// and every other cloned setting (cloneTemplateSettings) read the same
+// response.
 async function resolveTemplate(gender: VapiVoiceGender): Promise<VapiTemplateAssistant | null> {
   const templateAssistantId = await getVapiVoiceTemplateAssistantId(gender);
   if (!templateAssistantId) {
@@ -63,7 +72,8 @@ async function resolveTemplate(gender: VapiVoiceGender): Promise<VapiTemplateAss
 
   try {
     const response = await vapiFetch(`/assistant/${encodeURIComponent(templateAssistantId)}`, { method: "GET" });
-    return (await response.json()) as VapiTemplateAssistant;
+    const template = (await response.json()) as VapiTemplateAssistant;
+    return { ...template, id: templateAssistantId };
   } catch (err) {
     console.error(`Failed to read Vapi ${gender} voice template (${templateAssistantId}):`, err);
     return null;
@@ -100,12 +110,124 @@ function resolveModelConfig(template: VapiTemplateAssistant | null, gender: Vapi
     return fallback;
   }
 
-  return {
-    provider: model.provider,
-    model: model.model,
-    ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
-    ...(typeof model.maxTokens === "number" ? { maxTokens: model.maxTokens } : {}),
-  };
+  // Everything else the admin tuned on the template's model (temperature,
+  // maxTokens, emotion recognition, fallbacks …) is copied too.
+  const engine: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(model)) {
+    if (!MODEL_FIELDS_NOT_CLONED.has(key)) engine[key] = value;
+  }
+  return engine;
+}
+
+// The parts of the template's model block that belong to the template, not
+// to the engine: its prompt, its tools (inline or by id — a tool on the
+// template, e.g. a transfer to the admin's own number, must never end up on a
+// customer's agent) and its knowledge base. Each agent gets its own below.
+const MODEL_FIELDS_NOT_CLONED = new Set(["messages", "tools", "toolIds", "knowledgeBase", "knowledgeBaseId"]);
+
+// Top-level fields of a template that are never copied onto an agent's
+// assistant: Vapi's own read-only bookkeeping (POST/PATCH reject them), the
+// template's identity, and everything this module builds per agent
+// (buildAssistantBody). Everything NOT listed here — endpointing, background
+// sound, recording/analysis plans, interruption settings, voicemail
+// detection, call limits … — is cloned as-is, so a new agent starts out as
+// an exact copy of the "Mand"/"Dame" template the customer picked, and only
+// its name, prompt, greeting, tools and webhook are its own.
+const TEMPLATE_FIELDS_NOT_CLONED = new Set([
+  "id",
+  "orgId",
+  "createdAt",
+  "updatedAt",
+  "isServerUrlSecretSet",
+  "name",
+  "firstMessage",
+  "metadata",
+  "model",
+  "voice",
+  "transcriber",
+  "startSpeakingPlan",
+  "server",
+  "serverUrl",
+  "serverUrlSecret",
+  "knowledgeBase",
+  "knowledgeBaseId",
+]);
+
+// Text the template SPEAKS, written in the template's own language. The
+// templates are configured by the (Danish) platform team, so these are only
+// copied onto an agent that also speaks Danish — an English agent saying a
+// Danish goodbye is worse than Vapi's silence. Our own endCall tool and
+// directive cover hanging up in every language regardless.
+const TEMPLATE_LANGUAGE = "da";
+const SPOKEN_TEMPLATE_FIELDS = new Set(["endCallMessage", "endCallPhrases", "voicemailMessage", "messagePlan"]);
+
+// The webhook events this platform cannot do without: tool calls run the
+// booking/webshop tools, and the end-of-call report bills the call (see
+// app/api/webhooks/vapi/route.ts). A template that narrows serverMessages
+// keeps its list, plus these.
+const REQUIRED_SERVER_MESSAGES = ["tool-calls", "end-of-call-report"];
+
+function cloneTemplateSettings(
+  template: VapiTemplateAssistant | null,
+  language: string | null | undefined
+): Record<string, unknown> {
+  if (!template) return {};
+  const speaksTemplateLanguage = !language || language === TEMPLATE_LANGUAGE;
+
+  const settings: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(template)) {
+    if (TEMPLATE_FIELDS_NOT_CLONED.has(key)) continue;
+    if (SPOKEN_TEMPLATE_FIELDS.has(key) && !speaksTemplateLanguage) continue;
+    if (value === null || value === undefined) continue;
+    settings[key] = value;
+  }
+
+  if (Array.isArray(settings.serverMessages)) {
+    settings.serverMessages = Array.from(new Set([...settings.serverMessages, ...REQUIRED_SERVER_MESSAGES]));
+  }
+  return settings;
+}
+
+// The transcriber that has always been the platform default: Soniox's
+// stt-rt-v5 auto-detects the language, so it works for an agent in any of
+// the dashboard's languages.
+const FALLBACK_TRANSCRIBER = { provider: "soniox", model: "stt-rt-v5" };
+
+// The template's transcriber, unless it is pinned to a language other than
+// the agent's — a Danish-only transcriber would turn every English caller
+// into gibberish. An unpinned (auto-detecting) one is used as-is.
+function resolveTranscriberConfig(
+  template: VapiTemplateAssistant | null,
+  language: string | null | undefined
+): Record<string, unknown> {
+  const transcriber = template?.transcriber;
+  if (!transcriber || typeof transcriber.provider !== "string") return FALLBACK_TRANSCRIBER;
+
+  const pinned = typeof transcriber.language === "string" ? transcriber.language.toLowerCase() : null;
+  const agentLanguage = (language ?? TEMPLATE_LANGUAGE).toLowerCase();
+  if (pinned && pinned !== "multi" && !pinned.startsWith(agentLanguage)) return FALLBACK_TRANSCRIBER;
+
+  return transcriber;
+}
+
+// The template's endpointing plan, with the platform's email pause added to
+// whatever custom rules it already has.
+function resolveStartSpeakingPlan(template: VapiTemplateAssistant | null): Record<string, unknown> {
+  const plan = template?.startSpeakingPlan ?? {};
+  const rules = Array.isArray(plan.customEndpointingRules) ? plan.customEndpointingRules : [];
+  const hasEmailRule = rules.some(
+    (rule) => (rule as Record<string, unknown> | null)?.regex === EMAIL_PAUSE_RULE.regex
+  );
+  return { ...plan, customEndpointingRules: hasEmailRule ? rules : [...rules, EMAIL_PAUSE_RULE] };
+}
+
+// Vapi caps an assistant's name at 40 characters and refuses the whole
+// create/update over a longer one.
+const MAX_ASSISTANT_NAME_LENGTH = 40;
+
+function assistantName(name: string): string {
+  const trimmed = name.trim() || "AI Booking agent";
+  return trimmed.length > MAX_ASSISTANT_NAME_LENGTH ? trimmed.slice(0, MAX_ASSISTANT_NAME_LENGTH).trimEnd() : trimmed;
 }
 
 // Without this, Vapi has nowhere to send call events (transcripts,
@@ -329,9 +451,11 @@ function isStartSpeakingPlanRejection(err: unknown): boolean {
   return /startSpeakingPlan|customEndpointingRules/i.test(message);
 }
 
-// Transcriber is still fixed (Soniox STT RT v5) — voice and model both come
-// from whichever male/female template the customer's widget is set to (see
-// VapiAssistantParams.voiceGender), read in a single fetch.
+// Every agent gets an assistant of its own, built as a copy of whichever
+// male/female template the customer picked (see VapiAssistantParams
+// .voiceGender) — voice, model engine, transcriber and every other setting
+// the admin tuned on it — with the agent's own name, prompt, greeting, tools
+// and webhook on top. Read in a single fetch.
 // Booking tools are attached only for a widget whose calendar is connected
 // and whose booking_enabled gate is on (see lib/vapi/sync.ts).
 async function buildAssistantBody(
@@ -379,7 +503,9 @@ async function buildAssistantBody(
   );
 
   return {
-    name: params.name,
+    // The template first, so every per-agent field below wins over it.
+    ...cloneTemplateSettings(template, params.language),
+    name: assistantName(params.name),
     firstMessage: params.firstMessage,
     model,
     // `languageHints` was removed live from a production 400: "transcriber
@@ -387,15 +513,22 @@ async function buildAssistantBody(
     // rejects it for the soniox/stt-rt-v5 transcriber, even though it's
     // documented for other providers. Soniox's stt-rt-v5 auto-detects
     // language, so no replacement field is needed here.
-    transcriber: {
-      provider: "soniox",
-      model: "stt-rt-v5",
-    },
+    transcriber: resolveTranscriberConfig(template, params.language),
     voice: resolveVoiceConfig(template, gender),
     // Always sent (not only with booking tools), so a PATCH never leaves a
     // stale plan behind — the rule only ever lengthens the pause after the
     // agent asked for an email.
-    startSpeakingPlan: { customEndpointingRules: [EMAIL_PAUSE_RULE] },
+    startSpeakingPlan: resolveStartSpeakingPlan(template),
+    // Which agent and which template this assistant is, readable straight
+    // from Vapi's dashboard — every agent has an assistant of its own, and
+    // this is how one is told apart from another (and from the template it
+    // was copied from) without opening our database.
+    metadata: {
+      platform: "aibooking",
+      voiceGender: gender,
+      ...(template?.id ? { voiceTemplateAssistantId: template.id } : {}),
+      ...(params.widgetId ? { widgetId: params.widgetId } : {}),
+    },
     ...(typeof params.silenceTimeoutSeconds === "number"
       ? { silenceTimeoutSeconds: params.silenceTimeoutSeconds }
       : {}),
@@ -470,6 +603,56 @@ export async function getVapiAssistantDetails(assistantId: string): Promise<Vapi
   return toAssistantSummary(data);
 }
 
+// A template is cloned field by field (cloneTemplateSettings), and Vapi's GET
+// can return fields its own POST/PATCH then refuse — "property x should not
+// exist", or "transcriber.property languageHints should not exist". One such
+// field must not stop the agent from being created or synced: the named
+// fields are dropped and the write retried, loudly, so the list above can be
+// extended.
+const REJECTED_PROPERTY = /(?:([\w.]+)\.)?property (\w+) should not exist/g;
+const MAX_REJECTED_PROPERTY_RETRIES = 3;
+
+function rejectedPropertyPaths(err: unknown): string[][] {
+  const message = err instanceof Error ? err.message : String(err);
+  return Array.from(message.matchAll(REJECTED_PROPERTY), (match) => [
+    ...(match[1] ? match[1].split(".") : []),
+    match[2]!,
+  ]);
+}
+
+// Returns null when none of the paths is actually in the body — retrying an
+// unchanged body would only fail the same way again.
+function withoutPaths(body: Record<string, unknown>, paths: string[][]): Record<string, unknown> | null {
+  const copy = structuredClone(body);
+  let removed = false;
+  for (const path of paths) {
+    let parent: unknown = copy;
+    for (const key of path.slice(0, -1)) {
+      parent = parent && typeof parent === "object" ? (parent as Record<string, unknown>)[key] : undefined;
+    }
+    const last = path[path.length - 1]!;
+    if (parent && typeof parent === "object" && last in (parent as Record<string, unknown>)) {
+      delete (parent as Record<string, unknown>)[last];
+      removed = true;
+    }
+  }
+  return removed ? copy : null;
+}
+
+async function writeAssistant(path: string, method: "POST" | "PATCH", body: Record<string, unknown>): Promise<Response> {
+  let current = body;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await vapiFetch(path, { method, body: JSON.stringify(current) });
+    } catch (err) {
+      const stripped = attempt < MAX_REJECTED_PROPERTY_RETRIES ? withoutPaths(current, rejectedPropertyPaths(err)) : null;
+      if (!stripped) throw err;
+      console.error(`[vapi] ${method} ${path}: Vapi refused a field cloned from the voice template. Retrying without it.`, err);
+      current = stripped;
+    }
+  }
+}
+
 export async function createVapiAssistant(
   params: VapiAssistantParams,
   includeBookingTools = false,
@@ -478,7 +661,7 @@ export async function createVapiAssistant(
   const body = await buildAssistantBody(params, includeBookingTools, extraTools);
   let response: Response;
   try {
-    response = await vapiFetch("/assistant", { method: "POST", body: JSON.stringify(body) });
+    response = await writeAssistant("/assistant", "POST", body);
   } catch (err) {
     if (!isStartSpeakingPlanRejection(err)) throw err;
     const { startSpeakingPlan: rejectedPlan, ...withoutPlan } = body;
@@ -486,7 +669,7 @@ export async function createVapiAssistant(
       `[vapi] New assistant: startSpeakingPlan rejected (${JSON.stringify(rejectedPlan)}). Retrying without it.`,
       err
     );
-    response = await vapiFetch("/assistant", { method: "POST", body: JSON.stringify(withoutPlan) });
+    response = await writeAssistant("/assistant", "POST", withoutPlan);
   }
   const data = (await response.json()) as { id: string };
   return { id: data.id };
@@ -525,7 +708,7 @@ export async function updateVapiAssistant(
   const path = `/assistant/${encodeURIComponent(assistantId)}`;
 
   try {
-    await vapiFetch(path, { method: "PATCH", body: JSON.stringify(body) });
+    await writeAssistant(path, "PATCH", body);
   } catch (err) {
     if (isStartSpeakingPlanRejection(err)) {
       const { startSpeakingPlan: rejectedPlan, ...withoutPlan } = body;
@@ -534,7 +717,7 @@ export async function updateVapiAssistant(
           "Retrying without it so the prompt, knowledge base and tools still sync.",
         err
       );
-      await vapiFetch(path, { method: "PATCH", body: JSON.stringify(withoutPlan) });
+      await writeAssistant(path, "PATCH", withoutPlan);
       return;
     }
     if (!isVoiceRejection(err)) throw err;
@@ -550,6 +733,6 @@ export async function updateVapiAssistant(
         "to a voice Vapi still supports.",
       err
     );
-    await vapiFetch(path, { method: "PATCH", body: JSON.stringify(withoutVoice) });
+    await writeAssistant(path, "PATCH", withoutVoice);
   }
 }

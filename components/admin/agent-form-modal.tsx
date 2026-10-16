@@ -12,6 +12,7 @@ import {
 } from "@/components/uber-direct/uber-direct-fields";
 import { WapiAgentSelector, type WapiAgentSelection } from "@/components/admin/wapi-agent-selector";
 import type { Customer, WidgetDeploymentType } from "@/types/database";
+import { DEFAULT_VOICE_GENDER, type VapiVoiceGender } from "@/lib/vapi/voice-gender";
 
 interface AvailablePhoneNumber {
   id: string;
@@ -63,6 +64,10 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
   const [openingMessage, setOpeningMessage] = useState(initial?.opening_message ?? "");
   const [agentSelection, setAgentSelection] = useState<WapiAgentSelection>({ wapiAgentId: initial?.wapi_agent_id ?? null, wapiAgentExternalId: null });
   const [phoneNumberId, setPhoneNumberId] = useState<string | null>(null);
+  // Which "Mand"/"Dame" template a new agent's own Vapi assistant is copied
+  // from. Only asked on creation: an existing agent switches voice from its
+  // own Settings tab.
+  const [voiceGender, setVoiceGender] = useState<VapiVoiceGender>(DEFAULT_VOICE_GENDER);
   const [calcomApiKey, setCalcomApiKey] = useState("");
   const [calcomEventTypeId, setCalcomEventTypeId] = useState("");
   const [calcomEventTypes, setCalcomEventTypes] = useState<CalcomEventType[]>([]);
@@ -197,6 +202,7 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
     }
     if (!isEdit) {
       body.agentType = agentType;
+      body.voiceGender = voiceGender;
       if (deploymentType === "customer_website") body.customerId = customerId;
     }
 
@@ -313,6 +319,29 @@ export function AgentFormModal({ agentType, createEndpoint, onClose, onSaved, in
               <option value="paused">{t("adminPages.shared.paused")}</option>
             </select>
           </div>
+
+          {!isEdit ? (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">{t("adminPages.widgets.voiceGenderLabel")}</label>
+              <div className="flex gap-2">
+                {(["female", "male"] as const).map((gender) => (
+                  <button
+                    key={gender}
+                    type="button"
+                    onClick={() => setVoiceGender(gender)}
+                    className={`rounded-lg border px-4 py-2 text-sm font-medium ${
+                      voiceGender === gender
+                        ? "border-brand-600 bg-brand-50 text-brand-700"
+                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {t(gender === "female" ? "agent.settings.voiceFemale" : "agent.settings.voiceMale")}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{t("adminPages.widgets.voiceGenderHelp")}</p>
+            </div>
+          ) : null}
 
           <WapiAgentSelector value={agentSelection} onChange={setAgentSelection} />
 
