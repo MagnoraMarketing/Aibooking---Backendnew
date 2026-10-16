@@ -7,9 +7,12 @@ vi.mock("@/lib/email/client", () => ({
   PLATFORM_NOTIFICATION_TO: "mail@aibooking.dk",
 }));
 
+process.env.NEXT_PUBLIC_APP_URL = "https://app.aibooking.dk";
+
 import { notifyNewCustomerSignup, notifyCustomerPayment } from "@/lib/email/internal-notifications";
 
 const CUSTOMER = {
+  id: "cust_123",
   name: "Bagerens ApS",
   email: "kontakt@bageren.dk",
   phone: "+45 12 34 56 78",
@@ -28,7 +31,7 @@ describe("new signup notification", () => {
 
     const email = lastEmail();
     expect(email.to).toBe("mail@aibooking.dk");
-    expect(email.subject).toContain("Bagerens ApS");
+    expect(email.subject).toBe("Ny kunde: Bagerens ApS");
     expect(email.replyTo).toBe("kontakt@bageren.dk");
   });
 
@@ -38,6 +41,14 @@ describe("new signup notification", () => {
     const { html } = lastEmail();
     expect(html).toContain('href="tel:+4512345678"');
     expect(html).toContain('href="mailto:kontakt@bageren.dk"');
+  });
+
+  it("includes the customer id and a link to the customer in admin", async () => {
+    await notifyNewCustomerSignup({ customer: CUSTOMER, language: "da" });
+
+    const { html } = lastEmail();
+    expect(html).toContain("cust_123");
+    expect(html).toMatch(/href="https:\/\/[^"]*\/admin\/customers\/cust_123"/);
   });
 
   it("says so plainly when no phone number was given", async () => {

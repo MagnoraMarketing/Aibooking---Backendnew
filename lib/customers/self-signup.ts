@@ -29,6 +29,10 @@ export interface SelfSignupResult {
   customer: Customer;
   widget: Widget;
   userId: string;
+  // Free minutes granted at signup (0 when the master admin has the trial
+  // switched off) — decides whether the welcome email can include the
+  // embed code (see lib/email/welcome.ts).
+  trialMinutes: number;
 }
 
 // The "Main widget" a new customer lands on should be the same kind of agent
@@ -188,5 +192,5 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
     throw new Error(`Failed to create profile: ${profileError.message}`);
   }
 
-  return { customer: customer as Customer, widget: widget as Widget, userId };
+  return { customer: customer as Customer, widget: widget as Widget, userId, trialMinutes };
 }

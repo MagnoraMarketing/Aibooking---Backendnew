@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { readJsonBody, withErrorHandling, rateLimit, getClientIp, writeAuditLog, signupSchema } from "@/lib/security";
 import { selfSignupCustomer } from "@/lib/customers/self-signup";
 import { notifyNewCustomerSignup } from "@/lib/email/internal-notifications";
+import { sendCustomerWelcomeEmail } from "@/lib/email/welcome";
 import { ApiError } from "@/types/errors";
 
 // Every route here is per-request (auth cookies, live DB reads) —
@@ -39,6 +40,16 @@ export const POST = withErrorHandling(async (request) => {
   await notifyNewCustomerSignup({
     customer: result.customer,
     language: body.language ?? "da",
+  });
+
+  // Welcome email to the customer with next steps and their embed code.
+  // Never throws (see lib/email/welcome.ts).
+  await sendCustomerWelcomeEmail({
+    email: result.customer.email,
+    companyName: result.customer.name,
+    language: body.language ?? "da",
+    widget: result.widget,
+    trialMinutes: result.trialMinutes,
   });
 
   return NextResponse.json({ success: true }, { status: 201 });

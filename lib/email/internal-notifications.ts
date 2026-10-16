@@ -1,6 +1,7 @@
 import "server-only";
 import { sendEmail, PLATFORM_NOTIFICATION_TO } from "./client";
 import { buildInternalNotificationEmailHtml, type InternalNotificationRow } from "./templates/internal-notification";
+import { getPublicAppUrl } from "@/lib/app-url";
 import type { Customer } from "@/types/database";
 
 // Notifications to the platform's own inbox, not to customers: someone
@@ -63,18 +64,33 @@ async function sendNotification(params: {
 }
 
 export async function notifyNewCustomerSignup(params: {
-  customer: Pick<Customer, "name" | "email" | "phone" | "created_at">;
+  customer: Pick<Customer, "id" | "name" | "email" | "phone" | "created_at">;
   language: string;
+  // "complete-signup" is a login that already existed (shared auth with
+  // Nordcall) getting its own AIbooking account — worth telling apart,
+  // since that person may already be a Nordcall customer.
+  source?: "signup" | "complete-signup";
 }): Promise<void> {
+  const source =
+    params.source === "complete-signup"
+      ? "Eksisterende login (Nordcall) oprettede AIbooking-konto"
+      : "Selvbetjening (/signup)";
+
   await sendNotification({
-    subject: `Ny kunde oprettet: ${params.customer.name}`,
+    subject: `Ny kunde: ${params.customer.name}`,
     heading: "Ny kunde oprettet 🎉",
     intro: `${params.customer.name} har lige oprettet sig på AIbooking.dk. Ring og byd velkommen.`,
     rows: [
       ...contactRows(params.customer),
       { label: "Sprog", value: params.language },
       { label: "Oprettet", value: formatDateTime(params.customer.created_at) },
-      { label: "Kilde", value: "Selvbetjening (/signup)" },
+      { label: "Kilde", value: source },
+      { label: "Kunde-ID", value: params.customer.id },
+      {
+        label: "Se i admin",
+        value: "Åbn kunden",
+        href: `${getPublicAppUrl()}/admin/customers/${params.customer.id}`,
+      },
     ],
     replyTo: params.customer.email,
   });
