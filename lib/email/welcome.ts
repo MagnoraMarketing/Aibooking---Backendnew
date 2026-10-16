@@ -3,7 +3,7 @@ import { getPublicAppUrl } from "@/lib/app-url";
 import { TRIAL_DAYS } from "@/lib/billing/trial";
 import { buildEmbedSnippet } from "@/lib/widgets/embed";
 import { sendEmail, PLATFORM_NOTIFICATION_TO } from "./client";
-import { buildWelcomeEmailHtml } from "./templates/welcome";
+import { buildWelcomeEmailHtml, welcomeEmailSubject } from "./templates/welcome";
 
 // Sent to the customer right after a self-signup. Best-effort and never
 // throws, like lib/email/internal-notifications.ts: the account already
@@ -12,6 +12,8 @@ import { buildWelcomeEmailHtml } from "./templates/welcome";
 export async function sendCustomerWelcomeEmail(params: {
   email: string;
   companyName: string;
+  // The language picked on /signup — the mail is written in it.
+  language: string;
   widget: { id: string; public_id: string };
   // The free trial is what unlocks the embed code for a brand-new customer
   // (lib/billing/trial.ts's hasEmbedCodeAccess) — with no trial minutes the
@@ -22,8 +24,9 @@ export async function sendCustomerWelcomeEmail(params: {
   try {
     await sendEmail({
       to: params.email,
-      subject: "Velkommen til AIbooking.dk – sådan kommer du i gang",
+      subject: welcomeEmailSubject(params.language),
       html: buildWelcomeEmailHtml({
+        language: params.language,
         companyName: params.companyName,
         dashboardUrl: `${appUrl}/dashboard`,
         agentUrl: `${appUrl}/dashboard/agent/${params.widget.id}`,

@@ -14,6 +14,7 @@ import { sendCustomerWelcomeEmail } from "@/lib/email/welcome";
 const PARAMS = {
   email: "kontakt@bageren.dk",
   companyName: "Bagerens ApS",
+  language: "da",
   widget: { id: "widget-uuid", public_id: "pub_abc123" },
   trialMinutes: 10,
 };
@@ -51,6 +52,36 @@ describe("customer welcome email", () => {
     const { html } = lastEmail();
     expect(html).not.toContain("pub_abc123");
     expect(html).toContain("Indlejringskode");
+  });
+
+  it("is written in the language picked on signup", async () => {
+    await sendCustomerWelcomeEmail({ ...PARAMS, language: "de" });
+
+    const email = lastEmail();
+    expect(email.subject).toContain("Willkommen");
+    expect(email.html).toContain('<html lang="de">');
+    expect(email.html).toContain("Zu Ihrem Agenten");
+    expect(email.html).toContain("10 kostenlose Minuten");
+    expect(email.html).not.toContain("Gå til din agent");
+  });
+
+  it.each(["da", "en", "es", "fr", "pt", "de"])("renders the embed code and agent link in %s", async (language) => {
+    await sendCustomerWelcomeEmail({ ...PARAMS, language });
+
+    const { html } = lastEmail();
+    expect(html).toContain(`<html lang="${language}">`);
+    expect(html).toContain("data-widget-id=&quot;pub_abc123&quot;");
+    expect(html).toContain('href="https://app.aibooking.dk/dashboard/agent/widget-uuid"');
+    expect(html).toContain('<a href="mailto:mail@aibooking.dk"');
+    expect(html).toContain("&lt;/body&gt;</code>");
+  });
+
+  it("falls back to Danish for an unknown language", async () => {
+    await sendCustomerWelcomeEmail({ ...PARAMS, language: "xx" });
+
+    const email = lastEmail();
+    expect(email.subject).toContain("Velkommen");
+    expect(email.html).toContain('<html lang="da">');
   });
 
   it("escapes a company name that would otherwise break the markup", async () => {

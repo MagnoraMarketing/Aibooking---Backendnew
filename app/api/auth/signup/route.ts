@@ -47,6 +47,7 @@ export const POST = withErrorHandling(async (request) => {
   await sendCustomerWelcomeEmail({
     email: result.customer.email,
     companyName: result.customer.name,
+    language: body.language ?? "da",
     widget: result.widget,
     trialMinutes: result.trialMinutes,
   });
