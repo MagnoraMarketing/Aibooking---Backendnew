@@ -47,7 +47,7 @@ export const POST = withErrorHandling(async (request) => {
     entityId: result.customer.id,
   });
 
-  await notifyNewCustomerSignup({ customer: result.customer, language });
+  await notifyNewCustomerSignup({ customer: result.customer, language, source: "complete-signup" });
 
   return NextResponse.json({ success: true }, { status: 201 });
 });
