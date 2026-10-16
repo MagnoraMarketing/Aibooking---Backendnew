@@ -107,6 +107,7 @@ export async function syncWidgetToVapiAssistant(
         systemPrompt,
         firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
         voiceGender,
+        widgetId: widget.id,
         silenceTimeoutSeconds,
         maxDurationSeconds,
         language: widget.language,

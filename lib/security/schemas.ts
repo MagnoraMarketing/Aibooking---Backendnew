@@ -169,6 +169,11 @@ export const createWidgetSchema = widgetUpdateSchema.extend({
   // because that is what every caller that predates the field creates (see
   // 0036_agent_type.sql).
   agentType: z.enum(["widget", "phone"]).default("widget"),
+  // "Mand"/"Dame": which voice template the agent's own Vapi assistant is
+  // created as a copy of (see buildAssistantBody in lib/vapi/assistants.ts).
+  // Omitted means the platform default (lib/vapi/voice-gender.ts); the
+  // customer can still switch later, which re-copies the other template.
+  voiceGender: z.enum(["male", "female"]).optional(),
 });
 
 // ---------------------------------------------------------------------------

@@ -64,7 +64,8 @@ export const POST = withErrorHandling(async (request) => {
   // WizardVoiceStep and resolveVoiceConfig in lib/vapi/assistants.ts. The
   // default itself lives in lib/vapi/voice-gender.ts so the UI, this route
   // and the assistant sync can't drift apart.
-  const extra: Record<string, unknown> = { voiceGender: DEFAULT_VOICE_GENDER };
+  const voiceGender = body.voiceGender ?? DEFAULT_VOICE_GENDER;
+  const extra: Record<string, unknown> = { voiceGender };
 
   if (llmModel?.provider === "vapi") {
     try {
@@ -72,7 +73,7 @@ export const POST = withErrorHandling(async (request) => {
         name: body.name ?? "Main widget",
         systemPrompt: withLanguageDirective(systemPrompt, language),
         firstMessage: body.openingMessage ?? defaultGreeting(language),
-        voiceGender: DEFAULT_VOICE_GENDER,
+        voiceGender,
         language,
       });
       extra.vapiAssistantId = assistant.id;

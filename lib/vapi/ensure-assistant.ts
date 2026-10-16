@@ -68,6 +68,7 @@ export async function ensureInboundAssistant(widgetId: string): Promise<string> 
     firstMessage: widget.opening_message ?? defaultGreeting(widget.language),
     voiceGender,
     language: widget.language,
+    widgetId,
   });
 
   const nextExtra = { ...extra, voiceGender, vapiAssistantId: assistant.id };

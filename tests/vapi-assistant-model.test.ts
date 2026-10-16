@@ -160,3 +160,108 @@ describe("an agent that has no calendar", () => {
     expect(systemMessage(1)).toContain("Du kan ikke booke");
   });
 });
+
+// Every agent gets an assistant of its own, built as a copy of the Mand/Dame
+// template the customer picked — not just its voice and model, but every
+// setting the admin tuned on it in Vapi.
+describe("an agent's assistant is a copy of its voice template", () => {
+  const TEMPLATE = {
+    id: "tmpl_female",
+    orgId: "org_1",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    name: "Dame skabelon",
+    firstMessage: "Hej fra skabelonen",
+    metadata: { owner: "admin" },
+    server: { url: "https://example.com/hook" },
+    voice: { provider: "11labs", voiceId: "Freja" },
+    model: {
+      provider: "openai",
+      model: "gpt-4o-mini",
+      emotionRecognitionEnabled: true,
+      toolIds: ["tool_admin_transfer"],
+      messages: [{ role: "system", content: "admin template prompt" }],
+    },
+    transcriber: { provider: "deepgram", model: "nova-3", language: "da" },
+    backgroundSound: "office",
+    endCallMessage: "Farvel og tak",
+    serverMessages: ["status-update"],
+    startSpeakingPlan: { waitSeconds: 0.6, customEndpointingRules: [{ type: "customer", regex: "x", timeoutSeconds: 2 }] },
+  };
+
+  beforeEach(() => {
+    vapiFetchMock.mockImplementation((path: unknown) =>
+      Promise.resolve(
+        String(path).includes("tmpl_female") ? templateResponse(TEMPLATE) : new Response(JSON.stringify({ id: "asst_new" }))
+      )
+    );
+  });
+
+  it("copies the template's own settings, but never its identity, prompt or tools", async () => {
+    await createVapiAssistant({ ...PARAMS, language: "da", widgetId: "widget_1" });
+    const body = bodyOf(1);
+
+    expect(body.backgroundSound).toBe("office");
+    expect(body.endCallMessage).toBe("Farvel og tak");
+    expect(body.transcriber).toEqual(TEMPLATE.transcriber);
+    expect(body.voice).toEqual(TEMPLATE.voice);
+
+    for (const key of ["id", "orgId", "createdAt", "updatedAt", "server"]) expect(body).not.toHaveProperty(key);
+    expect(body.name).toBe("Agent");
+    expect(body.firstMessage).toBe("hej");
+    expect(body.metadata).toEqual({
+      platform: "aibooking",
+      voiceGender: "female",
+      voiceTemplateAssistantId: "tmpl_female",
+      widgetId: "widget_1",
+    });
+
+    const model = body.model as Record<string, unknown>;
+    expect(model.emotionRecognitionEnabled).toBe(true);
+    expect(model).not.toHaveProperty("toolIds");
+    expect(JSON.stringify(model.messages)).not.toContain("admin template prompt");
+  });
+
+  it("keeps the webhook events billing and tools depend on", async () => {
+    await createVapiAssistant(PARAMS);
+
+    expect(bodyOf(1).serverMessages).toEqual(["status-update", "tool-calls", "end-of-call-report"]);
+  });
+
+  it("adds the email pause to the template's own endpointing rules", async () => {
+    await createVapiAssistant(PARAMS);
+
+    const plan = bodyOf(1).startSpeakingPlan as { waitSeconds: number; customEndpointingRules: unknown[] };
+    expect(plan.waitSeconds).toBe(0.6);
+    expect(plan.customEndpointingRules).toHaveLength(2);
+  });
+
+  it("does not hand an English agent the template's Danish transcriber or goodbye", async () => {
+    await createVapiAssistant({ ...PARAMS, language: "en" });
+    const body = bodyOf(1);
+
+    expect(body.transcriber).toEqual({ provider: "soniox", model: "stt-rt-v5" });
+    expect(body).not.toHaveProperty("endCallMessage");
+    expect(body.backgroundSound).toBe("office");
+  });
+
+  it("drops a cloned field Vapi refuses and still creates the assistant", async () => {
+    vapiFetchMock.mockReset();
+    vapiFetchMock
+      .mockResolvedValueOnce(templateResponse(TEMPLATE))
+      .mockRejectedValueOnce(new Error("Vapi afviste anmodningen (400): property backgroundSound should not exist"))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "asst_new" })));
+
+    const result = await createVapiAssistant(PARAMS);
+
+    expect(result.id).toBe("asst_new");
+    expect(bodyOf(2)).not.toHaveProperty("backgroundSound");
+    expect(bodyOf(2).voice).toEqual(TEMPLATE.voice);
+  });
+
+  it("cuts a long agent name to Vapi's 40-character limit", async () => {
+    await createVapiAssistant({ ...PARAMS, name: "A".repeat(60) });
+
+    expect(String(bodyOf(1).name)).toHaveLength(40);
+  });
+});
