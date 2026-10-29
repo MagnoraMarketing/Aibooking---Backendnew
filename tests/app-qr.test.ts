@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 
-const toString = vi.fn(async () => "<svg/>");
+const { toString } = vi.hoisted(() => ({ toString: vi.fn(async () => "<svg/>") }));
 vi.mock("qrcode", () => ({ default: { toString } }));
 
 import { GET } from "@/app/app-qr/route";
