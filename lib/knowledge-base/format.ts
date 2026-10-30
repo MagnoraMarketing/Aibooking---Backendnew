@@ -6,7 +6,8 @@ import type { KnowledgeBaseSource } from "./types";
 // needs no new provider (Anthropic has no embeddings API) or vector store.
 // This cap is a safety net against a customer accumulating far more than
 // that, not the expected case.
-const MAX_TOTAL_CHARS = 20_000;
+// Exported so the knowledge base tab can warn when sources go past it.
+export const MAX_TOTAL_CHARS = 20_000;
 
 export function formatKnowledgeBaseForPrompt(sources: KnowledgeBaseSource[]): string | null {
   if (sources.length === 0) return null;

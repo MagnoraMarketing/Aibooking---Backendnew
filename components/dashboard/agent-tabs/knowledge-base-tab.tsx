@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
+import { MAX_TOTAL_CHARS } from "@/lib/knowledge-base/format";
 import type { WidgetWithExtras } from "../agent-configurator";
 import { useTranslation } from "@/components/i18n/language-provider";
 
@@ -18,6 +19,7 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
     pdf: t("agent.knowledgeBase.typePdf"),
   };
   const sources = (widget.extra.knowledgeBase as KnowledgeBaseSource[] | undefined) ?? [];
+  const totalChars = sources.reduce((sum, source) => sum + source.characterCount, 0);
 
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
@@ -194,6 +196,14 @@ export function KnowledgeBaseTab({ widget, onSourcesChange }: KnowledgeBaseTabPr
             ))}
           </ul>
         )}
+        {totalChars > MAX_TOTAL_CHARS ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {t("agent.knowledgeBase.overLimit", {
+              total: totalChars.toLocaleString("da-DK"),
+              limit: MAX_TOTAL_CHARS.toLocaleString("da-DK"),
+            })}
+          </p>
+        ) : null}
       </div>
     </div>
   );
