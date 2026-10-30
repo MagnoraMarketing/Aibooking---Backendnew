@@ -1337,6 +1337,14 @@ export const agent: Namespace = {
     pt: "{count} caracteres · {minutes} min",
     de: "{count} Zeichen · {minutes} Min.",
   },
+  "knowledgeBase.overLimit": {
+    da: "Der er {total} tegn i alt, men agenten bruger kun de første {limit}. Indhold længere nede i listen bliver ikke brugt. Fjern de kilder, der ikke er vigtige, så resten bliver brugt.",
+    en: "There are {total} characters in total, but the agent only uses the first {limit}. Content further down the list is not used. Remove the sources that aren't important so the rest gets used.",
+    es: "Hay {total} caracteres en total, pero el agente solo usa los primeros {limit}. El contenido más abajo en la lista no se usa. Elimina las fuentes que no sean importantes para que se use el resto.",
+    fr: "Il y a {total} caractères au total, mais l'agent n'utilise que les {limit} premiers. Le contenu plus bas dans la liste n'est pas utilisé. Retirez les sources moins importantes pour que le reste soit utilisé.",
+    pt: "Há {total} caracteres no total, mas o agente só usa os primeiros {limit}. O conteúdo mais abaixo na lista não é usado. Remova as fontes que não são importantes para que o resto seja usado.",
+    de: "Insgesamt sind es {total} Zeichen, aber der Agent nutzt nur die ersten {limit}. Inhalte weiter unten in der Liste werden nicht verwendet. Entfernen Sie unwichtige Quellen, damit der Rest verwendet wird.",
+  },
   "knowledgeBase.removeButton": {
     da: "Fjern",
     en: "Remove",
