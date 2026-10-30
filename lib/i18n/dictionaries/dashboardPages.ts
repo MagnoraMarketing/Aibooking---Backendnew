@@ -3690,24 +3690,4 @@ export const dashboardPages: Namespace = {
     pt: "aprox. {minutes} min restantes",
     de: "ca. {minutes} Min. übrig",
   },
-
-  // ---------------------------------------------------------------------
-  // app/page.tsx
-  // ---------------------------------------------------------------------
-  "home.loginLink": {
-    da: "Log ind på dashboardet →",
-    en: "Log in to the dashboard →",
-    es: "Iniciar sesión en el panel →",
-    fr: "Connectez-vous au tableau de bord →",
-    pt: "Entrar no painel →",
-    de: "Zum Dashboard anmelden →",
-  },
-  "home.signupLink": {
-    da: "Opret konto →",
-    en: "Create account →",
-    es: "Crear cuenta →",
-    fr: "Créer un compte →",
-    pt: "Criar conta →",
-    de: "Konto erstellen →",
-  },
 };
