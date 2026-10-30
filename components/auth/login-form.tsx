@@ -127,6 +127,11 @@ function LoginFormInner() {
             <InstallAppButton />
           </div>
         </div>
+        <p className="mt-6 text-center text-xs">
+          <a href="https://www.aibooking.dk" className="text-slate-500 hover:text-brand-700">
+            {t("auth.backToSite")}
+          </a>
+        </p>
       </div>
     </main>
   );
