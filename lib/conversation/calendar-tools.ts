@@ -57,7 +57,7 @@ export const CALENDAR_TOOLS: Anthropic.Tool[] = [
         customer_email: {
           type: "string",
           description:
-            "Kundens e-mailadresse, som bekræftelsen sendes til. Gentag adressen for kunden og få den bekræftet, før du booker.",
+            "Kundens e-mailadresse, som bekræftelsen sendes til. Gentag adressen for kunden og få den bekræftet, før du booker. Skriv den som en e-mailadresse med @ og punktum, fx navn@firma.dk — ikke som den udtales (\"snabel-a\").",
         },
         email_confirmed: {
           type: "boolean",

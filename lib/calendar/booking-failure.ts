@@ -63,8 +63,31 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 // Speech-to-text puts spaces where a caller paused ("mail @ magnora .dk").
 // A space is never part of an address, so removing them loses nothing.
+//
+// It also writes the address the way it is said. A test call on the
+// website's own widget went round in circles: the agent had read the
+// address back, the caller had said yes, and every booking still came back
+// refused — the tool had been handed "mail snabel-a magnoramarketing.dk",
+// which has no @ and so is not an address. The words for @ and for the dot
+// are turned back into the characters, but only when the value has no @ of
+// its own, so a real address is never rewritten.
+const SPOKEN_AT = /\s*(?:snabel[\s-]?a|\(at\)|\[at\]|klammeraffe|arroba|arobase)\s*|\s+(?:at|ät)\s+/gi;
+const SPOKEN_DOT = /\s+(?:punktum|prik|dot|punkt|point|punto)\s+/gi;
+
 export function normalizeDictatedEmail(raw: string): string {
-  return raw.replace(/\s+/g, "");
+  const written = raw.includes("@") ? raw : raw.replace(SPOKEN_AT, "@").replace(SPOKEN_DOT, ".");
+  return written.replace(/\s+/g, "");
+}
+
+// The model is told to send a JSON boolean, but not every model does: some
+// send the string "true" (or "True"), a 1, or the caller's own "ja". All of
+// them mean the address was read back and accepted — refusing them made the
+// agent ask for a confirmation it already had, again and again.
+const CONFIRMED_WORDS = new Set(["true", "1", "yes", "ja", "si", "sí", "oui"]);
+
+export function isEmailConfirmed(value: unknown): boolean {
+  if (value === true || value === 1) return true;
+  return typeof value === "string" && CONFIRMED_WORDS.has(value.trim().toLowerCase());
 }
 
 export function looksLikeEmail(value: string): boolean {
@@ -85,8 +108,8 @@ export interface BookingDetailsInput {
   start_time?: string;
   customer_name?: string;
   customer_email?: string;
-  // Some models send a JSON boolean as the string "true".
-  email_confirmed?: boolean | string;
+  // Some models send a JSON boolean as a string or number (isEmailConfirmed).
+  email_confirmed?: boolean | string | number;
 }
 
 export type BookingDetailsCheck =
@@ -148,7 +171,7 @@ export function checkBookingDetails(input: BookingDetailsInput): BookingDetailsC
   if (!customerEmail) return { ok: false, advice: MISSING_EMAIL_ADVICE };
   if (!looksLikeEmail(customerEmail)) return { ok: false, advice: MALFORMED_EMAIL_ADVICE };
 
-  if (input.email_confirmed !== true && input.email_confirmed !== "true") return { ok: false, advice: UNCONFIRMED_EMAIL_ADVICE };
+  if (!isEmailConfirmed(input.email_confirmed)) return { ok: false, advice: UNCONFIRMED_EMAIL_ADVICE };
 
   return { ok: true, startTime, customerName, customerEmail };
 }

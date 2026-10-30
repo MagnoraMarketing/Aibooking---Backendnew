@@ -481,6 +481,35 @@ describe("a booking refused over the email address", () => {
       expect.objectContaining({ email: "mail@magnoramarketing.dk" })
     );
   });
+
+  // The website's own widget: the agent had read the address back and the
+  // caller had said yes, but the tool was handed the address as it is said.
+  it.each([
+    ["mail snabel-a magnoramarketing.dk", "mail@magnoramarketing.dk"],
+    ["mail snabela magnoramarketing punktum dk", "mail@magnoramarketing.dk"],
+    ["anna at firma dot dk", "anna@firma.dk"],
+  ])("writes the spoken address %j as an address", async (spoken, written) => {
+    createCalcomBooking.mockResolvedValue({ id: 1, uid: "bk_1", status: "accepted" });
+
+    const reply = await createBooking(
+      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: spoken, email_confirmed: true },
+      ENABLED
+    );
+
+    expect(createCalcomBooking).toHaveBeenCalledWith(expect.objectContaining({ email: written }));
+    expect(reply).toContain("Tiden er booket");
+  });
+
+  it("never rewrites an address that already has an @", async () => {
+    createCalcomBooking.mockResolvedValue({ id: 1, uid: "bk_1", status: "accepted" });
+
+    await createBooking(
+      { start_time: "2026-09-17T09:00:00+02:00", customer_name: "Lasse", customer_email: "kat.dot@prik.dk", email_confirmed: true },
+      ENABLED
+    );
+
+    expect(createCalcomBooking).toHaveBeenCalledWith(expect.objectContaining({ email: "kat.dot@prik.dk" }));
+  });
 });
 
 // The same call: asked for "på mandag", the agent worked out a Monday in
@@ -570,6 +599,27 @@ describe("a booking needs a name and a confirmed email", () => {
 
     expect(createCalcomBooking).not.toHaveBeenCalled();
     expect(reply).toMatch(/tidspunktet/);
+  });
+
+  it.each([true, "true", "True", 1, "ja", "yes"])("accepts %j as a confirmed email", async (confirmed) => {
+    createCalcomBooking.mockResolvedValue({ id: 1, uid: "bk_1", status: "accepted" });
+
+    const reply = await createBooking(
+      { start_time: TIME, customer_name: "Anna Hansen", customer_email: "a@b.dk", email_confirmed: confirmed },
+      ENABLED
+    );
+
+    expect(reply).toContain("Tiden er booket");
+  });
+
+  it.each([false, "false", "nej", 0])("does not accept %j as a confirmed email", async (confirmed) => {
+    const reply = await createBooking(
+      { start_time: TIME, customer_name: "Anna Hansen", customer_email: "a@b.dk", email_confirmed: confirmed },
+      ENABLED
+    );
+
+    expect(createCalcomBooking).not.toHaveBeenCalled();
+    expect(reply).toContain("Er det korrekt?");
   });
 
   it("books with a real name and a confirmed email, trimmed", async () => {
