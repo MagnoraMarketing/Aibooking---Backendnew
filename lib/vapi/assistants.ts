@@ -309,7 +309,7 @@ function buildBookingTools() {
               // the one booking failure the caller can fix on the spot —
               // and the one that otherwise ends the call with nothing.
               description:
-                "Kundens e-mailadresse, som bekræftelsen sendes til. Læs adressen op for kunden og få den bekræftet, før du booker.",
+                "Kundens e-mailadresse, som bekræftelsen sendes til. Læs adressen op for kunden og få den bekræftet, før du booker. Skriv den som en e-mailadresse med @ og punktum, fx navn@firma.dk — ikke som den udtales (\"snabel-a\").",
             },
             // Enforced server-side (checkBookingDetails): a booking without
             // it is refused and the agent is told to read the address back.
