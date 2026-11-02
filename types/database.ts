@@ -44,6 +44,11 @@ export interface Customer {
   // "samarbejde" = partnership/demo customer, never billed — see
   // lib/customers/customer-type.ts and 0049_customer_type_samarbejde.sql.
   customer_type: CustomerType;
+  // Self-signups only: the automatic day-1 / day-6 trial mails (see
+  // lib/email/trial-followups.ts and 0052_trial_followup_emails.sql).
+  trial_followups: boolean;
+  followup_day1_sent_at: string | null;
+  followup_day6_sent_at: string | null;
   created_at: string;
   updated_at: string;
 }

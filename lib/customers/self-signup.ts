@@ -90,7 +90,15 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
 
   const { data: customer, error: customerError } = await supabase
     .from("customers")
-    .insert({ name: params.companyName, email: params.email, phone: params.phone ?? null, status: "active" })
+    // trial_followups: this customer gets the automatic day-1 and day-6 mails
+    // (lib/email/trial-followups.ts) — admin-created customers don't.
+    .insert({
+      name: params.companyName,
+      email: params.email,
+      phone: params.phone ?? null,
+      status: "active",
+      trial_followups: true,
+    })
     .select("*")
     .single();
 
