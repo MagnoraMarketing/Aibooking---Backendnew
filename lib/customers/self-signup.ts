@@ -98,6 +98,19 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
     throw new Error(`Failed to create customer: ${customerError?.message}`);
   }
 
+  // Opts this customer into the automatic day-1 and day-6 trial mails
+  // (lib/email/trial-followups.ts) — admin-created customers don't get them.
+  // A separate, best-effort update rather than part of the insert above, so
+  // a database without 0052_trial_followup_emails.sql yet still signs people
+  // up: missing the follow-up mails is fine, a failed signup is not.
+  const { error: followupError } = await supabase
+    .from("customers")
+    .update({ trial_followups: true })
+    .eq("id", customer.id);
+  if (followupError) {
+    console.error(`Could not enable trial follow-up mails for ${customer.id}:`, followupError.message);
+  }
+
   await supabase.from("subscriptions").insert({
     customer_id: customer.id,
     package_id: pkg.id,

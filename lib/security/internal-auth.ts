@@ -31,7 +31,28 @@ export function requireDialerSecret(request: Request): void {
   );
 }
 
-function requireSecretHeader(request: Request, expected: string | undefined, missingMessage: string): void {
+// The daily trial follow-up mails (app/api/internal/trial-followups), run by
+// Vercel Cron. Vercel sends CRON_SECRET as `Authorization: Bearer <secret>`
+// on every cron invocation; x-internal-secret is accepted too so the job can
+// also be triggered by hand or from pg_cron like the dialer.
+export function requireCronSecret(request: Request): void {
+  const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+  requireSecretHeader(
+    request,
+    process.env.CRON_SECRET,
+    "Opfølgningsmails er ikke konfigureret på platformen endnu (mangler CRON_SECRET).",
+    bearer
+  );
+}
+
+function requireSecretHeader(
+  request: Request,
+  expected: string | undefined,
+  missingMessage: string,
+  // A secret the caller already pulled from somewhere other than
+  // x-internal-secret (requireCronSecret's Authorization header).
+  alternative?: string
+): void {
   // Trimmed on both sides before comparing. A secret pasted into a hosting
   // dashboard picks up a trailing newline or a stray space far too easily,
   // and the comparison below is length-sensitive: the dialer's cron job spent
@@ -43,7 +64,7 @@ function requireSecretHeader(request: Request, expected: string | undefined, mis
     throw ApiError.internal(missingMessage);
   }
 
-  const provided = (request.headers.get(INTERNAL_SECRET_HEADER) ?? "").trim();
+  const provided = (request.headers.get(INTERNAL_SECRET_HEADER) ?? alternative ?? "").trim();
   const expectedBuf = Buffer.from(secret);
   const providedBuf = Buffer.from(provided);
   const valid = expectedBuf.length === providedBuf.length && timingSafeEqual(expectedBuf, providedBuf);

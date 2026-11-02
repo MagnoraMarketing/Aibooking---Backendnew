@@ -4,7 +4,7 @@ export { readJsonBody, errorResponse, withErrorHandling, MAX_REQUEST_BODY_BYTES 
 export { writeAuditLog } from "./audit";
 export { requireParam } from "./params";
 export { applyPublicCors, withPublicCors, corsPreflight } from "./cors";
-export { requireInternalSecret, requireDialerSecret } from "./internal-auth";
+export { requireInternalSecret, requireDialerSecret, requireCronSecret } from "./internal-auth";
 export { requireCredentialEnv } from "./env";
 export { assertSafeHttpUrl } from "./ssrf";
 export * from "./schemas";
