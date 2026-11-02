@@ -160,6 +160,14 @@ export const auth: Namespace = {
     pt: "Toque no ícone Partilhar no Safari e escolha «Adicionar ao ecrã principal».",
     de: "Tippen Sie in Safari auf das Teilen-Symbol und wählen Sie „Zum Home-Bildschirm“.",
   },
+  "app.androidHelp": {
+    da: "Tryk på menuen ⋮ i browseren, og vælg »Installer app« eller »Føj til startskærm«.",
+    en: "Tap the ⋮ menu in your browser and choose “Install app” or “Add to Home screen”.",
+    es: "Toque el menú ⋮ del navegador y elija «Instalar aplicación» o «Añadir a pantalla de inicio».",
+    fr: "Touchez le menu ⋮ du navigateur et choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
+    pt: "Toque no menu ⋮ do navegador e escolha «Instalar app» ou «Adicionar ao ecrã principal».",
+    de: "Tippen Sie im Browser auf das Menü ⋮ und wählen Sie „App installieren“ oder „Zum Startbildschirm hinzufügen“.",
+  },
   "completeSignup.title": {
     da: "Opret din AIbooking-konto",
     en: "Create your AIbooking account",
