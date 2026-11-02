@@ -20,6 +20,12 @@ const nextConfig = {
   },
   async headers() {
     return [
+      // Same reason as the robots metadata in app/layout.tsx, for everything
+      // that isn't an HTML page (API responses, widget.js, images).
+      {
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
+      },
       {
         source: "/widget.js",
         headers: [{ key: "Cache-Control", value: "public, max-age=300" }],

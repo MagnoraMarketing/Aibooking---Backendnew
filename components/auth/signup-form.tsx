@@ -189,6 +189,11 @@ export function SignupForm({ initialLanguage }: { initialLanguage: Locale }) {
             {t("auth.signup.login")}
           </Link>
         </p>
+        <p className="mt-6 text-center text-xs">
+          <a href="https://www.aibooking.dk" className="text-slate-500 hover:text-brand-700">
+            {t("auth.backToSite")}
+          </a>
+        </p>
       </div>
     </main>
   );

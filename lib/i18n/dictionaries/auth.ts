@@ -225,6 +225,14 @@ export const auth: Namespace = {
     pt: "Criar conta",
     de: "Konto erstellen",
   },
+  "backToSite": {
+    da: "← Tilbage til aibooking.dk",
+    en: "← Back to aibooking.dk",
+    es: "← Volver a aibooking.dk",
+    fr: "← Retour à aibooking.dk",
+    pt: "← Voltar para aibooking.dk",
+    de: "← Zurück zu aibooking.dk",
+  },
   "login.errorWrongCredentials": {
     da: "Forkert email eller adgangskode.",
     en: "Incorrect email or password.",
