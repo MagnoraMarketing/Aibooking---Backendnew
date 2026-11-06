@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { LLMModel, Package, VoiceModel, Widget } from "@/types/database";
 import type { KnowledgeBaseSource } from "@/lib/knowledge-base/types";
@@ -17,6 +18,8 @@ import { BookingTab } from "./agent-tabs/booking-tab";
 import { WebshopTab } from "./agent-tabs/webshop-tab";
 import { DeliveryTab } from "./agent-tabs/delivery-tab";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
+import { StatusPill, primaryButtonClass } from "./agent-flow-ui";
+import { agentSectionPath } from "./agent-sections";
 
 // The "om virksomheden" answers behind a generated system prompt. Saved
 // alongside the prompt itself so it stays regenerable — see
@@ -77,10 +80,13 @@ function tabsFor(
   isPhoneType: boolean,
   t: (key: string, vars?: Record<string, string | number>) => string
 ): { key: TabKey; label: string }[] {
+  // Same order as the creation flow (agent-creation-wizard.tsx): what the
+  // agent knows, what it says, how it sounds, what it connects to, how it
+  // looks — then test it, then put it live.
   const tabs: { key: TabKey; label: string }[] = [
+    { key: "knowledge", label: t("agent.configurator.tab.knowledgeBase") },
     { key: "prompt", label: t("agent.configurator.tab.promptLab") },
     { key: "settings", label: t("agent.configurator.tab.settings") },
-    { key: "knowledge", label: t("agent.configurator.tab.knowledgeBase") },
     { key: "booking", label: t("agent.configurator.tab.booking") },
     // Next to Booking on purpose: both are "connect the system you already run"
     // integrations, and a shop owner looking for one will look where the other is.
@@ -128,7 +134,7 @@ export function AgentConfigurator({
   const tabs = tabsFor(isPhoneType, t);
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<TabKey>(isTabKey(requestedTab, tabs) ? requestedTab : "prompt");
+  const [activeTab, setActiveTab] = useState<TabKey>(isTabKey(requestedTab, tabs) ? requestedTab : "knowledge");
   // Set by the Stripe return page once the launch offer is paid and the
   // minutes are on the ledger (app/dashboard/checkout/return/page.tsx) — the
   // customer lands here rather than on a Stripe receipt, so this is where
@@ -149,11 +155,46 @@ export function AgentConfigurator({
     return true;
   };
 
+  // On a phone the tab row scrolls sideways; keep the chosen tab in view
+  // (Test sits far to the right, and the "Test agenten" button jumps there).
+  const tabRowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    tabRowRef.current
+      ?.querySelector<HTMLElement>('[aria-current="page"]')
+      ?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [activeTab]);
+
+  const listPath = agentSectionPath(isPhoneType ? "phone" : "widget");
+
+  function selectTab(key: TabKey) {
+    setActiveTab(key);
+    // Keep the tab in the URL, so a reload — or the link from the agent list
+    // straight to Test — lands on the same tab.
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", key);
+    window.history.replaceState(null, "", `?${params.toString()}`);
+  }
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">{t("agent.configurator.title")}</h1>
-        <p className="mt-1 text-sm text-slate-500">{widget.name}</p>
+    <div className="space-y-5 sm:space-y-6">
+      <div className="space-y-3">
+        <Link href={listPath} className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-700">
+          {isPhoneType ? t("agentFlow.configurator.backToPhoneAgents") : t("agentFlow.configurator.backToAgents")}
+        </Link>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("agent.configurator.title")}</p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-2xl font-semibold text-slate-900">{widget.name}</h1>
+              <StatusPill active={widget.status === "active"} />
+            </div>
+          </div>
+          {activeTab !== "test" ? (
+            <button type="button" onClick={() => selectTab("test")} className={primaryButtonClass}>
+              {t("agentFlow.configurator.testNow")}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {justPaid ? (
@@ -165,19 +206,24 @@ export function AgentConfigurator({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setActiveTab(tab.key)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-              activeTab === tab.key ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* One scrollable row on a phone rather than tabs wrapping into a
+          block of three or four lines above the content. */}
+      <div ref={tabRowRef} className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="flex w-max gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:w-auto sm:flex-wrap">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => selectTab(tab.key)}
+              aria-current={activeTab === tab.key ? "page" : undefined}
+              className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
+                activeTab === tab.key ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {activeTab === "prompt" ? <PromptLabTab widget={widget} savePatch={savePatch} /> : null}
@@ -199,7 +245,11 @@ export function AgentConfigurator({
           simulated web page — that preview is what a website visitor sees,
           and this agent has no website visitors. */}
       {activeTab === "test" ? (
-        isPhoneType ? <TestCallTab widget={widget} /> : <TestAgentTab widget={widget} />
+        isPhoneType ? (
+          <TestCallTab widget={widget} />
+        ) : (
+          <TestAgentTab widget={widget} onWidgetChange={(updated) => setWidget((prev) => ({ ...prev, ...updated }))} />
+        )
       ) : null}
       {activeTab === "customize" ? <CustomizeWidgetTab widget={widget} savePatch={savePatch} /> : null}
       {activeTab === "embed" ? (

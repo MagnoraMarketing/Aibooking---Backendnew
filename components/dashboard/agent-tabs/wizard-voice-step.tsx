@@ -5,6 +5,7 @@ import type { LLMModel, VoiceModel } from "@/types/database";
 import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 import { useTranslation } from "@/components/i18n/language-provider";
 import { DEFAULT_VOICE_GENDER } from "@/lib/vapi/voice-gender";
+import { StepFooter, StepHeader } from "../agent-flow-ui";
 
 // Deliberately a smaller picker than the full Settings tab (which also
 // carries a page of "Coming soon" fields) — the creation wizard is meant to
@@ -16,12 +17,14 @@ export function WizardVoiceStep({
   voiceModels,
   savePatch,
   onNext,
+  onBack,
 }: {
   widget: WidgetWithExtras;
   llmModels: LLMModel[];
   voiceModels: VoiceModel[];
   savePatch: SavePatch;
   onNext: () => void;
+  onBack?: () => void;
 }) {
   const { t } = useTranslation();
   const isVapiModel = llmModels.find((m) => m.id === widget.llm_model_id)?.provider === "vapi";
@@ -46,13 +49,8 @@ export function WizardVoiceStep({
   }
 
   return (
-    <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          {t("agent.wizardVoice.title")}
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">{t("agent.wizardVoice.description")}</p>
-      </div>
+    <div className="space-y-5">
+      <StepHeader title={t("agent.wizardVoice.title")} description={t("agent.wizardVoice.description")} />
 
       {isVapiModel ? (
         <div>
@@ -63,7 +61,7 @@ export function WizardVoiceStep({
                 key={gender}
                 type="button"
                 onClick={() => setVoiceGender(gender)}
-                className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                className={`rounded-lg border px-3 py-3 text-sm font-medium transition sm:py-2 ${
                   voiceGender === gender
                     ? "border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-500"
                     : "border-slate-300 text-slate-600 hover:border-slate-400"
@@ -112,14 +110,15 @@ export function WizardVoiceStep({
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-      <button
-        type="button"
-        onClick={handleContinue}
-        disabled={saving}
-        className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-      >
-        {saving ? t("common.saving") : t("agent.wizard.nextArrow")}
-      </button>
+      <StepFooter
+        onBack={onBack}
+        onSkip={onNext}
+        primary={{
+          label: saving ? t("common.saving") : t("agent.wizard.nextArrow"),
+          onClick: handleContinue,
+          disabled: saving,
+        }}
+      />
     </div>
   );
 }

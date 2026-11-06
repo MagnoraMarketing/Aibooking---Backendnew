@@ -1,6 +1,7 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import type { Customer, LLMModel, VoiceModel, Widget } from "@/types/database";
+import { widgetUnavailableReason } from "./availability";
 
 export interface WidgetBundle {
   widget: Widget;
@@ -28,15 +29,37 @@ export async function getWidgetBundleByPublicId(publicId: string): Promise<Widge
     .eq("public_id", publicId)
     .maybeSingle<Widget>();
 
-  if (error || !widget || widget.status !== "active") return null;
-
-  const { data: customer } = await supabase
+  // Every "unavailable" case still reads the same to the end user (null),
+  // but the reason is logged: a silent null made a broken database query
+  // indistinguishable from a paused widget, which is exactly how a whole
+  // platform's widgets could stop loading with nothing in the logs.
+  if (error) {
+    console.error(`[widget-lookup] widgets query failed for publicId=${publicId}:`, error);
+    return null;
+  }
+  if (!widget) {
+    console.warn(`[widget-lookup] no widget with publicId=${publicId}`);
+    return null;
+  }
+  const { data: customer, error: customerError } = await supabase
     .from("customers")
     .select("*")
     .eq("id", widget.customer_id)
     .maybeSingle<Customer>();
 
-  if (!customer || customer.status !== "active") return null;
+  if (customerError) {
+    console.error(`[widget-lookup] customers query failed for widget ${widget.id}:`, customerError);
+    return null;
+  }
+
+  const unavailable = widgetUnavailableReason(widget, customer);
+  if (unavailable || !customer) {
+    console.warn(
+      `[widget-lookup] widget ${widget.id} (publicId=${publicId}) unavailable: ${unavailable} ` +
+        `(widget.status=${widget.status}, customer.status=${customer?.status ?? "missing"})`
+    );
+    return null;
+  }
 
   const [{ data: llmModel }, { data: voiceModel }, extra] = await Promise.all([
     widget.llm_model_id
