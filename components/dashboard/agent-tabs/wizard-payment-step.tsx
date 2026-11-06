@@ -63,7 +63,7 @@ export function WizardPaymentStep({ widget, unlocked, trialDaysRemaining, pkg }:
   ];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8">
       <div className="mx-auto max-w-md">
         <div className="text-center">
           <h2 className="text-lg font-semibold text-slate-900">{t("agent.wizardPayment.title")}</h2>

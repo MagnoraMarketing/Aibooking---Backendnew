@@ -1,6 +1,7 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import type { Customer, LLMModel, VoiceModel, Widget } from "@/types/database";
+import { widgetUnavailableReason } from "./availability";
 
 export interface WidgetBundle {
   widget: Widget;
@@ -40,21 +41,22 @@ export async function getWidgetBundleByPublicId(publicId: string): Promise<Widge
     console.warn(`[widget-lookup] no widget with publicId=${publicId}`);
     return null;
   }
-  if (widget.status !== "active") {
-    console.warn(`[widget-lookup] widget ${widget.id} (publicId=${publicId}) is ${widget.status}`);
-    return null;
-  }
-
   const { data: customer, error: customerError } = await supabase
     .from("customers")
     .select("*")
     .eq("id", widget.customer_id)
     .maybeSingle<Customer>();
 
-  if (customerError || !customer || customer.status !== "active") {
+  if (customerError) {
+    console.error(`[widget-lookup] customers query failed for widget ${widget.id}:`, customerError);
+    return null;
+  }
+
+  const unavailable = widgetUnavailableReason(widget, customer);
+  if (unavailable || !customer) {
     console.warn(
-      `[widget-lookup] widget ${widget.id} (publicId=${publicId}) has unavailable customer ${widget.customer_id}: ` +
-        (customerError ? customerError.message : customer ? `status=${customer.status}` : "missing")
+      `[widget-lookup] widget ${widget.id} (publicId=${publicId}) unavailable: ${unavailable} ` +
+        `(widget.status=${widget.status}, customer.status=${customer?.status ?? "missing"})`
     );
     return null;
   }

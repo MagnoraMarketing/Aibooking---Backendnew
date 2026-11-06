@@ -77,7 +77,7 @@ export function WizardPhoneStep({ widget }: { widget: WidgetWithExtras }) {
   }, [widget.id, t]);
 
   return (
-    <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
       <div>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
           {t("agent.wizardPhone.title")}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { WidgetWithExtras } from "../agent-configurator";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { StepFooter, StepHeader, secondaryButtonClass } from "../agent-flow-ui";
 
 // Lets Cal.com be set up during agent creation itself, not just from the
 // separate Integrations page — same POST /api/customer/calendar/calcom
@@ -11,7 +12,15 @@ import { useTranslation } from "@/components/i18n/language-provider";
 // automatically (changeable afterwards under Integrations). Optional —
 // "Spring over" leaves the agent bookable via the widget/phone only, no
 // calendar wired up yet.
-export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtras; onNext: () => void }) {
+export function WizardCalendarStep({
+  widget,
+  onNext,
+  onBack,
+}: {
+  widget: WidgetWithExtras;
+  onNext: () => void;
+  onBack?: () => void;
+}) {
   const { t } = useTranslation();
   const [apiKey, setApiKey] = useState("");
   const [connecting, setConnecting] = useState(false);
@@ -44,13 +53,8 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
   }
 
   return (
-    <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          {t("agent.wizardCalendar.title")}
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">{t("agent.wizardCalendar.description")}</p>
-      </div>
+    <div className="space-y-5">
+      <StepHeader title={t("agent.wizardCalendar.title")} description={t("agent.wizardCalendar.description")} />
 
       {connected ? (
         <div className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
@@ -67,7 +71,7 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder="cal_live_xxxxxxxxxxxx"
-            className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-3 text-base outline-none sm:py-2 sm:text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
           <p className="mt-1 text-xs text-slate-500">{t("agent.wizardCalendar.apiKeyHelp")}</p>
         </div>
@@ -75,25 +79,20 @@ export function WizardCalendarStep({ widget, onNext }: { widget: WidgetWithExtra
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onNext}
-          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
-          {connected ? t("agent.wizard.nextArrow") : t("common.skip")}
+      {/* Connecting is the step's own action; moving on is the shared
+          footer's. Skipping is fine — a calendar can be connected later
+          under Integrations. */}
+      {!connected ? (
+        <button type="button" onClick={handleConnect} disabled={connecting} className={secondaryButtonClass}>
+          {connecting ? t("agent.wizardCalendar.connecting") : t("agent.wizardCalendar.connectButton")}
         </button>
-        {!connected ? (
-          <button
-            type="button"
-            onClick={handleConnect}
-            disabled={connecting}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-          >
-            {connecting ? t("agent.wizardCalendar.connecting") : t("agent.wizardCalendar.connectButton")}
-          </button>
-        ) : null}
-      </div>
+      ) : null}
+
+      <StepFooter
+        onBack={onBack}
+        onSkip={connected ? undefined : onNext}
+        primary={connected ? { label: t("agent.wizard.nextArrow"), onClick: onNext } : undefined}
+      />
     </div>
   );
 }

@@ -13,6 +13,8 @@ import { WizardCalendarStep } from "./agent-tabs/wizard-calendar-step";
 import { TestAgentTab } from "./agent-tabs/test-agent";
 import { WizardPaymentStep } from "./agent-tabs/wizard-payment-step";
 import { WizardPhoneStep } from "./agent-tabs/wizard-phone-step";
+import { TestCallTab } from "./agent-tabs/test-call";
+import { FlowProgress, StepFooter, StepHeader } from "./agent-flow-ui";
 
 type AgentType = "widget" | "phone";
 
@@ -76,32 +78,29 @@ function purposeOptionsFor(t: Translate): { value: AgentPurpose; title: string; 
 // side is still incomplete.
 const WIDGET_LLM_PROVIDER = "vapi";
 
-type StepKey = "basics" | "knowledge" | "prompt" | "voice" | "calendar" | "test" | "payment" | "phone";
+type StepKey = "basics" | "knowledge" | "prompt" | "voice" | "calendar" | "phone" | "test";
 
 interface WizardStep {
   key: StepKey;
   label: string;
 }
 
-// One continuous flow instead of a set of tabs: name -> knowledge -> prompt
-// -> voice -> calendar, then try the agent for real, then pay to put it
-// live. Trying it *before* the payment step is the point of that order —
-// nobody should be asked to pay for something they haven't heard talk.
+// One continuous flow: name -> knowledge -> prompt -> voice -> calendar ->
+// (phone number, for a phone agent) -> test. Testing is always the last
+// step, so whatever was set up along the way is what gets tried — and for a
+// Voice Widget the same screen then shows how to put it live (embed code, or
+// the launch offer when that still has to be paid for). Nobody is asked to
+// pay before they have heard the agent talk.
 //
-// Knowledge comes before the prompt for the same kind of reason: the
-// generated prompt is written with the attached sources in view (see
+// Knowledge comes before the prompt: the generated prompt is written with
+// the attached sources in view (see
 // app/api/customer/widgets/[id]/generate-prompt), so a customer who pastes
-// their website first gets a draft about their actual business rather than
-// one about whatever fits in four form fields.
+// their website first gets a draft about their actual business.
 //
-// Phone agents keep their own tail (a number to call, not an embed to pay
-// for): the Test step previews a website embed, which a phone agent has no
-// use for, and the number itself is ordered from the Inbound page.
-//
-// A customer who already has access (an active subscription, or a launch
-// offer paid for an earlier widget) gets the same step labelled as what it
-// actually shows them — the embed code, with nothing to pay.
-function stepsFor(agentType: AgentType | null, embedCodeUnlocked: boolean, t: Translate): WizardStep[] {
+// A phone agent is tested as a call (TestCallTab), not as a bubble on a
+// stand-in website, and gets its number before that, since the number is
+// what the test call goes to.
+function stepsFor(agentType: AgentType | null, t: Translate): WizardStep[] {
   const steps: WizardStep[] = [
     { key: "basics", label: t("agent.wizard.step.nameType") },
     { key: "knowledge", label: t("agent.wizard.step.knowledge") },
@@ -109,15 +108,8 @@ function stepsFor(agentType: AgentType | null, embedCodeUnlocked: boolean, t: Tr
     { key: "voice", label: t("agent.wizard.step.voice") },
     { key: "calendar", label: t("agent.wizard.step.calendar") },
   ];
-  if (agentType === "phone") {
-    steps.push({ key: "phone", label: t("agent.wizard.step.phone") });
-    return steps;
-  }
-  steps.push({ key: "test", label: t("agent.wizard.step.test") });
-  steps.push({
-    key: "payment",
-    label: embedCodeUnlocked ? t("agent.wizard.step.embedCode") : t("agent.wizard.step.payment"),
-  });
+  if (agentType === "phone") steps.push({ key: "phone", label: t("agent.wizard.step.phone") });
+  steps.push({ key: "test", label: t("agentFlow.wizard.stepTest") });
   return steps;
 }
 
@@ -134,34 +126,6 @@ interface AgentCreationWizardProps {
   // skips the type picker in step 0 and shows a fixed label instead, since
   // the context already answered that question.
   fixedType?: AgentType;
-}
-
-function StepProgress({ step, steps }: { step: number; steps: WizardStep[] }) {
-  return (
-    <div className="flex items-center gap-2">
-      {steps.map(({ key, label }, i) => (
-        <div key={key} className="flex flex-1 items-center gap-2">
-          <div className="flex items-center gap-2">
-            <span
-              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                i < step
-                  ? "bg-emerald-500 text-white"
-                  : i === step
-                    ? "bg-brand-600 text-white"
-                    : "bg-slate-100 text-slate-400"
-              }`}
-            >
-              {i < step ? "✓" : i + 1}
-            </span>
-            <span className={`hidden text-xs font-medium sm:inline ${i === step ? "text-slate-900" : "text-slate-400"}`}>
-              {label}
-            </span>
-          </div>
-          {i < steps.length - 1 ? <div className={`h-px flex-1 ${i < step ? "bg-emerald-500" : "bg-slate-200"}`} /> : null}
-        </div>
-      ))}
-    </div>
-  );
 }
 
 // The first-run "very simple steps" flow: create the agent, then walk it
@@ -194,7 +158,7 @@ export function AgentCreationWizard({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const steps = stepsFor(agentType, embedCodeUnlocked, t);
+  const steps = stepsFor(agentType, t);
   const typeOptions = typeOptionsFor(t);
   const purposeOptions = purposeOptionsFor(t);
 
@@ -204,7 +168,14 @@ export function AgentCreationWizard({
   // Steps are addressed by name, not index — the widget flow has two more
   // than the phone one, so an index alone says nothing about what to render.
   const currentKey = steps[step]?.key;
-  const goNext = () => setStep((prev) => Math.min(prev + 1, steps.length - 1));
+  // Every step change starts at the top of the new step — on a phone the
+  // buttons that moved on sit far below the next step's heading.
+  const goTo = (index: number) => {
+    setStep(Math.max(0, Math.min(index, steps.length - 1)));
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const goNext = () => goTo(step + 1);
+  const goBack = () => goTo(step - 1);
 
   const savePatch: SavePatch = async (patch) => {
     if (!widget) return false;
@@ -280,7 +251,7 @@ export function AgentCreationWizard({
     }
 
     setWidget({ ...created, extra });
-    setStep(1);
+    goTo(1);
   }
 
   function handleFinish() {
@@ -290,12 +261,57 @@ export function AgentCreationWizard({
     router.push(`${agentSectionPath(agentType ?? "widget")}/${widget.id}`);
   }
 
+
+  // Back to step 1 after the agent exists only renames it — creating it a
+  // second time would leave a stray copy in the list.
+  async function handleBasicsNext() {
+    if (!widget) {
+      await handleCreate();
+      return;
+    }
+    if (!name.trim()) {
+      setError(t("agent.wizard.errorNameRequired"));
+      return;
+    }
+    setCreating(true);
+    setError(null);
+    const ok = await savePatch({
+      name: name.trim(),
+      extra: { agentPurposes, purposeNotes: purposeNotes.trim() || null },
+    });
+    setCreating(false);
+    if (!ok) {
+      setError(`${t("common.saveFailed")} ${t("common.tryAgain")}`);
+      return;
+    }
+    goNext();
+  }
+
   return (
-    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <StepProgress step={step} steps={steps} />
+    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wide text-brand-600">
+            {agentType === "phone" ? t("agentFlow.wizard.newPhoneAgent") : t("agentFlow.wizard.newWidgetAgent")}
+          </p>
+          <p className="truncate text-base font-semibold text-slate-900">
+            {widget?.name ?? (name.trim() || t("agentFlow.wizard.untitled"))}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={widget ? handleFinish : onCancel}
+          className="shrink-0 rounded-lg px-2 py-1 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+        >
+          {widget ? t("agentFlow.wizard.saveAndClose") : t("common.cancel")}
+        </button>
+      </div>
+
+      <FlowProgress steps={steps} current={step} onSelect={widget ? goTo : undefined} />
 
       {currentKey === "basics" ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
+          <StepHeader title={t("agentFlow.wizard.basicsTitle")} description={t("agentFlow.wizard.basicsDescription")} />
           <div>
             <label htmlFor="agent-name" className="mb-1 block text-sm font-medium text-slate-700">
               {t("agent.wizard.agentNameLabel")}
@@ -305,20 +321,11 @@ export function AgentCreationWizard({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("agent.wizard.agentNamePlaceholder")}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 sm:py-2 sm:text-sm"
             />
           </div>
 
-          {fixedType ? (
-            <div className="rounded-xl border border-brand-200 bg-brand-50 p-4">
-              <p className="text-sm font-semibold text-brand-700">
-                {typeOptions.find((opt) => opt.value === fixedType)?.title}
-              </p>
-              <p className="mt-1 text-xs text-brand-600">
-                {typeOptions.find((opt) => opt.value === fixedType)?.description}
-              </p>
-            </div>
-          ) : (
+          {fixedType ? null : (
             <div>
               <p className="mb-2 text-sm font-medium text-slate-700">{t("agent.wizard.typeQuestion")}</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -326,8 +333,9 @@ export function AgentCreationWizard({
                   <button
                     key={option.value}
                     type="button"
+                    disabled={Boolean(widget)}
                     onClick={() => setAgentType(option.value)}
-                    className={`rounded-xl border p-4 text-left transition ${
+                    className={`rounded-xl border p-4 text-left transition disabled:opacity-60 ${
                       agentType === option.value
                         ? "border-brand-500 ring-1 ring-brand-500"
                         : "border-slate-200 hover:border-slate-300"
@@ -344,7 +352,7 @@ export function AgentCreationWizard({
 
           <div>
             <p className="mb-2 text-sm font-medium text-slate-700">{t("agent.wizard.purposeQuestion")}</p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
               {purposeOptions.map((option) => {
                 const selected = agentPurposes.includes(option.value);
                 return (
@@ -353,12 +361,21 @@ export function AgentCreationWizard({
                     type="button"
                     aria-pressed={selected}
                     onClick={() => togglePurpose(option.value)}
-                    className={`rounded-xl border p-4 text-left transition ${
-                      selected ? "border-brand-500 ring-1 ring-brand-500" : "border-slate-200 hover:border-slate-300"
+                    className={`flex items-start gap-3 rounded-xl border p-3 text-left transition sm:block sm:p-4 ${
+                      selected ? "border-brand-500 bg-brand-50/40 ring-1 ring-brand-500" : "border-slate-200 hover:border-slate-300"
                     }`}
                   >
-                    <p className="text-sm font-semibold text-slate-800">{option.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">{option.description}</p>
+                    <span
+                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs sm:hidden ${
+                        selected ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300"
+                      }`}
+                    >
+                      {selected ? "✓" : ""}
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold text-slate-800">{option.title}</span>
+                      <span className="mt-1 block text-xs text-slate-500">{option.description}</span>
+                    </span>
                   </button>
                 );
               })}
@@ -376,7 +393,7 @@ export function AgentCreationWizard({
                   onChange={(e) => setPurposeNotes(e.target.value)}
                   placeholder={t("agent.wizard.purposeNotesPlaceholder")}
                   rows={3}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 sm:text-sm"
                 />
               </div>
             ) : null}
@@ -384,175 +401,119 @@ export function AgentCreationWizard({
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              {t("common.cancel")}
-            </button>
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={creating || !agentType}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-            >
-              {creating ? t("agent.wizard.creating") : t("agent.wizard.nextArrow")}
-            </button>
-          </div>
+          <StepFooter
+            onBack={widget ? undefined : onCancel}
+            backLabel={t("common.cancel")}
+            primary={{
+              label: creating ? t("agent.wizard.creating") : t("agent.wizard.nextArrow"),
+              onClick: handleBasicsNext,
+              disabled: creating || !agentType,
+            }}
+          />
         </div>
       ) : null}
 
       {currentKey === "knowledge" && widget ? (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900">{t("agent.wizard.knowledgeTitle")}</h2>
-            <p className="mt-1 text-sm text-slate-500">{t("agent.wizard.knowledgeDescription")}</p>
-          </div>
+        <div className="space-y-5">
+          <StepHeader title={t("agent.wizard.knowledgeTitle")} description={t("agent.wizard.knowledgeDescription")} />
           <KnowledgeBaseTab
             widget={widget}
             onSourcesChange={(knowledgeBase) =>
               setWidget((prev) => (prev ? { ...prev, extra: { ...prev.extra, knowledgeBase } } : prev))
             }
           />
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={goNext}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              {t("common.skip")}
-            </button>
-            <button
-              type="button"
-              onClick={goNext}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-            >
-              {t("agent.wizard.nextArrow")}
-            </button>
-          </div>
+          <StepFooter
+            onBack={goBack}
+            onSkip={(widget.extra.knowledgeBase?.length ?? 0) > 0 ? undefined : goNext}
+            primary={{ label: t("agent.wizard.nextArrow"), onClick: goNext }}
+          />
         </div>
       ) : null}
 
       {currentKey === "prompt" && widget ? (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900">{t("agent.wizard.promptTitle")}</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {(widget.extra.knowledgeBase?.length ?? 0) > 0
+        <div className="space-y-5">
+          <StepHeader
+            title={t("agent.wizard.promptTitle")}
+            description={
+              (widget.extra.knowledgeBase?.length ?? 0) > 0
                 ? t("agent.wizard.promptDescriptionWithKnowledge", { count: widget.extra.knowledgeBase!.length })
-                : t("agent.wizard.promptDescription")}
-            </p>
-          </div>
+                : t("agent.wizard.promptDescription")
+            }
+          />
           <PromptLabTab widget={widget} savePatch={savePatch} />
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={goNext}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              {t("common.skip")}
-            </button>
-            <button
-              type="button"
-              onClick={goNext}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-            >
-              {t("agent.wizard.nextArrow")}
-            </button>
-          </div>
+          <StepFooter onBack={goBack} primary={{ label: t("agent.wizard.nextArrow"), onClick: goNext }} />
         </div>
       ) : null}
 
       {currentKey === "voice" && widget ? (
-        <div className="space-y-4">
-          <WizardVoiceStep
-            widget={widget}
-            llmModels={llmModels}
-            voiceModels={voiceModels}
-            savePatch={savePatch}
-            onNext={goNext}
-          />
-          <button
-            type="button"
-            onClick={goNext}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            {t("common.skip")}
-          </button>
-        </div>
+        <WizardVoiceStep
+          widget={widget}
+          llmModels={llmModels}
+          voiceModels={voiceModels}
+          savePatch={savePatch}
+          onNext={goNext}
+          onBack={goBack}
+        />
       ) : null}
 
-      {currentKey === "calendar" && widget ? <WizardCalendarStep widget={widget} onNext={goNext} /> : null}
-
-      {/* Try the finished agent on a stand-in website before being asked to
-          pay for it — the same preview the Test Agent tab shows later. */}
-      {currentKey === "test" && widget ? (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900">{t("agent.wizard.testTitle")}</h2>
-            <p className="mt-1 text-sm text-slate-500">{t("agent.wizard.testDescription")}</p>
-          </div>
-          <TestAgentTab widget={widget} />
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setStep((prev) => Math.max(prev - 1, 0))}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              {t("agent.wizard.backArrow")}
-            </button>
-            <button
-              type="button"
-              onClick={goNext}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-            >
-              {t("agent.wizard.testDoneNext")}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {currentKey === "payment" && widget ? (
-        <div className="space-y-4">
-          <WizardPaymentStep
-            widget={widget}
-            unlocked={embedCodeUnlocked}
-            trialDaysRemaining={trialDaysRemaining}
-            pkg={pkg}
-          />
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setStep((prev) => Math.max(prev - 1, 0))}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              {t("agent.wizard.backArrow")}
-            </button>
-            <button
-              type="button"
-              onClick={handleFinish}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              {t("agent.wizard.finish")}
-            </button>
-          </div>
-        </div>
+      {currentKey === "calendar" && widget ? (
+        <WizardCalendarStep widget={widget} onNext={goNext} onBack={goBack} />
       ) : null}
 
       {currentKey === "phone" && widget ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <WizardPhoneStep widget={widget} />
-          <button
-            type="button"
-            onClick={handleFinish}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            {t("agent.wizard.finish")}
-          </button>
+          <StepFooter onBack={goBack} primary={{ label: t("agent.wizard.nextArrow"), onClick: goNext }} />
         </div>
       ) : null}
+
+      {/* The last step, always: try the agent as it was just set up. A Voice
+          Widget is tried on a stand-in website (the same preview the agent
+          page's Test tab shows), a phone agent with a real call. */}
+      {currentKey === "test" && widget ? (
+        <div className="space-y-6">
+          <StepHeader
+            title={agentType === "phone" ? t("agentFlow.wizard.testPhoneTitle") : t("agentFlow.wizard.testWidgetTitle")}
+            description={
+              agentType === "phone" ? t("agentFlow.wizard.testPhoneDescription") : t("agent.wizard.testDescription")
+            }
+          />
+          {agentType === "phone" ? (
+            <TestCallTab widget={widget} />
+          ) : (
+            <TestAgentTab
+              widget={widget}
+              onWidgetChange={(updated) => setWidget((prev) => (prev ? { ...prev, ...updated } : prev))}
+            />
+          )}
+
+          {agentType !== "phone" ? (
+            <div className="space-y-3 border-t border-slate-100 pt-6">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {t("agentFlow.wizard.goLiveLabel")}
+              </p>
+              <WizardPaymentStep
+                widget={widget}
+                unlocked={embedCodeUnlocked}
+                trialDaysRemaining={trialDaysRemaining}
+                pkg={pkg}
+              />
+            </div>
+          ) : null}
+
+          {/* With the launch offer still to pay, paying is the main action on
+              this screen and finishing is the quiet way out. */}
+          <StepFooter
+            onBack={goBack}
+            primary={{
+              label: t("agent.wizard.finish"),
+              onClick: handleFinish,
+              subtle: agentType !== "phone" && !embedCodeUnlocked,
+            }}
+          />
+        </div>
+      ) : null}
+
     </div>
   );
 }

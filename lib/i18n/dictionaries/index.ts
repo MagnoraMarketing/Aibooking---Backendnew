@@ -7,6 +7,7 @@ import { dashboardShell } from "./dashboardShell";
 import { adminShell } from "./adminShell";
 import { profile } from "./profile";
 import { agent } from "./agent";
+import { agentFlow } from "./agentFlow";
 import { adminPages } from "./adminPages";
 import { dashboardPages } from "./dashboardPages";
 import { nordcallOutbound } from "./nordcallOutbound";
@@ -22,6 +23,7 @@ const NAMESPACES: Record<string, Namespace> = {
   adminShell,
   profile,
   agent,
+  agentFlow,
   adminPages,
   dashboardPages,
   nordcallOutbound,
