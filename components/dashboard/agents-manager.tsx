@@ -13,6 +13,9 @@ import { StatusPill, primaryButtonClass } from "./agent-flow-ui";
 
 interface AgentsManagerProps {
   initialWidgets: Widget[];
+  // Agents that exist but were never set up (see needsSetup in
+  // lib/security/schemas.ts) — the creation flow can open on one of them.
+  pendingSetup?: WidgetWithExtras[];
   llmModels: LLMModel[];
   voiceModels: VoiceModel[];
   embedCodeUnlocked: boolean;
@@ -27,6 +30,7 @@ interface AgentsManagerProps {
 
 export function AgentsManager({
   initialWidgets,
+  pendingSetup = [],
   llmModels,
   voiceModels,
   embedCodeUnlocked,
@@ -51,14 +55,25 @@ export function AgentsManager({
       listTitle: t("dashboardPages.agents-manager.phoneListTitle"),
     },
   } as const;
+  const searchParams = useSearchParams();
   const [widgets, setWidgets] = useState(initialWidgets);
-  const [showWizard, setShowWizard] = useState(initialWidgets.length === 0);
+  const [pending, setPending] = useState(pendingSetup);
+  // A brand-new customer's only agent is the one made at signup: open the
+  // flow straight on it rather than showing a list with one unexplained
+  // "Main widget" in it. ?setup=<id> does the same for a chosen agent.
+  const [resumeWidget, setResumeWidget] = useState<WidgetWithExtras | null>(() => {
+    const requested = searchParams.get("setup");
+    const byParam = requested ? pendingSetup.find((w) => w.id === requested) : undefined;
+    if (byParam) return byParam;
+    return pendingSetup.length > 0 && pendingSetup.length === initialWidgets.length ? (pendingSetup[0] ?? null) : null;
+  });
+  const [showWizard, setShowWizard] = useState(initialWidgets.length === 0 || resumeWidget !== null);
   const [search, setSearch] = useState("");
   const [togglingId, setTogglingId] = useState<string | null>(null);
   // The Stripe return page lands here when it can't tell which agent the
   // payment belonged to (see app/dashboard/checkout/return/page.tsx) — the
   // minutes are still credited, so say so rather than showing nothing.
-  const justPaid = useSearchParams().get("paid") === "1";
+  const justPaid = searchParams.get("paid") === "1";
 
   const filteredWidgets = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -67,8 +82,21 @@ export function AgentsManager({
   }, [widgets, search]);
 
   function handleWizardComplete(created: WidgetWithExtras) {
-    setWidgets((prev) => [created, ...prev]);
+    setWidgets((prev) => [created, ...prev.filter((w) => w.id !== created.id)]);
+    setPending((prev) => prev.filter((w) => w.id !== created.id));
+    setResumeWidget(null);
     setShowWizard(false);
+  }
+
+  function continueSetup(widget: WidgetWithExtras) {
+    setResumeWidget(widget);
+    setShowWizard(true);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function startNewAgent() {
+    setResumeWidget(null);
+    setShowWizard(true);
   }
 
   async function handleToggleStatus(widget: Widget) {
@@ -112,11 +140,14 @@ export function AgentsManager({
   // Shown next to the creation flow (beside it on a wide screen, folded
   // above it on a phone), so the customer sees the agents they already have
   // without leaving the flow.
-  const existingAgentsTitle = t("agentFlow.list.existingTitle", { count: widgets.length });
+  // The agent being set up right now is the flow itself, not one of "the
+  // others" — leave it out of the list beside it.
+  const otherWidgets = widgets.filter((w) => w.id !== resumeWidget?.id);
+  const existingAgentsTitle = t("agentFlow.list.existingTitle", { count: otherWidgets.length });
   const existingAgentsList =
-    widgets.length > 0 ? (
+    otherWidgets.length > 0 ? (
       <ul className="divide-y divide-slate-100">
-        {widgets.map((widget) => (
+        {otherWidgets.map((widget) => (
           <li key={widget.id} className="flex items-center justify-between gap-3 py-2.5">
             <Link href={`${agentBasePath}/${widget.id}`} className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-slate-800">{widget.name}</p>
@@ -136,7 +167,7 @@ export function AgentsManager({
           <p className="mt-1 text-sm text-slate-500">{heading.subtitle}</p>
         </div>
         {!showWizard ? (
-          <button type="button" onClick={() => setShowWizard(true)} className={primaryButtonClass}>
+          <button type="button" onClick={startNewAgent} className={primaryButtonClass}>
             {t("dashboardPages.agents-manager.newAgent")}
           </button>
         ) : null}
@@ -163,13 +194,18 @@ export function AgentsManager({
             </details>
           ) : null}
           <AgentCreationWizard
+            key={resumeWidget?.id ?? "new"}
+            resumeWidget={resumeWidget ?? undefined}
             llmModels={llmModels}
             voiceModels={voiceModels}
             embedCodeUnlocked={embedCodeUnlocked}
             trialDaysRemaining={trialDaysRemaining}
             pkg={pkg}
             fixedType={agentType}
-            onCancel={() => setShowWizard(false)}
+            onCancel={() => {
+              setResumeWidget(null);
+              setShowWizard(false);
+            }}
             onComplete={handleWizardComplete}
           />
           {existingAgentsList ? (
@@ -200,14 +236,16 @@ export function AgentsManager({
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
               <p className="text-sm text-slate-500">{t("dashboardPages.agents-manager.noAgentsFound")}</p>
               {widgets.length === 0 ? (
-                <button type="button" onClick={() => setShowWizard(true)} className={`mt-4 ${primaryButtonClass}`}>
+                <button type="button" onClick={startNewAgent} className={`mt-4 ${primaryButtonClass}`}>
                   {t("dashboardPages.agents-manager.newAgent")}
                 </button>
               ) : null}
             </div>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredWidgets.map((widget) => (
+              {filteredWidgets.map((widget) => {
+                const pendingWidget = pending.find((p) => p.id === widget.id);
+                return (
                 <li key={widget.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <Link href={`${agentBasePath}/${widget.id}`} className="min-w-0 flex-1">
@@ -220,8 +258,13 @@ export function AgentsManager({
                     </Link>
                     <StatusSwitch widget={widget} />
                   </div>
-                  <div className="mt-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <StatusPill active={widget.status === "active"} />
+                    {pendingWidget ? (
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        {t("agentFlow.list.needsSetup")}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <Link
@@ -230,15 +273,26 @@ export function AgentsManager({
                     >
                       {t("agentFlow.list.edit")}
                     </Link>
-                    <Link
-                      href={`${agentBasePath}/${widget.id}?tab=test`}
-                      className="rounded-lg bg-brand-600 px-3 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-700"
-                    >
-                      {t("agentFlow.list.test")}
-                    </Link>
+                    {pendingWidget ? (
+                      <button
+                        type="button"
+                        onClick={() => continueSetup(pendingWidget)}
+                        className="rounded-lg bg-brand-600 px-3 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-700"
+                      >
+                        {t("agentFlow.list.continueSetup")}
+                      </button>
+                    ) : (
+                      <Link
+                        href={`${agentBasePath}/${widget.id}?tab=test`}
+                        className="rounded-lg bg-brand-600 px-3 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-700"
+                      >
+                        {t("agentFlow.list.test")}
+                      </Link>
+                    )}
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>

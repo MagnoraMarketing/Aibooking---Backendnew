@@ -56,7 +56,7 @@ export const dashboardShell: Namespace = {
     pt: "Notificações",
     de: "Benachrichtigungen",
   },
-  credits: { da: "Minutter", en: "Credits", es: "Créditos", fr: "Crédits", pt: "Créditos", de: "Guthaben" },
+  credits: { da: "Minutter", en: "Minutes", es: "Minutos", fr: "Minutes", pt: "Minutos", de: "Minuten" },
   defaultUserLabel: { da: "Bruger", en: "User", es: "Usuario", fr: "Utilisateur", pt: "Usuário", de: "Benutzer" },
   profile: { da: "Profil", en: "Profile", es: "Perfil", fr: "Profil", pt: "Perfil", de: "Profil" },
   logout: { da: "Log ud", en: "Log out", es: "Cerrar sesión", fr: "Se déconnecter", pt: "Sair", de: "Abmelden" },

@@ -3,6 +3,9 @@ import { getAdminClient } from "@/lib/database/admin";
 import { hasEmbedCodeAccess, trialDaysRemaining } from "@/lib/billing";
 import { getBalanceSeconds } from "@/lib/credits";
 import { AgentsManager } from "@/components/dashboard/agents-manager";
+import type { WidgetExtra, WidgetWithExtras } from "@/components/dashboard/agent-configurator";
+import { buildEmbedSnippet, buildShareUrl } from "@/lib/widgets";
+import { publicWidgetExtra } from "@/lib/uber-direct/connection";
 import type { Customer, LLMModel, Package, Subscription, VoiceModel, Widget } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +53,30 @@ export default async function AgentListPage() {
   // AgentsManager for why this split exists).
   const widgetAgents = (widgets ?? []).filter((w) => w.agent_type === "widget");
 
+  // Agents nobody has set up yet (the one a new customer gets at signup —
+  // see needsSetup in lib/security/schemas.ts). Sent whole, so the creation
+  // flow can open straight on one of them instead of making a new agent.
+  const { data: settingsRows } = widgetAgents.length
+    ? await supabase
+        .from("widget_settings")
+        .select("widget_id, extra")
+        .in(
+          "widget_id",
+          widgetAgents.map((w) => w.id)
+        )
+    : { data: [] };
+  const extraById = new Map(
+    ((settingsRows ?? []) as { widget_id: string; extra: WidgetExtra | null }[]).map((row) => [row.widget_id, row.extra ?? {}])
+  );
+  const pendingSetup: WidgetWithExtras[] = widgetAgents
+    .filter((w) => extraById.get(w.id)?.needsSetup === true)
+    .map((w) => ({
+      ...w,
+      shareUrl: buildShareUrl(w.public_id),
+      embedSnippet: buildEmbedSnippet(w.public_id),
+      extra: publicWidgetExtra(extraById.get(w.id) as Record<string, unknown>) as WidgetExtra,
+    }));
+
   const embedCodeUnlocked = customer
     ? hasEmbedCodeAccess({
         customerCreatedAt: customer.created_at,
@@ -63,6 +90,7 @@ export default async function AgentListPage() {
   return (
     <AgentsManager
       initialWidgets={widgetAgents}
+      pendingSetup={pendingSetup}
       llmModels={llmModels ?? []}
       voiceModels={voiceModels ?? []}
       embedCodeUnlocked={embedCodeUnlocked}

@@ -29,33 +29,24 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
   const THEMES = themesFor(t);
   const POSITIONS = positionsFor(t);
   const [businessName, setBusinessName] = useState(widget.business_name ?? "");
-  const [tagline, setTagline] = useState(widget.extra.tagline ?? "");
-  const [logoUrl, setLogoUrl] = useState(widget.logo_url ?? "");
   const [primaryColor, setPrimaryColor] = useState(widget.primary_color);
   const [secondaryColor, setSecondaryColor] = useState(widget.secondary_color);
   const [position, setPosition] = useState(widget.position);
   const [widgetSize, setWidgetSize] = useState(widget.widget_size);
   const [showBranding, setShowBranding] = useState(widget.show_branding);
-  const [extra, setExtra] = useState(widget.extra);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
-
-  function setExtraFlag(key: keyof typeof extra, value: boolean) {
-    setExtra((prev) => ({ ...prev, [key]: value }));
-  }
 
   async function handleSave() {
     setSaving(true);
     setStatus("idle");
     const ok = await savePatch({
       businessName,
-      logoUrl: logoUrl || null,
       primaryColor,
       secondaryColor,
       position,
       widgetSize,
       showBranding,
-      extra: { ...extra, tagline: tagline || null },
     });
     setSaving(false);
     setStatus(ok ? "saved" : "error");
@@ -63,7 +54,7 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
 
   return (
     <div className="space-y-6">
-      <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <div>
           <label htmlFor="bot-name" className="mb-1 block text-sm font-medium text-slate-700">
             {t("agent.customize.botNameLabel")}
@@ -73,32 +64,6 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
             placeholder={t("agent.customize.botNamePlaceholder")}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="tagline" className="mb-1 block text-sm font-medium text-slate-700">
-            {t("agent.customize.taglineLabel")}
-          </label>
-          <input
-            id="tagline"
-            value={tagline}
-            onChange={(e) => setTagline(e.target.value)}
-            placeholder={t("agent.customize.taglinePlaceholder")}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="logo-url" className="mb-1 block text-sm font-medium text-slate-700">
-            {t("agent.customize.logoUrlLabel")}
-          </label>
-          <input
-            id="logo-url"
-            value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
-            placeholder={t("agent.customize.logoUrlPlaceholder")}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
         </div>
@@ -189,7 +154,12 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
         </div>
       </div>
 
-      <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      {/* Only what public/widget.js actually reads. The slogan, logo URL and
+          the on/off options (autostart, text chat, lead form, glowing icon,
+          …) were saved but never changed the live widget — their stored
+          values are kept in widget_settings.extra, so they can come back
+          here the day the widget uses them. */}
+      <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
           {t("agent.customize.settingsTitle")}
         </h2>
@@ -198,57 +168,7 @@ export function CustomizeWidgetTab({ widget, savePatch }: { widget: WidgetWithEx
           checked={showBranding}
           onChange={setShowBranding}
         />
-        <ToggleSwitch
-          label={t("agent.customize.transcriptionLabel")}
-          description={t("agent.customize.transcriptionDescription")}
-          checked={extra.transcriptionEnabled ?? true}
-          onChange={(v) => setExtraFlag("transcriptionEnabled", v)}
-        />
-        <ToggleSwitch
-          label={t("agent.customize.chatLabel")}
-          description={t("agent.customize.chatDescription")}
-          checked={extra.chatEnabled ?? true}
-          onChange={(v) => setExtraFlag("chatEnabled", v)}
-        />
-        <ToggleSwitch
-          label={t("agent.customize.autostartLabel")}
-          description={t("agent.customize.autostartDescription")}
-          checked={extra.autostart ?? false}
-          onChange={(v) => setExtraFlag("autostart", v)}
-        />
-        <ToggleSwitch
-          label={t("agent.customize.muteOnMinimizeLabel")}
-          checked={extra.muteOnMinimize ?? false}
-          onChange={(v) => setExtraFlag("muteOnMinimize", v)}
-        />
-        <ToggleSwitch
-          label={t("agent.customize.muteOnTabChangeLabel")}
-          checked={extra.muteOnTabChange ?? false}
-          onChange={(v) => setExtraFlag("muteOnTabChange", v)}
-        />
-        <ToggleSwitch
-          label={t("agent.customize.showLeadFormLabel")}
-          checked={extra.showLeadForm ?? false}
-          onChange={(v) => setExtraFlag("showLeadForm", v)}
-        />
-        <ToggleSwitch
-          label={t("agent.customize.glowingIconLabel")}
-          checked={extra.isGlowing ?? false}
-          onChange={(v) => setExtraFlag("isGlowing", v)}
-        />
-        <ToggleSwitch
-          label={t("agent.customize.transparentBackgroundLabel")}
-          checked={extra.isTransparent ?? false}
-          onChange={(v) => setExtraFlag("isTransparent", v)}
-        />
-        <ToggleSwitch
-          label={t("agent.customize.muteAgentLabel")}
-          checked={extra.agentMute ?? false}
-          onChange={(v) => setExtraFlag("agentMute", v)}
-        />
       </div>
-
-      <p className="text-xs text-slate-500">{t("agent.customize.footerNote")}</p>
 
       <div className="flex items-center gap-3">
         <button
