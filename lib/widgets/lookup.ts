@@ -28,15 +28,36 @@ export async function getWidgetBundleByPublicId(publicId: string): Promise<Widge
     .eq("public_id", publicId)
     .maybeSingle<Widget>();
 
-  if (error || !widget || widget.status !== "active") return null;
+  // Every "unavailable" case still reads the same to the end user (null),
+  // but the reason is logged: a silent null made a broken database query
+  // indistinguishable from a paused widget, which is exactly how a whole
+  // platform's widgets could stop loading with nothing in the logs.
+  if (error) {
+    console.error(`[widget-lookup] widgets query failed for publicId=${publicId}:`, error);
+    return null;
+  }
+  if (!widget) {
+    console.warn(`[widget-lookup] no widget with publicId=${publicId}`);
+    return null;
+  }
+  if (widget.status !== "active") {
+    console.warn(`[widget-lookup] widget ${widget.id} (publicId=${publicId}) is ${widget.status}`);
+    return null;
+  }
 
-  const { data: customer } = await supabase
+  const { data: customer, error: customerError } = await supabase
     .from("customers")
     .select("*")
     .eq("id", widget.customer_id)
     .maybeSingle<Customer>();
 
-  if (!customer || customer.status !== "active") return null;
+  if (customerError || !customer || customer.status !== "active") {
+    console.warn(
+      `[widget-lookup] widget ${widget.id} (publicId=${publicId}) has unavailable customer ${widget.customer_id}: ` +
+        (customerError ? customerError.message : customer ? `status=${customer.status}` : "missing")
+    );
+    return null;
+  }
 
   const [{ data: llmModel }, { data: voiceModel }, extra] = await Promise.all([
     widget.llm_model_id
