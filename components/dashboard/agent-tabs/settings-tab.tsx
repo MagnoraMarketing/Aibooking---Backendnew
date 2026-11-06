@@ -6,6 +6,7 @@ import type { SavePatch, WidgetWithExtras } from "../agent-configurator";
 import { ComingSoonField } from "../coming-soon-field";
 import { ToggleSwitch } from "../toggle-switch";
 import { useTranslation } from "@/components/i18n/language-provider";
+import { LOCALES, LOCALE_LABELS } from "@/lib/i18n/locales";
 import { DEFAULT_VOICE_GENDER } from "@/lib/vapi/voice-gender";
 
 interface SettingsTabProps {
@@ -150,8 +151,13 @@ export function SettingsTab({ widget, llmModels, voiceModels, savePatch }: Setti
             onChange={(e) => setLanguage(e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           >
-            <option value="da">{t("agent.settings.languageDanish")}</option>
-            <option value="en">{t("agent.settings.languageEnglish")}</option>
+            {/* Every language the agent itself can speak (lib/i18n/agent-content.ts),
+                named in that language so a speaker finds their own. */}
+            {LOCALES.map((code) => (
+              <option key={code} value={code}>
+                {LOCALE_LABELS[code]}
+              </option>
+            ))}
           </select>
         </div>
 

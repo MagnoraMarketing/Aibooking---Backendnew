@@ -57,6 +57,8 @@ export interface WidgetExtra {
   // app/api/customer/widgets/[id]/generate-prompt/route.ts.
   agentPurposes?: ("booking" | "shopify" | "qa")[] | null;
   purposeNotes?: string | null;
+  // See widgetExtraSettingsSchema in lib/security/schemas.ts.
+  needsSetup?: boolean;
 }
 
 export interface WidgetWithExtras extends Widget {
@@ -203,6 +205,15 @@ export function AgentConfigurator({
           <p className="mt-1 text-sm text-emerald-700">
             {t("agent.configurator.paidBannerBody", { minutes: WIDGET_LAUNCH_MINUTES })}
           </p>
+        </div>
+      ) : null}
+
+      {widget.extra.needsSetup && !isPhoneType ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-amber-900">{t("agentFlow.configurator.needsSetupBanner")}</p>
+          <Link href={`${listPath}?setup=${widget.id}`} className={primaryButtonClass}>
+            {t("agentFlow.list.continueSetup")}
+          </Link>
         </div>
       ) : null}
 

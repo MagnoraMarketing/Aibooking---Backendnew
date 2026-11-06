@@ -257,4 +257,47 @@ export const agentFlow: Namespace = {
     pt: "Não foi possível verificar o agente",
     de: "Der Agent konnte nicht geprüft werden",
   },
+
+  "gettingStarted.optional": {
+    da: "Valgfrit",
+    en: "Optional",
+    es: "Opcional",
+    fr: "Facultatif",
+    pt: "Opcional",
+    de: "Optional",
+  },
+
+  "wizard.continueSetup": {
+    da: "Sæt din agent op",
+    en: "Set up your agent",
+    es: "Configure su agente",
+    fr: "Configurez votre agent",
+    pt: "Configure o seu agente",
+    de: "Richten Sie Ihren Agenten ein",
+  },
+  "list.needsSetup": {
+    da: "Mangler opsætning",
+    en: "Needs setup",
+    es: "Falta configurar",
+    fr: "À configurer",
+    pt: "Por configurar",
+    de: "Einrichtung offen",
+  },
+  "list.continueSetup": {
+    da: "Fortsæt opsætning",
+    en: "Continue setup",
+    es: "Continuar",
+    fr: "Continuer",
+    pt: "Continuar",
+    de: "Weiter einrichten",
+  },
+
+  "configurator.needsSetupBanner": {
+    da: "Agenten er ikke sat op endnu. Gå trinene igennem, så den kender din virksomhed — det tager et par minutter.",
+    en: "This agent isn't set up yet. Go through the steps so it knows your business — it takes a few minutes.",
+    es: "Este agente aún no está configurado. Siga los pasos para que conozca su empresa — tarda unos minutos.",
+    fr: "Cet agent n'est pas encore configuré. Suivez les étapes pour qu'il connaisse votre entreprise — quelques minutes suffisent.",
+    pt: "Este agente ainda não está configurado. Siga os passos para que conheça a sua empresa — demora alguns minutos.",
+    de: "Dieser Agent ist noch nicht eingerichtet. Gehen Sie die Schritte durch, damit er Ihr Unternehmen kennt — das dauert nur ein paar Minuten.",
+  },
 };

@@ -264,6 +264,12 @@ export const widgetExtraSettingsSchema = z
     // syncWidgetToVapiAssistant in lib/vapi/sync.ts), not by this choice.
     agentPurposes: z.array(z.enum(["booking", "shopify", "qa"])).nullable(),
     purposeNotes: z.string().trim().max(2000).nullable(),
+    // Set on the agent a new customer gets at signup
+    // (lib/customers/self-signup.ts): it exists so the welcome mail can
+    // carry an embed code, but nobody has set it up yet. While true, the
+    // agent list opens the creation flow on it instead of leaving a bare
+    // "Main widget" in the list. The flow clears it on its last step.
+    needsSetup: z.boolean(),
   })
   .partial();
 

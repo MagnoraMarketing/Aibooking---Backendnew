@@ -126,6 +126,11 @@ interface AgentCreationWizardProps {
   // skips the type picker in step 0 and shows a fixed label instead, since
   // the context already answered that question.
   fixedType?: AgentType;
+  // An agent that already exists but was never set up (the one made at
+  // signup — see needsSetup in lib/security/schemas.ts). The flow opens on it
+  // instead of creating another: step 1 renames it, and the last step marks
+  // it as set up.
+  resumeWidget?: WidgetWithExtras;
 }
 
 // The first-run "very simple steps" flow: create the agent, then walk it
@@ -145,16 +150,19 @@ export function AgentCreationWizard({
   onCancel,
   onComplete,
   fixedType,
+  resumeWidget,
 }: AgentCreationWizardProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [widget, setWidget] = useState<WidgetWithExtras | null>(null);
+  const [widget, setWidget] = useState<WidgetWithExtras | null>(resumeWidget ?? null);
 
-  const [name, setName] = useState("");
-  const [agentType, setAgentType] = useState<AgentType | null>(fixedType ?? null);
-  const [agentPurposes, setAgentPurposes] = useState<AgentPurpose[]>([]);
-  const [purposeNotes, setPurposeNotes] = useState("");
+  const [name, setName] = useState(resumeWidget?.name ?? "");
+  const [agentType, setAgentType] = useState<AgentType | null>(
+    fixedType ?? (resumeWidget ? (resumeWidget.agent_type === "phone" ? "phone" : "widget") : null)
+  );
+  const [agentPurposes, setAgentPurposes] = useState<AgentPurpose[]>(resumeWidget?.extra.agentPurposes ?? []);
+  const [purposeNotes, setPurposeNotes] = useState(resumeWidget?.extra.purposeNotes ?? "");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -254,8 +262,14 @@ export function AgentCreationWizard({
     goTo(1);
   }
 
-  function handleFinish() {
+  // complete: the customer went all the way to the last step. Leaving early
+  // ("Gem og luk") keeps an unfinished agent marked as such, so the list keeps
+  // offering to continue its setup.
+  async function handleFinish(complete = false) {
     if (!widget) return;
+    if (complete && widget.extra.needsSetup) {
+      await savePatch({ extra: { needsSetup: false } });
+    }
     onComplete(widget);
     // Into the new agent's own section, not always Widget Agents.
     router.push(`${agentSectionPath(agentType ?? "widget")}/${widget.id}`);
@@ -292,7 +306,11 @@ export function AgentCreationWizard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-brand-600">
-            {agentType === "phone" ? t("agentFlow.wizard.newPhoneAgent") : t("agentFlow.wizard.newWidgetAgent")}
+            {resumeWidget
+              ? t("agentFlow.wizard.continueSetup")
+              : agentType === "phone"
+                ? t("agentFlow.wizard.newPhoneAgent")
+                : t("agentFlow.wizard.newWidgetAgent")}
           </p>
           <p className="truncate text-base font-semibold text-slate-900">
             {widget?.name ?? (name.trim() || t("agentFlow.wizard.untitled"))}
@@ -300,7 +318,7 @@ export function AgentCreationWizard({
         </div>
         <button
           type="button"
-          onClick={widget ? handleFinish : onCancel}
+          onClick={widget ? () => handleFinish(false) : onCancel}
           className="shrink-0 rounded-lg px-2 py-1 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700"
         >
           {widget ? t("agentFlow.wizard.saveAndClose") : t("common.cancel")}
@@ -507,7 +525,7 @@ export function AgentCreationWizard({
             onBack={goBack}
             primary={{
               label: t("agent.wizard.finish"),
-              onClick: handleFinish,
+              onClick: () => handleFinish(true),
               subtle: agentType !== "phone" && !embedCodeUnlocked,
             }}
           />

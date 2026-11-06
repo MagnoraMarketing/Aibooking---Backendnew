@@ -26,12 +26,13 @@ const AGENT_NAV_ITEMS = [
   { key: "dashboardShell.nav.dialer", href: "/dashboard/dialer", enabled: DIALER_ENABLED },
 ].filter((item) => item.enabled);
 
+// Analyse and Agency are left out while they are "coming soon" pages — a menu
+// item that leads to an empty page reads as broken, not as a promise. Their
+// URLs still answer; add them back here once they show something.
 const TRAILING_NAV_ITEMS = [
   { key: "dashboardShell.nav.knowledgeBase", href: "/dashboard/knowledge-base" },
-  { key: "dashboardShell.nav.analytics", href: "/dashboard/analytics" },
   { key: "dashboardShell.nav.integrations", href: "/dashboard/integrations" },
   { key: "dashboardShell.nav.billing", href: "/dashboard/billing" },
-  { key: "dashboardShell.nav.agency", href: "/dashboard/agency" },
 ] as const;
 
 interface HeaderProps {
@@ -185,22 +186,8 @@ export function Header({ customerName, userLabel, minutesRemaining }: HeaderProp
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <div className="whitespace-nowrap rounded-full bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700">
-            {t("dashboardShell.credits")}: {minutesRemaining.toFixed(2)}
+            {t("dashboardShell.credits")}: {Math.floor(minutesRemaining)}
           </div>
-
-          <button
-            type="button"
-            aria-label={t("dashboardShell.notifications")}
-            className="hidden h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 sm:flex"
-          >
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor" className="h-5 w-5">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
-              />
-            </svg>
-          </button>
 
           <div className="relative" ref={userMenuRef}>
             <button

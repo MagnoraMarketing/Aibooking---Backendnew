@@ -138,14 +138,17 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
     .insert({
       customer_id: customer.id,
       public_id: generatePublicWidgetId(),
-      name: "Main widget",
+      // Named after the business and greeting in the language chosen on
+      // /signup — "Main widget" with a Danish "Hej!" read as someone else's
+      // leftover to a Spanish or English customer.
+      name: params.companyName.trim() || "Main widget",
       business_name: params.companyName,
       llm_model_id: llmModel.id,
       voice_model_id: voiceModel.id,
       language: params.language,
       system_prompt: defaultSystemPrompt,
-      welcome_message: "Hej! Hvordan kan jeg hjælpe dig i dag?",
-      opening_message: "Hej! Hvordan kan jeg hjælpe dig i dag?",
+      welcome_message: defaultGreeting(params.language),
+      opening_message: defaultGreeting(params.language),
     })
     .select("*")
     .single();
@@ -159,7 +162,10 @@ export async function selfSignupCustomer(params: SelfSignupParams): Promise<Self
   // can't take a call at all. Best-effort here, unlike there — a Vapi
   // outage must not cost someone their signup, and the widget PATCH route
   // self-heals a missing assistant the next time the customer saves.
-  const extra: Record<string, unknown> = { voiceGender: DEFAULT_VOICE_GENDER };
+  // needsSetup: the agent exists for the welcome mail's embed code, but the
+  // customer hasn't been through the creation flow yet — the agent list
+  // opens that flow on this agent (see components/dashboard/agents-manager.tsx).
+  const extra: Record<string, unknown> = { voiceGender: DEFAULT_VOICE_GENDER, needsSetup: true };
 
   if (llmModel.provider === "vapi") {
     try {

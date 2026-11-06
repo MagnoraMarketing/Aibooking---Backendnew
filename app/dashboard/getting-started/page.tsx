@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireCustomerAdminForPage } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { hasEmbedCodeAccess } from "@/lib/billing";
+import { getDefaultSystemPrompt } from "@/lib/settings/platform";
 import { getBalanceSeconds } from "@/lib/credits";
 import type { Customer, Subscription, Widget } from "@/types/database";
 import { translate } from "@/lib/i18n/dictionaries";
@@ -18,6 +19,10 @@ interface Step {
   // Steps we can't verify server-side (e.g. "did you actually forward your
   // phone") show as an action item instead of a checkmark once unlocked.
   trackable: boolean;
+  // Phone steps don't apply to a customer who only wants a website widget —
+  // they are shown as optional and left out of the progress count until the
+  // customer has a phone agent.
+  optional?: boolean;
 }
 
 export default async function GettingStartedPage() {
@@ -47,14 +52,27 @@ export default async function GettingStartedPage() {
       getBalanceSeconds(customerId),
     ]);
 
-  const firstWidget = widgets?.[0] ?? null;
+  // Newest widget agent first: that's the one a customer is most likely
+  // setting up right now. Every check below looks at all agents, not just
+  // whichever row the database happened to return first.
+  const sortedWidgets = [...(widgets ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const firstWidget = sortedWidgets.find((w) => w.agent_type !== "phone") ?? sortedWidgets[0] ?? null;
   const hasWidget = Boolean(firstWidget);
-  const hasConfiguredPrompt = Boolean(firstWidget?.system_prompt?.trim());
+  const hasPhoneAgent = sortedWidgets.some((w) => w.agent_type === "phone");
+  // Every agent starts with the platform's default prompt (signup and the
+  // create route both seed it), so a non-empty prompt alone said "done" before
+  // the customer had written a word. Done means changed from that default.
+  const defaultPrompt = (await getDefaultSystemPrompt()).trim();
+  const hasConfiguredPrompt = sortedWidgets.some((w) => {
+    const prompt = w.system_prompt?.trim();
+    return Boolean(prompt) && prompt !== defaultPrompt;
+  });
   const embedCodeUnlocked = customer
     ? hasEmbedCodeAccess({
         customerCreatedAt: customer.created_at,
         subscriptionStatus: subscription?.status ?? null,
         balanceSeconds,
+        widgetLaunchPaidAt: customer.widget_launch_paid_at,
         customerType: customer.customer_type,
       })
     : false;
@@ -87,6 +105,7 @@ export default async function GettingStartedPage() {
       cta: t(hasPhoneNumber ? "dashboardPages.getting-started.step3CtaDone" : "dashboardPages.getting-started.step3CtaNotDone"),
       done: hasPhoneNumber,
       trackable: true,
+      optional: !hasPhoneAgent,
     },
     {
       title: t("dashboardPages.getting-started.step4Title"),
@@ -95,6 +114,7 @@ export default async function GettingStartedPage() {
       cta: t("dashboardPages.getting-started.step4Cta"),
       done: hasPhoneNumber,
       trackable: false,
+      optional: !hasPhoneAgent,
     },
     {
       title: t("dashboardPages.getting-started.step5Title"),
@@ -114,19 +134,20 @@ export default async function GettingStartedPage() {
     },
   ];
 
-  const completedCount = steps.filter((s) => s.done).length;
+  const countedSteps = steps.filter((s) => !s.optional);
+  const completedCount = countedSteps.filter((s) => s.done).length;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">{t("dashboardPages.getting-started.title")}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {t("dashboardPages.getting-started.subtitle", { completed: completedCount, total: steps.length })}
+          {t("dashboardPages.getting-started.subtitle", { completed: completedCount, total: countedSteps.length })}
         </p>
         <div className="mt-3 h-2 w-full max-w-md overflow-hidden rounded-full bg-slate-100">
           <div
             className="h-full rounded-full bg-brand-600 transition-all"
-            style={{ width: `${(completedCount / steps.length) * 100}%` }}
+            style={{ width: `${(completedCount / countedSteps.length) * 100}%` }}
           />
         </div>
       </div>
@@ -135,7 +156,9 @@ export default async function GettingStartedPage() {
         {steps.map((step) => (
           <li
             key={step.title}
-            className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+            className={`flex flex-col gap-3 rounded-2xl border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-5 ${
+              step.optional ? "border-dashed border-slate-200" : "border-slate-200"
+            }`}
           >
             <div className="flex items-start gap-4">
               <span
@@ -146,7 +169,14 @@ export default async function GettingStartedPage() {
                 {step.done ? "✓" : ""}
               </span>
               <div>
-                <p className="text-sm font-semibold text-slate-900">{step.title}</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {step.title}
+                  {step.optional ? (
+                    <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                      {t("agentFlow.gettingStarted.optional")}
+                    </span>
+                  ) : null}
+                </p>
                 <p className="mt-0.5 text-sm text-slate-500">{step.description}</p>
                 {!step.trackable && step.done ? (
                   <p className="mt-1 text-xs font-medium text-amber-600">
@@ -157,7 +187,7 @@ export default async function GettingStartedPage() {
             </div>
             <Link
               href={step.href}
-              className="shrink-0 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="shrink-0 rounded-lg border border-slate-300 px-4 py-2.5 text-center text-sm font-medium text-slate-700 hover:bg-slate-50 sm:py-2"
             >
               {step.cta} →
             </Link>
