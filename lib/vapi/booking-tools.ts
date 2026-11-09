@@ -1,5 +1,6 @@
 import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
+import { sendBookingConfirmationEmails } from "@/lib/email/booking-confirmation";
 import { findWidgetIdForAssistant } from "./assistant-owner";
 import { decryptSecret } from "@/lib/security";
 import {
@@ -330,6 +331,16 @@ export async function createBooking(input: BookingDetailsInput, ctx: BookingTool
         external_event_id: booking.id,
       });
     }
+
+    await sendBookingConfirmationEmails({
+      customerId: ctx.customerId,
+      widgetId: ctx.widgetId,
+      startTime,
+      durationMinutes: calendar.provider === "calcom" ? undefined : calendar.durationMinutes,
+      timezone: calendar.timezone,
+      customerName,
+      customerEmail,
+    });
 
     return `Tiden er booket. Bekræft ${startTime} (${calendar.timezone}) over for kunden og nævn at der er sendt en bekræftelse på email.`;
   } catch (err) {

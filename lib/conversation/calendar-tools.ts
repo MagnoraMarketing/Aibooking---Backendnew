@@ -13,6 +13,7 @@ import {
   generateBusinessHourSlots,
 } from "@/lib/calendar";
 import { getAdminClient } from "@/lib/database/admin";
+import { sendBookingConfirmationEmails } from "@/lib/email/booking-confirmation";
 
 // The two calendar functions the AI may call during a live conversation —
 // check_availability and book_meeting — so it can complete a booking end to end
@@ -189,7 +190,16 @@ async function executeBookMeeting(input: BookingDetailsInput, ctx: CalendarToolC
         status: "booked",
       });
 
-      return `Møde booket. Bekræftelses-id: ${booking.uid}. Tidspunkt: ${startTime} (${ctx.timezone}).`;
+      await sendBookingConfirmationEmails({
+        customerId: ctx.customerId,
+        widgetId: ctx.widgetId,
+        startTime,
+        timezone: ctx.timezone,
+        customerName,
+        customerEmail,
+      });
+
+      return `Møde booket. Bekræftelses-id: ${booking.uid}. Tidspunkt: ${startTime} (${ctx.timezone}). Der er sendt en bekræftelse med mødeindkaldelse på e-mail.`;
     }
 
     const booking =
@@ -225,7 +235,17 @@ async function executeBookMeeting(input: BookingDetailsInput, ctx: CalendarToolC
       external_event_id: booking.id,
     });
 
-    return `Møde booket. Tidspunkt: ${startTime} (${ctx.timezone}).`;
+    await sendBookingConfirmationEmails({
+      customerId: ctx.customerId,
+      widgetId: ctx.widgetId,
+      startTime,
+      durationMinutes: ctx.durationMinutes,
+      timezone: ctx.timezone,
+      customerName,
+      customerEmail,
+    });
+
+    return `Møde booket. Tidspunkt: ${startTime} (${ctx.timezone}). Der er sendt en bekræftelse med mødeindkaldelse på e-mail.`;
   } catch (err) {
     await supabase.from("appointments").insert({
       customer_id: ctx.customerId,
