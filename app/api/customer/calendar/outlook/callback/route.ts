@@ -4,6 +4,7 @@ import { requireCustomerAdmin } from "@/lib/auth";
 import { getAdminClient } from "@/lib/database/admin";
 import { withErrorHandling, writeAuditLog, encryptSecret } from "@/lib/security";
 import { exchangeOutlookCode, parseOAuthState, cookieNameForProvider } from "@/lib/calendar";
+import { enableBookingForWidget } from "@/lib/vapi/enable-booking";
 import { ApiError } from "@/types/errors";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +80,8 @@ export const GET = withErrorHandling(async (request) => {
     { onConflict: "widget_id,provider" }
   );
   if (error) throw error;
+
+  await enableBookingForWidget(widget.id);
 
   await writeAuditLog({
     actorId: ctx.userId,
