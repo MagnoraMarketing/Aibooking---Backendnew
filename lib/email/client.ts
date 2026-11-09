@@ -19,11 +19,19 @@ function getApiKey(): string {
   );
 }
 
+export interface EmailAttachment {
+  filename: string;
+  // Base64-encoded file content.
+  content: string;
+  contentType?: string;
+}
+
 export interface SendEmailParams {
   to: string;
   subject: string;
   html: string;
   replyTo?: string;
+  attachments?: EmailAttachment[];
 }
 
 // Talks to Resend's REST API directly rather than pulling in their SDK —
@@ -42,6 +50,15 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
       subject: params.subject,
       html: params.html,
       reply_to: params.replyTo,
+      ...(params.attachments?.length
+        ? {
+            attachments: params.attachments.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+              ...(a.contentType ? { content_type: a.contentType } : {}),
+            })),
+          }
+        : {}),
     }),
   });
 
