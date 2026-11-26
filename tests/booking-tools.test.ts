@@ -67,6 +67,7 @@ interface CalendarRow {
 }
 
 let calendarRow: CalendarRow | null = null;
+let platformOwned = false;
 const insertedAppointments: Array<Record<string, unknown>> = [];
 const updatedConnections: Array<{
   patch: Record<string, unknown>;
@@ -103,6 +104,14 @@ vi.mock("@/lib/database/admin", () => ({
             return builder;
           },
         };
+      }
+      if (table === "customers") {
+        const customers = {
+          select: () => customers,
+          eq: () => customers,
+          maybeSingle: async () => ({ data: { is_platform_owned: platformOwned }, error: null }),
+        };
+        return customers;
       }
       // calendar_connections — chainable eq() ending in maybeSingle(), or
       // an update() whose filters are recorded once awaited.
@@ -154,6 +163,8 @@ beforeEach(() => {
   insertedAppointments.length = 0;
   updatedAppointments.length = 0;
   updatedConnections.length = 0;
+  platformOwned = false;
+  vi.unstubAllEnvs();
   fetchCalcomAvailability.mockReset();
   createCalcomBooking.mockReset();
   fetchCalcomEventTypes.mockReset();
@@ -867,5 +878,46 @@ describe("a Cal.com key that Cal.com no longer accepts", () => {
 
     expect(updatedConnections).toHaveLength(0);
     expect(fetchGoogleFreeBusy).not.toHaveBeenCalled();
+  });
+});
+
+describe("AIbooking's own widgets book with CALCOM_API_KEY from the environment", () => {
+  it("uses the environment key, not the key stored on the agent", async () => {
+    platformOwned = true;
+    vi.stubEnv("CALCOM_API_KEY", "cal_live_env");
+    fetchCalcomAvailability.mockResolvedValue([{ time: "2026-12-01T10:00:00+01:00" }]);
+
+    const reply = await checkAvailability({}, ENABLED);
+
+    expect(fetchCalcomAvailability).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: "cal_live_env", eventTypeId: 42 })
+    );
+    expect(reply).toContain("2026-12-01T10:00:00+01:00");
+  });
+
+  it("prefers CALCOM_EVENT_TYPE_ID when it is set", async () => {
+    platformOwned = true;
+    vi.stubEnv("CALCOM_API_KEY", "cal_live_env");
+    vi.stubEnv("CALCOM_EVENT_TYPE_ID", "77");
+    createCalcomBooking.mockResolvedValue({ uid: "bk_1", id: 1 });
+
+    await createBooking(
+      { start_time: "2026-12-01T10:00:00+01:00", customer_name: "Anna Hansen", customer_email: "a@b.dk", email_confirmed: true },
+      ENABLED
+    );
+
+    expect(createCalcomBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: "cal_live_env", eventTypeId: 77 })
+    );
+  });
+
+  it("never hands the platform key to another customer's agent", async () => {
+    platformOwned = false;
+    vi.stubEnv("CALCOM_API_KEY", "cal_live_env");
+    fetchCalcomAvailability.mockResolvedValue([]);
+
+    await checkAvailability({}, ENABLED);
+
+    expect(fetchCalcomAvailability).toHaveBeenCalledWith(expect.objectContaining({ apiKey: "decrypted:cipher" }));
   });
 });

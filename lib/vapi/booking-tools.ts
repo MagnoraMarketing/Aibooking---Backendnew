@@ -3,6 +3,7 @@ import { getAdminClient } from "@/lib/database/admin";
 import { sendBookingConfirmationEmails } from "@/lib/email/booking-confirmation";
 import { findWidgetIdForAssistant } from "./assistant-owner";
 import { handleRejectedCalcomKey, CALENDAR_NOT_WORKING } from "@/lib/calendar/calcom-rejected";
+import { resolvePlatformCalcomCredential } from "@/lib/calendar/platform-calcom";
 import { decryptSecret } from "@/lib/security";
 import {
   bookingFailureAdvice,
@@ -111,6 +112,11 @@ async function getCalendarDetails(
   { skipCalcom = false }: { skipCalcom?: boolean } = {}
 ): Promise<CalendarSession | null> {
   if (!ctx.bookingEnabled) return null;
+
+  if (!skipCalcom) {
+    const platform = await resolvePlatformCalcomCredential(ctx.customerId, ctx.widgetId);
+    if (platform) return { provider: "calcom", ...platform };
+  }
 
   const supabase = getAdminClient();
   const { data: connection } = skipCalcom

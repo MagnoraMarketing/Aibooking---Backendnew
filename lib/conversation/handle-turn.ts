@@ -14,6 +14,7 @@ import { recordLLMUsage, recordTTSUsage, appendTurnUsage, estimateSpeechDuration
 import { getSummarizationModelName } from "@/lib/settings/platform";
 import { decryptSecret } from "@/lib/security";
 import { getOAuthCalendarSession, refreshGoogleToken, refreshOutlookToken } from "@/lib/calendar";
+import { resolvePlatformCalcomCredential } from "@/lib/calendar/platform-calcom";
 import { generateReplyWithTools, type ShopifyToolLoopContext, type DeliveryToolLoopContext } from "./tool-loop";
 import { loadUberDirectConfig } from "@/lib/uber-direct/connection";
 import { loadJustEatConfig } from "@/lib/just-eat/connection";
@@ -282,6 +283,19 @@ export async function resolveCalendarToolContext(
   // agent would start booking the moment a calendar was connected — before
   // the setup it belongs to was finished and checked.
   if (!params.widget.booking_enabled) return null;
+
+  // AIbooking's own widgets book with the platform's Cal.com key (CALCOM_API_KEY).
+  const platform = await resolvePlatformCalcomCredential(params.customerId, params.widget.id);
+  if (platform) {
+    return {
+      provider: "calcom",
+      ...platform,
+      customerId: params.customerId,
+      widgetId: params.widget.id,
+      conversationId: params.conversationId,
+      fallback: () => resolveOAuthCalendarToolContext(params),
+    };
+  }
 
   const { data: connection } = await supabase
     .from("calendar_connections")
