@@ -2,6 +2,7 @@ import "server-only";
 import { getAdminClient } from "@/lib/database/admin";
 import { sendBookingConfirmationEmails } from "@/lib/email/booking-confirmation";
 import { findWidgetIdForAssistant } from "./assistant-owner";
+import { handleRejectedCalcomKey, CALENDAR_NOT_WORKING } from "@/lib/calendar/calcom-rejected";
 import { decryptSecret } from "@/lib/security";
 import {
   bookingFailureAdvice,
@@ -102,17 +103,25 @@ type CalendarSession = CalcomSession | OAuthSession;
 // Null whenever this widget can't book — booking not switched on, or no
 // working calendar connection (any provider). Callers turn that into an
 // honest "I can't book" answer rather than attempting a call.
-async function getCalendarDetails(ctx: BookingToolContext): Promise<CalendarSession | null> {
+//
+// skipCalcom: Cal.com just rejected the stored key, so look past it to the
+// widget's Google/Outlook calendar (see handleRejectedCalcomKey).
+async function getCalendarDetails(
+  ctx: BookingToolContext,
+  { skipCalcom = false }: { skipCalcom?: boolean } = {}
+): Promise<CalendarSession | null> {
   if (!ctx.bookingEnabled) return null;
 
   const supabase = getAdminClient();
-  const { data: connection } = await supabase
-    .from("calendar_connections")
-    .select("calcom_api_key, calcom_event_type_id, calcom_timezone")
-    .eq("widget_id", ctx.widgetId)
-    .eq("provider", "calcom")
-    .eq("status", "connected")
-    .maybeSingle();
+  const { data: connection } = skipCalcom
+    ? { data: null }
+    : await supabase
+        .from("calendar_connections")
+        .select("calcom_api_key, calcom_event_type_id, calcom_timezone")
+        .eq("widget_id", ctx.widgetId)
+        .eq("provider", "calcom")
+        .eq("status", "connected")
+        .maybeSingle();
 
   if (connection?.calcom_api_key && connection.calcom_event_type_id) {
     const eventTypeId = Number(connection.calcom_event_type_id);
@@ -196,7 +205,14 @@ export async function checkAvailability(
 ): Promise<string> {
   const calendar = await getCalendarDetails(ctx);
   if (!calendar) return NO_BOOKING;
+  return availabilityFrom(calendar, input, ctx);
+}
 
+async function availabilityFrom(
+  calendar: CalendarSession,
+  input: { date?: string },
+  ctx: BookingToolContext
+): Promise<string> {
   const now = new Date();
   const today = isoDateInZone(now, calendar.timezone);
   const dateHeader = `I dag er ${spokenDateInZone(now, calendar.timezone)}.`;
@@ -259,6 +275,12 @@ export async function checkAvailability(
     }
     return `${dateHeader} ${correction}Ledige tider (tidszone ${calendar.timezone}): ${times.join(", ")}. Tilbyd kun disse tider.`;
   } catch (err) {
+    // A Cal.com key that is no longer accepted: try the widget's other
+    // calendar instead of telling every caller the calendar is down.
+    if (calendar.provider === "calcom" && (await handleRejectedCalcomKey(ctx.widgetId, err))) {
+      const fallback = await getCalendarDetails(ctx, { skipCalcom: true });
+      return fallback ? availabilityFrom(fallback, input, ctx) : CALENDAR_NOT_WORKING;
+    }
     console.error("check_availability failed:", err);
     return "Kalenderen kunne ikke kontaktes lige nu, så der er ingen tider at tilbyde. Sig undskyld og tilbyd at vende tilbage.";
   }
@@ -267,7 +289,14 @@ export async function checkAvailability(
 export async function createBooking(input: BookingDetailsInput, ctx: BookingToolContext): Promise<string> {
   const calendar = await getCalendarDetails(ctx);
   if (!calendar) return NO_BOOKING;
+  return bookWith(calendar, input, ctx);
+}
 
+async function bookWith(
+  calendar: CalendarSession,
+  input: BookingDetailsInput,
+  ctx: BookingToolContext
+): Promise<string> {
   // Name, a read-back email and a time — or no booking at all, and the
   // agent is told which one to ask for (see checkBookingDetails).
   const details = checkBookingDetails(input);
@@ -344,6 +373,12 @@ export async function createBooking(input: BookingDetailsInput, ctx: BookingTool
 
     return `Tiden er booket. Bekræft ${startTime} (${calendar.timezone}) over for kunden og nævn at der er sendt en bekræftelse på email.`;
   } catch (err) {
+    // Rejected before anything was created, so booking the same time in the
+    // widget's other calendar is safe.
+    if (calendar.provider === "calcom" && (await handleRejectedCalcomKey(ctx.widgetId, err))) {
+      const fallback = await getCalendarDetails(ctx, { skipCalcom: true });
+      if (fallback) return bookWith(fallback, input, ctx);
+    }
     console.error("create_booking failed:", err);
 
     await supabase.from("appointments").insert({

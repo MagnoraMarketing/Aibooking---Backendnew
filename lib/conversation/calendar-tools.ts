@@ -14,6 +14,7 @@ import {
 } from "@/lib/calendar";
 import { getAdminClient } from "@/lib/database/admin";
 import { sendBookingConfirmationEmails } from "@/lib/email/booking-confirmation";
+import { handleRejectedCalcomKey, CALENDAR_NOT_WORKING } from "@/lib/calendar/calcom-rejected";
 
 // The two calendar functions the AI may call during a live conversation —
 // check_availability and book_meeting — so it can complete a booking end to end
@@ -79,6 +80,9 @@ interface CalcomToolContext {
   customerId: string;
   widgetId: string;
   conversationId: string;
+  // The widget's Google/Outlook calendar, if any — tried when Cal.com
+  // rejects the stored API key (see handleRejectedCalcomKey).
+  fallback?: () => Promise<CalendarToolContext | null>;
 }
 
 interface OAuthToolContext {
@@ -159,6 +163,10 @@ async function executeCheckAvailability(input: { date?: string }, ctx: CalendarT
     if (times.length === 0) return "Ingen ledige tider fundet i den periode. Prøv en anden dato.";
     return `Ledige tider (${ctx.timezone}): ${times.join(", ")}`;
   } catch (err) {
+    if (ctx.provider === "calcom" && (await handleRejectedCalcomKey(ctx.widgetId, err))) {
+      const fallback = ctx.fallback ? await ctx.fallback() : null;
+      return fallback ? executeCheckAvailability(input, fallback) : CALENDAR_NOT_WORKING;
+    }
     return `Kunne ikke hente ledige tider lige nu: ${err instanceof Error ? err.message : "ukendt fejl"}`;
   }
 }
@@ -247,6 +255,13 @@ async function executeBookMeeting(input: BookingDetailsInput, ctx: CalendarToolC
 
     return `Møde booket. Tidspunkt: ${startTime} (${ctx.timezone}). Der er sendt en bekræftelse med mødeindkaldelse på e-mail.`;
   } catch (err) {
+    // Rejected before anything was created, so the same time can be booked
+    // in the widget's other calendar.
+    if (ctx.provider === "calcom" && (await handleRejectedCalcomKey(ctx.widgetId, err))) {
+      const fallback = ctx.fallback ? await ctx.fallback() : null;
+      if (fallback) return executeBookMeeting(input, fallback);
+    }
+
     await supabase.from("appointments").insert({
       customer_id: ctx.customerId,
       widget_id: ctx.widgetId,

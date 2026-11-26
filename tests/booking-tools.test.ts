@@ -68,6 +68,10 @@ interface CalendarRow {
 
 let calendarRow: CalendarRow | null = null;
 const insertedAppointments: Array<Record<string, unknown>> = [];
+const updatedConnections: Array<{
+  patch: Record<string, unknown>;
+  filters: Record<string, unknown>;
+}> = [];
 const updatedAppointments: Array<{
   patch: Record<string, unknown>;
   filters: Record<string, unknown>;
@@ -100,11 +104,26 @@ vi.mock("@/lib/database/admin", () => ({
           },
         };
       }
-      // calendar_connections — chainable eq() ending in maybeSingle().
+      // calendar_connections — chainable eq() ending in maybeSingle(), or
+      // an update() whose filters are recorded once awaited.
       const chain = {
         select: () => chain,
         eq: () => chain,
         maybeSingle: async () => ({ data: calendarRow, error: null }),
+        update: (patch: Record<string, unknown>) => {
+          const filters: Record<string, unknown> = {};
+          const builder = {
+            eq(column: string, value: unknown) {
+              filters[column] = value;
+              return builder;
+            },
+            then(resolve: (result: { error: null }) => void) {
+              updatedConnections.push({ patch, filters });
+              resolve({ error: null });
+            },
+          };
+          return builder;
+        },
       };
       return chain;
     },
@@ -134,6 +153,7 @@ beforeEach(() => {
   calendarRow = CONNECTED;
   insertedAppointments.length = 0;
   updatedAppointments.length = 0;
+  updatedConnections.length = 0;
   fetchCalcomAvailability.mockReset();
   createCalcomBooking.mockReset();
   fetchCalcomEventTypes.mockReset();
@@ -771,5 +791,81 @@ describe("Google/Outlook calendars (no Cal.com connection)", () => {
     getOAuthCalendarSession.mockResolvedValue(null);
 
     expect(await checkAvailability({}, ENABLED)).toContain("ikke sat op");
+  });
+});
+
+describe("a Cal.com key that Cal.com no longer accepts", () => {
+  const GOOGLE_SESSION = {
+    accessToken: "google-token",
+    calendarId: "primary",
+    accountEmail: "firma@example.dk",
+    durationMinutes: 30,
+  };
+  const keyRejected = () => new Error("Ugyldig Cal.com API-nøgle.");
+
+  beforeEach(() => {
+    fetchGoogleFreeBusy.mockReset();
+    createGoogleBooking.mockReset();
+    generateBusinessHourSlots.mockReset();
+  });
+
+  it("falls back to the connected Google calendar for availability", async () => {
+    fetchCalcomAvailability.mockRejectedValue(keyRejected());
+    getOAuthCalendarSession.mockImplementation(async (_widgetId: string, provider: string) =>
+      provider === "google" ? GOOGLE_SESSION : null
+    );
+    fetchGoogleFreeBusy.mockResolvedValue([]);
+    generateBusinessHourSlots.mockReturnValue(["2026-12-01T10:00:00+01:00"]);
+
+    const reply = await checkAvailability({}, ENABLED);
+
+    expect(fetchGoogleFreeBusy).toHaveBeenCalled();
+    expect(reply).toContain("2026-12-01T10:00:00+01:00");
+  });
+
+  it("marks the Cal.com connection as broken so the dashboard shows it", async () => {
+    fetchCalcomAvailability.mockRejectedValue(keyRejected());
+
+    await checkAvailability({}, ENABLED);
+
+    expect(updatedConnections).toContainEqual({
+      patch: { status: "error" },
+      filters: { widget_id: "widget-a", provider: "calcom", status: "connected" },
+    });
+  });
+
+  it("says the calendar is not working when there is nothing to fall back to", async () => {
+    fetchCalcomAvailability.mockRejectedValue(keyRejected());
+
+    const reply = await checkAvailability({}, ENABLED);
+
+    expect(reply).toContain("ikke forbundet korrekt");
+    expect(reply).not.toMatch(/ledige tider \(/i);
+  });
+
+  it("books in the Google calendar instead of failing the booking", async () => {
+    createCalcomBooking.mockRejectedValue(keyRejected());
+    getOAuthCalendarSession.mockImplementation(async (_widgetId: string, provider: string) =>
+      provider === "google" ? GOOGLE_SESSION : null
+    );
+    createGoogleBooking.mockResolvedValue({ id: "evt_1" });
+
+    const reply = await createBooking(
+      { start_time: "2026-12-01T10:00:00+01:00", customer_name: "Anna Hansen", customer_email: "a@b.dk", email_confirmed: true },
+      ENABLED
+    );
+
+    expect(createGoogleBooking).toHaveBeenCalled();
+    expect(reply).toContain("booket");
+    expect(insertedAppointments.at(-1)).toMatchObject({ status: "booked", calendar_provider: "google" });
+  });
+
+  it("does not touch the connection for a failure that is not the key", async () => {
+    fetchCalcomAvailability.mockRejectedValue(new Error("cal.com down"));
+
+    await checkAvailability({}, ENABLED);
+
+    expect(updatedConnections).toHaveLength(0);
+    expect(fetchGoogleFreeBusy).not.toHaveBeenCalled();
   });
 });

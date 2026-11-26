@@ -302,10 +302,18 @@ export async function resolveCalendarToolContext(
         customerId: params.customerId,
         widgetId: params.widget.id,
         conversationId: params.conversationId,
+        // Used when Cal.com rejects the stored key mid-conversation.
+        fallback: () => resolveOAuthCalendarToolContext(params),
       };
     }
   }
 
+  return resolveOAuthCalendarToolContext(params);
+}
+
+async function resolveOAuthCalendarToolContext(
+  params: GenerateReplyTextParams
+): Promise<CalendarToolContext | null> {
   const google = await getOAuthCalendarSession(params.widget.id, "google", refreshGoogleToken);
   if (google) {
     return {
