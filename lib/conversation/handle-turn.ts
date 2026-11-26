@@ -14,6 +14,7 @@ import { recordLLMUsage, recordTTSUsage, appendTurnUsage, estimateSpeechDuration
 import { getSummarizationModelName } from "@/lib/settings/platform";
 import { decryptSecret } from "@/lib/security";
 import { getOAuthCalendarSession, refreshGoogleToken, refreshOutlookToken } from "@/lib/calendar";
+import { resolvePlatformCalcomCredential } from "@/lib/calendar/platform-calcom";
 import { generateReplyWithTools, type ShopifyToolLoopContext, type DeliveryToolLoopContext } from "./tool-loop";
 import { loadUberDirectConfig } from "@/lib/uber-direct/connection";
 import { loadJustEatConfig } from "@/lib/just-eat/connection";
@@ -283,6 +284,19 @@ export async function resolveCalendarToolContext(
   // the setup it belongs to was finished and checked.
   if (!params.widget.booking_enabled) return null;
 
+  // AIbooking's own widgets book with the platform's Cal.com key (CALCOM_API_KEY).
+  const platform = await resolvePlatformCalcomCredential(params.customerId, params.widget.id);
+  if (platform) {
+    return {
+      provider: "calcom",
+      ...platform,
+      customerId: params.customerId,
+      widgetId: params.widget.id,
+      conversationId: params.conversationId,
+      fallback: () => resolveOAuthCalendarToolContext(params),
+    };
+  }
+
   const { data: connection } = await supabase
     .from("calendar_connections")
     .select("calcom_api_key, calcom_event_type_id, calcom_timezone")
@@ -302,10 +316,18 @@ export async function resolveCalendarToolContext(
         customerId: params.customerId,
         widgetId: params.widget.id,
         conversationId: params.conversationId,
+        // Used when Cal.com rejects the stored key mid-conversation.
+        fallback: () => resolveOAuthCalendarToolContext(params),
       };
     }
   }
 
+  return resolveOAuthCalendarToolContext(params);
+}
+
+async function resolveOAuthCalendarToolContext(
+  params: GenerateReplyTextParams
+): Promise<CalendarToolContext | null> {
   const google = await getOAuthCalendarSession(params.widget.id, "google", refreshGoogleToken);
   if (google) {
     return {
